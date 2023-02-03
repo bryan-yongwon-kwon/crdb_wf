@@ -1,0 +1,7 @@
+pipeline:
+  version: 2
+  phases:
+  - dockerBuilds:
+      images:
+        storage-workflows:
+          image: 611706558220.dkr.ecr.us-west-2.amazonaws.com/storage-workflows
