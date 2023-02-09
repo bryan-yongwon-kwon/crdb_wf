@@ -13,3 +13,5 @@ RUN pip install poetry
 RUN poetry config virtualenvs.create false
 
 ADD . /app
+
+RUN poetry install
