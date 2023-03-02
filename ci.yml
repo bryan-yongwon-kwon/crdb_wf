@@ -9,5 +9,4 @@ pipeline:
     - name: Unit Tests
       steps:
       - script: |-
-          cd storage_workflows
           poetry run pytest
