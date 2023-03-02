@@ -1,0 +1,13 @@
+pipeline:
+  version: 2
+  phases:
+  - dockerBuilds:
+      images:
+        storage-workflows:
+          image: 611706558220.dkr.ecr.us-west-2.amazonaws.com/storage-workflows
+    stages:
+    - name: Unit Tests
+      steps:
+      - script: |-
+          cd storage_workflows
+          poetry run pytest
