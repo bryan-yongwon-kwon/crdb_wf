@@ -1,0 +1,14 @@
+version: 3
+
+groups:
+  code-review:
+    reviews:
+      required: 1
+      request: 0
+    reviewers:
+      teams:
+      - storage
+      users:
+      - bryankwon-doordash
+      - ddtort
+      - dd-jloar
