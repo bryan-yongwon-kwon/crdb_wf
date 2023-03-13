@@ -67,4 +67,4 @@ def execute_sql(connection, sql:str, need_commit: bool):
 
 def running_jobs_exist(connection) -> bool:
     jobs = execute_sql(connection, CHECK_RUNNING_JOBS_SQL, False)
-    return True if not jobs else False
+    return False if not jobs else True
