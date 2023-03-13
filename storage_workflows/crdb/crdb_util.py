@@ -52,6 +52,7 @@ def connect_crdb(env:Env, cluster_name:str, db_name:str):
         )
     except Exception as error:
         print(error)
+        raise
     return connection
 
 def execute_sql(connection, sql:str, need_commit: bool):
