@@ -102,7 +102,6 @@ def suspicious_instances_exist(describe_asg_dict:dict) -> bool:
     instance_list = describe_asg_dict['Instances']
     contain_suspicious_instances = False
     for instance in instance_list:
-        print(instance)
         if instance['LifecycleState'] != 'InService' or instance['HealthStatus'] != 'Healthy':
             contain_suspicious_instances = True
             break
