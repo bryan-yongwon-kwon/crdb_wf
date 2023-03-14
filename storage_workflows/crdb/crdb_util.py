@@ -1,10 +1,10 @@
 import os
 import stat
 import psycopg2
-from common_enums import CredType
-from common_enums import Env
-from aws_util import get_secret
-from aws_util import get_aws_client_local
+from storage_workflows.crdb.common_enums import CredType
+from storage_workflows.crdb.common_enums import Env
+from storage_workflows.crdb.aws_util import get_secret
+from storage_workflows.crdb.aws_util import get_aws_client_local
 
 HOST_SUFFIX = "-crdb.us-west-2.aws.ddnw.net"
 ROOT = "root"
