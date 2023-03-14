@@ -1,6 +1,6 @@
 import boto3
-from common_enums import CredType
-from common_enums import Env
+from storage_workflows.crdb.common_enums import CredType
+from storage_workflows.crdb.common_enums import Env
 
 CRDB_SUFFIX = "-crdb"
 MAX_RESULT = 100

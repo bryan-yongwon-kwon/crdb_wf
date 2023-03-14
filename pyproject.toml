@@ -10,6 +10,7 @@ python = "^3.10"
 typer = "^0.6.1"
 pytz = "^2022.2.1"
 boto3 = "^1.24.54"
+botocore = "^1.29.90"
 PyYAML = "^6.0"
 tabulate = "^0.8.10"
 requests = "^2.28.1"
@@ -24,6 +25,14 @@ psycopg2-binary = "^2.9.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.2"
+pytest-cov = "^4.0.0"
+pytest-mock = "^3.10.0"
+requests-mock = "^1.10.0"
+pylint = "^2.16.1"
+black = "^23.1.0"
+mypy = "^1.0.0"
+boto3-stubs = "^1.26.89"
+botocore = "^1.29.90"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -31,3 +40,10 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 storage-workflows = "storage_workflows.main:app"
+
+[tool.pytest.ini_options]
+pythonpath = "storage_workflows"
+addopts = [
+    "--import-mode=importlib",
+]
+log_cli = true
