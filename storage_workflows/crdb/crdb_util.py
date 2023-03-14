@@ -14,8 +14,12 @@ ROOT_PUBLIC_FILE_NAME = "client.root.crt"
 ROOT_PRIVATE_FILE_NAME = "client.root.key"
 PORT = "26257"
 SSL_MODE = "require"
+UNAVAILABLE_RANGES_COUNT_INDEX = 0
+UNDER_REPLICATED_RANGES_COUNT_INDEX = 1
+OVER_REPLICATED_RANGES_COUNT_INDEX = 2
 
 CHECK_RUNNING_JOBS_SQL = "SELECT * FROM [SHOW JOBS] WHERE status = 'running' and (job_type='ROW LEVEL TTL' or job_type='SCHEMA CHANGE' or job_type='BACKUP' or job_type='RESTORE');"
+CHECK_UNHEALTHY_RANGES_SQL = "SELECT sum(unavailable_ranges), sum(under_replicated_ranges), sum(over_replicated_ranges) FROM system.replication_stats;"
 
 def get_crdb_creds(env:Env, cluster_name:str) -> dict:
     secrets_aws_client = get_aws_client_local(env, SECRET_MANAGER)
@@ -69,3 +73,8 @@ def execute_sql(connection, sql:str, need_commit: bool):
 def running_jobs_exist(connection) -> bool:
     jobs = execute_sql(connection, CHECK_RUNNING_JOBS_SQL, False)
     return False if not jobs else True
+
+def unhealthy_ranges_exist(connection) -> bool:
+    unhealthy_ranges = execute_sql(connection, CHECK_UNHEALTHY_RANGES_SQL, False)[0]
+    unhealthy_ranges_sum = unhealthy_ranges[UNAVAILABLE_RANGES_COUNT_INDEX] + unhealthy_ranges[UNDER_REPLICATED_RANGES_COUNT_INDEX] + unhealthy_ranges[OVER_REPLICATED_RANGES_COUNT_INDEX]
+    return True if unhealthy_ranges_sum > 0 else False
