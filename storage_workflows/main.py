@@ -12,11 +12,5 @@ def echo(message):
 def echo2(message1, message2):
     print(message1+message2)
 
-@app.command()
-def testAWS():
-    secret_manager = SecretManager(AccountType.STAGING, "ao_test_backup")
-    cert = secret_manager.get_crdb_ca_cert()
-    print(cert)
-
 if __name__ == "__main__":
     app()

@@ -1,7 +1,6 @@
-from aws_base import AwsBase
+from storage_workflows.crdb.aws.aws_base import AwsBase
 from storage_workflows.crdb.authentication.cred_type import CredType
 from storage_workflows.crdb.aws.account_type import AccountType
-
 
 
 class SecretManager(AwsBase):
@@ -9,10 +8,11 @@ class SecretManager(AwsBase):
     _DEFAULT_CLIENT = "root"
     _SERVICE_NAME = "secretsmanager"
 
-    def __init__(self, account_type:AccountType, cluster_name:str):
-        self._aws_client = AwsBase.get_aws_client_local(account_type, self._SERVICE_NAME)
+    def __init__(self, account_type:AccountType, cluster_name:str, region:str):
+        self._aws_client = AwsBase.get_aws_client(account_type, self._SERVICE_NAME, region)
         self._account_type = account_type
         self._cluster_name = cluster_name
+        self._region = region
 
     def _get_crdb_secret(self, cred_type:CredType, client: str="") -> str:
         cluster_name_with_suffix = self._cluster_name + self._CRDB_SUFFIX
