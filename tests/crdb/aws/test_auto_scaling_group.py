@@ -40,6 +40,17 @@ def make_asgs(count:int) -> dict:
     ids=["standby_exist", "unhealthy_instance_exist", "all_good"],
 )
 def test_suspicious_instances_exist(mocker, lifecycle_state, health_status, result):
+    client = boto3.client('autoscaling', 'us-west-2')
+    def mock_get_client(account_type: AccountType, service_name:str, region:str):
+        return client
+    mocker.patch('storage_workflows.crdb.aws.aws_base.AwsBase.get_aws_client', mock_get_client)
+    stubber = Stubber(client)
+    describe_auto_scaling_groups_expected_params = {
+        'Filters': ANY,
+        'MaxRecords': AwsBase.PAGINATOR_MAX_RESULT_PER_PAGE,
+    }
+    stubber.add_response('describe_auto_scaling_groups', make_asgs(1), describe_auto_scaling_groups_expected_params)
+    stubber.activate()
     asg = {
         'Instances': [
             {
