@@ -1,7 +1,7 @@
 from cred_type import CredType
 from cred_name import CredName
 from storage_workflows.crdb.aws.account_type import AccountType
-import storage_workflows.crdb.aws.secret_manager as SecretManager
+from storage_workflows.crdb.aws.secret_manager import SecretManager
 import os
 import stat
 
