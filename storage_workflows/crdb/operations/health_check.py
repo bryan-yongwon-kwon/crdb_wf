@@ -1,6 +1,5 @@
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
-from storage_workflows.crdb.api_gateway.aws_client_gateway import AwsClientGateway
 
 class HealthCheck:
 
