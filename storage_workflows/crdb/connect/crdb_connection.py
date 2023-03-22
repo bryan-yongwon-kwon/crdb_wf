@@ -5,8 +5,6 @@ from storage_workflows.crdb.aws.secret import Secret
 from storage_workflows.crdb.aws.secret_value import SecretValue
 from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
 
-CRDB_SUFFIX = "-crdb"
-CERTS_DIR_PATH_PREFIX = "/app/crdb/certs"
 
 class CrdbConnection:
 
@@ -16,9 +14,12 @@ class CrdbConnection:
     ROOT = "root"
     SSL_MODE = "require"
 
+    CRDB_SUFFIX = "-crdb"
+    CERTS_DIR_PATH_PREFIX = "/app/crdb/certs"
+
     @staticmethod
     def get_crdb_connection_secret(secret_manager_aws_client, deployment_env:DeploymentEnv, cred_type:CredType, cluster_name:str, client:str="") -> SecretValue:
-        cluster_name_with_suffix = cluster_name + CRDB_SUFFIX
+        cluster_name_with_suffix = cluster_name + CrdbConnection.CRDB_SUFFIX
         secret_filters = [
             {
                 'Key': 'tag-key',
@@ -88,7 +89,7 @@ class CrdbConnection:
         ca_cert = CrdbConnection.get_crdb_connection_secret(secret_manager_aws_client, deployment_env, CredType.CA_CERT_CRED_TYPE, cluster_name)
         public_cert = CrdbConnection.get_crdb_connection_secret(secret_manager_aws_client, deployment_env, CredType.PUBLIC_CERT_CRED_TYPE, cluster_name, client)
         private_cert = CrdbConnection.get_crdb_connection_secret(secret_manager_aws_client, deployment_env, CredType.PRIVATE_KEY_CRED_TYPE, cluster_name, client)
-        dir_path = CERTS_DIR_PATH_PREFIX + "/" + cluster_name + "/"
+        dir_path = CrdbConnection.CERTS_DIR_PATH_PREFIX + "/" + cluster_name + "/"
         ca_cert.write_to_file(dir_path, "ca.crt")
         public_cert.write_to_file(dir_path, "client."+client+".crt")
         private_cert.write_to_file(dir_path, "client."+client+".key")
