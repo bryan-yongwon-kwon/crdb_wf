@@ -1,8 +1,8 @@
 import typer
-from storage_workflows.crdb.api_gateway.crdb_connect_gateway import CrdbConnectGateway
-from storage_workflows.crdb.api_gateway.aws_client_gateway import AwsClientGateway
-from storage_workflows.crdb.aws.deployment_env import DeploymentEnv
-from storage_workflows.crdb.operations.health_check import HealthCheck
+import sys
+sys.path.append("/Users/aochen/Projects/storage-workflows")
+from storage_workflows.crdb.operations.workflow_pre_run_check import WorkflowPreRunCheck
+from storage_workflows.setup_env import setup_env
 
 app = typer.Typer()
 
@@ -13,6 +13,19 @@ def echo(message):
 @app.command()
 def echo2(message1, message2):
     print(message1+message2)
+
+@app.command()
+def health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region)
+    if (WorkflowPreRunCheck.backup_job_is_running(cluster_name)
+        or WorkflowPreRunCheck.restore_job_is_running(cluster_name)
+        or WorkflowPreRunCheck.schema_change_job_is_running(cluster_name)
+        or WorkflowPreRunCheck.row_level_ttl_job_is_running(cluster_name)
+        or WorkflowPreRunCheck.unhealthy_ranges_exist(cluster_name)
+        or WorkflowPreRunCheck.instances_not_in_service_exist(cluster_name)):
+        print("Pre run check failed")
+    else:
+        print("Check passed")
 
 if __name__ == "__main__":
     app()

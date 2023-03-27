@@ -1,6 +1,6 @@
+import os
 import psycopg2
 from storage_workflows.crdb.connect.cred_type import CredType
-from storage_workflows.crdb.aws.deployment_env import DeploymentEnv
 from storage_workflows.crdb.aws.secret import Secret
 from storage_workflows.crdb.aws.secret_value import SecretValue
 from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
@@ -8,120 +8,59 @@ from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretMana
 
 class CrdbConnection:
 
-    HOST_SUFFIX = "-crdb.us-west-2.aws.ddnw.net"
-    DEFAULT_DB = "defaultdb"
-    PORT = "26257"
-    ROOT = "root"
-    SSL_MODE = "require"
-
-    CRDB_SUFFIX = "-crdb"
-    CERTS_DIR_PATH_PREFIX = "/app/crdb/certs"
-
     @staticmethod
-    def get_crdb_connection_secret(secret_manager_aws_client, deployment_env:DeploymentEnv, cred_type:CredType, cluster_name:str, client:str="") -> SecretValue:
-        cluster_name_with_suffix = cluster_name + CrdbConnection.CRDB_SUFFIX
-        secret_filters = [
-            {
-                'Key': 'tag-key',
-                'Values': [
-                    'crdb_cluster_name',
-                ]
-            },
-            {
-                'Key': 'tag-key',
-                'Values': [
-                    'cred-type',
-                ]
-            },
-            {
-                'Key': 'tag-key',
-                'Values': [
-                    'environment',
-                ]
-            },
-            {
-                'Key': 'tag-value',
-                'Values': [
-                    cred_type.value,
-                ]
-            },
-            {
-                'Key': 'tag-value',
-                'Values': [
-                    deployment_env.value,
-                ]
-            },
-            {
-                'Key': 'tag-value',
-                'Values': [
-                    cluster_name_with_suffix,
-                ]
-            },
-            {
-                'Key': 'description',
-                'Values': [
-                    '!DEPRECATED',
-                ]
-            }
-        ]
+    def get_crdb_connection_secret(cred_type:CredType, cluster_name:str, client:str="") -> SecretValue:
+        cluster_name_with_suffix = cluster_name + "-crdb"
+        secret_filters = {'tag-key':['crdb_cluster_name', 'cred-type', 'environment'],
+                          'tag-value':[cred_type.value, os.getenv('DEPLOYMENT_ENV'), cluster_name_with_suffix], 
+                          'description':['!DEPRECATED']}
         if client:
-            secret_filters.extend([
-                {
-                    'Key': 'tag-key',
-                    'Values': [
-                        'client',
-                    ]
-                },
-                {
-                    'Key': 'tag-value',
-                    'Values': [
-                        client,
-                    ]
-                },
-            ])
-        secret_list = Secret.find_all_secrets(secret_manager_aws_client, secret_filters)
-        list_count = len(secret_list)
-        assert list_count == 1, "Should get exact 1 {} for {}. Got {} now.".format(cred_type.value, cluster_name, list_count)
-        return SecretValue(SecretManagerGateway.find_secret(secret_manager_aws_client, secret_list[0].secret_arn()))
+            secret_filters['tag-key'].append('client')
+            secret_filters['tag-value'].append(client)
+        secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
+        return SecretValue(SecretManagerGateway.find_secret(secret_list[0].secret_arn()))
     
     @staticmethod
-    def connect_crdb_cluster(secret_manager_aws_client, deployment_env:DeploymentEnv, cluster_name:str, client:str=""):
-        ca_cert = CrdbConnection.get_crdb_connection_secret(secret_manager_aws_client, deployment_env, CredType.CA_CERT_CRED_TYPE, cluster_name)
-        public_cert = CrdbConnection.get_crdb_connection_secret(secret_manager_aws_client, deployment_env, CredType.PUBLIC_CERT_CRED_TYPE, cluster_name, client)
-        private_cert = CrdbConnection.get_crdb_connection_secret(secret_manager_aws_client, deployment_env, CredType.PRIVATE_KEY_CRED_TYPE, cluster_name, client)
-        dir_path = CrdbConnection.CERTS_DIR_PATH_PREFIX + "/" + cluster_name + "/"
-        ca_cert.write_to_file(dir_path, "ca.crt")
-        public_cert.write_to_file(dir_path, "client."+client+".crt")
-        private_cert.write_to_file(dir_path, "client."+client+".key")
+    def get_crdb_connection(cluster_name:str):
+        crdb_client = os.getenv('CRDB_CLIENT')
+        ca_cert = CrdbConnection.get_crdb_connection_secret(CredType.CA_CERT_CRED_TYPE, cluster_name)
+        public_cert = CrdbConnection.get_crdb_connection_secret(CredType.PUBLIC_CERT_CRED_TYPE, cluster_name, crdb_client)
+        private_cert = CrdbConnection.get_crdb_connection_secret(CredType.PRIVATE_KEY_CRED_TYPE, cluster_name, crdb_client)
+        dir_path = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + cluster_name + "/"
+        ca_cert.write_to_file(dir_path, os.getenv('CRDB_CA_CERT_FILE_NAME'))
+        public_cert.write_to_file(dir_path, os.getenv('CRDB_PUBLIC_CERT_FILE_NAME'))
+        private_cert.write_to_file(dir_path, os.getenv('CRDB_PRIVATE_KEY_FILE_NAME'))
         return CrdbConnection(cluster_name, dir_path)
 
     def __init__(
             self, 
             cluster_name: str,
-            credential_dir_path: str,
-            db_name:str = DEFAULT_DB,
-            client:str = "root"):
+            db_name:str = "defaultdb",):
+        self._cluster_name = cluster_name
+        self._credential_dir_path = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + cluster_name + "/"
+        self._db_name = db_name
+        self._client = os.getenv('CRDB_CLIENT')
+
+    def connect(self):
         try:
             self._connection = psycopg2.connect(
-                client=client,
-                dbname=db_name,
-                port=self.PORT,
-                user=self.ROOT,
-                host=cluster_name.replace('_', '-') + self.HOST_SUFFIX,
-                sslmode=self.SSL_MODE,
-                sslrootcert=credential_dir_path + "ca.crt",
-                sslcert=credential_dir_path + "client."+client+".crt",
-                sslkey=credential_dir_path + "client."+client+".key"
+                client=self._client,
+                dbname=self._db_name,
+                port=os.getenv('CRDB_PORT'),
+                user=self._client,
+                host=self._cluster_name.replace('_', '-') + os.getenv('CRDB_HOST_SUFFIX'),
+                sslmode=os.getenv('CRDB_CONNECTION_SSL_MODE'),
+                sslrootcert=self._credential_dir_path + os.getenv('CRDB_CA_CERT_FILE_NAME'),
+                sslcert=self._credential_dir_path + os.getenv('CRDB_PUBLIC_CERT_FILE_NAME'),
+                sslkey=self._credential_dir_path + os.getenv('CRDB_PRIVATE_KEY_FILE_NAME')
             )
         except Exception as error:
             print(error)
             raise
 
-    def __del__(self):
-        self._connection.close()
-
     def close(self):
-        self._connection.close()
+        if self._connection:
+            self._connection.close() 
 
     def execute_sql(self, sql:str, need_commit: bool):
         cursor = self._connection.cursor()
@@ -135,3 +74,14 @@ class CrdbConnection:
         return cursor.fetchall()
 
     
+def transform_filters(filters):
+    transformed_filters = []
+    for filter_key in filters.keys():
+        for filter_value in filters[filter_key]:
+            transformed_filters.append({
+                'Key': filter_key,
+                'Values': [
+                    filter_value,
+                ]
+            })
+    return transformed_filters

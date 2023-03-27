@@ -5,17 +5,15 @@ import stat
 class SecretValue:
     
     @staticmethod
-    def find_secret_value(secret_manager_aws_client, arn:str):
-        return SecretValue(SecretManagerGateway.find_secret(secret_manager_aws_client, arn))
+    def find_secret_value(arn:str):
+        return SecretValue(SecretManagerGateway.find_secret(arn))
 
     def __init__(self, api_response):
         self._api_response = api_response
 
+    @property
     def secret_string(self):
         return self._api_response['SecretString']
-    
-    def print_response(self):
-        print(self._api_response)
     
     def write_to_file(self, dir_path, file_name):
         if not os.path.exists(dir_path):
