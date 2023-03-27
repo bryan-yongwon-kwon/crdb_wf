@@ -18,7 +18,7 @@ class CrdbConnection:
             secret_filters['tag-key'].append('client')
             secret_filters['tag-value'].append(client)
         secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
-        return SecretValue(SecretManagerGateway.find_secret(secret_list[0].secret_arn()))
+        return SecretValue(SecretManagerGateway.find_secret(secret_list[0].arn))
     
     @staticmethod
     def get_crdb_connection(cluster_name:str):
