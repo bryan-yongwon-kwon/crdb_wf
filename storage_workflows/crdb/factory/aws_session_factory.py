@@ -12,7 +12,7 @@ class AwsSessionFactory:
     @staticmethod
     @cache
     def secret_manager():
-        return boto3.client("secretmanager")
+        return boto3.client("secretsmanager")
     
     @staticmethod
     @cache
