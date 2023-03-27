@@ -1,6 +1,4 @@
 import typer
-import sys
-sys.path.append("/Users/aochen/Projects/storage-workflows")
 from storage_workflows.crdb.operations.workflow_pre_run_check import WorkflowPreRunCheck
 from storage_workflows.setup_env import setup_env
 
