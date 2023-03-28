@@ -20,6 +20,6 @@ class SecretValue:
             os.makedirs(dir_path)
         file_path = os.path.join(dir_path, file_name)
         file = open(file_path, "w")
-        file.write(self.secret_string())
+        file.write(self.secret_string)
         file.close()
         os.chmod(file_path, stat.S_IREAD|stat.S_IWRITE)
