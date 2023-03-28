@@ -44,7 +44,6 @@ class CrdbConnection:
     def connect(self):
         try:
             self._connection = psycopg2.connect(
-                client=self._client,
                 dbname=self._db_name,
                 port=os.getenv('CRDB_PORT'),
                 user=self._client,
