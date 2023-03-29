@@ -21,7 +21,7 @@ class CrdbConnection:
         return SecretValue(SecretManagerGateway.find_secret(secret_list[0].arn))
     
     @staticmethod
-    def get_crdb_connection(cluster_name:str):
+    def get_crdb_connection(cluster_name:str, db_name:str="defaultdb"):
         crdb_client = os.getenv('CRDB_CLIENT')
         ca_cert = CrdbConnection.get_crdb_connection_secret(CredType.CA_CERT_CRED_TYPE, cluster_name)
         public_cert = CrdbConnection.get_crdb_connection_secret(CredType.PUBLIC_CERT_CRED_TYPE, cluster_name, crdb_client)
@@ -30,12 +30,9 @@ class CrdbConnection:
         ca_cert.write_to_file(dir_path, os.getenv('CRDB_CA_CERT_FILE_NAME'))
         public_cert.write_to_file(dir_path, os.getenv('CRDB_PUBLIC_CERT_FILE_NAME'))
         private_cert.write_to_file(dir_path, os.getenv('CRDB_PRIVATE_KEY_FILE_NAME'))
-        return CrdbConnection(cluster_name, dir_path)
+        return CrdbConnection(cluster_name, db_name)
 
-    def __init__(
-            self, 
-            cluster_name: str,
-            db_name:str = "defaultdb",):
+    def __init__(self, cluster_name: str, db_name:str):
         self._cluster_name = cluster_name
         self._credential_dir_path = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + cluster_name + "/"
         self._db_name = db_name
@@ -61,7 +58,7 @@ class CrdbConnection:
         if self._connection:
             self._connection.close() 
 
-    def execute_sql(self, sql:str, need_commit: bool):
+    def execute_sql(self, sql:str, need_commit:bool=False):
         cursor = self._connection.cursor()
         try:
             cursor.execute(sql)
