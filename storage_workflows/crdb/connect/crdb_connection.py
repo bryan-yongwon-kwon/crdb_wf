@@ -61,7 +61,7 @@ class CrdbConnection:
         if self._connection:
             self._connection.close() 
 
-    def execute_sql(self, sql:str, need_commit: bool):
+    def execute_sql(self, sql:str, need_commit:bool=False):
         cursor = self._connection.cursor()
         try:
             cursor.execute(sql)
