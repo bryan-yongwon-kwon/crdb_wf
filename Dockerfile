@@ -25,4 +25,4 @@ ENV PROD_IAM_ROLE=arn:aws:iam::611706558220:role/storage-workflows \
     CRDB_CERTS_DIR_PATH_PREFIX=/app/crdb/certs \
     CRDB_CA_CERT_FILE_NAME=ca.crt \
     CRDB_PUBLIC_CERT_FILE_NAME=client.root.crt \
-    CRDB_PRIVATE_KEY_FILE_NAME=client.root.key \
+    CRDB_PRIVATE_KEY_FILE_NAME=client.root.key
