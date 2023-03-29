@@ -1,3 +1,4 @@
+import os
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.crdb.aws.auto_scaling_group_instance import AutoScalingGroupInstance
 
