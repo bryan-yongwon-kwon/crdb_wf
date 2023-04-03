@@ -13,6 +13,10 @@ Some useful links:
 `build.yml` defines where to upload the docker image we build. `ci.yml` defines the ci pipeline with stages. We run unit tests in ci pipeline. For more information please read [YML Pipelines](https://doordash.atlassian.net/wiki/spaces/EJ/pages/1040121920/YML+Pipelines).
 ##### Dockerfile
 Every time we commit to this repo, the CI/CD pipeline will build a docker image and upload to our AWS ECR repo(called `storage-workflows`). This dockerfile contains the basic softwares we need and ENV variables. 
+We create two new IAM roles(prod and staging) for storage workflows, you can find them in this Dockerfile.
+To view the role permissions, please check:
+ - [prod](https://github.com/doordash/infrastructure/blob/master/prod/common/storage/iam.tf)
+ - [staging](https://github.com/doordash/tf_account_staging/blob/master/services/common/storage/iam.tf)
 
 ##### poetry
 In our python project, we use [poetry](https://python-poetry.org/) as the dependency management tool. The dependencies can be found in `pyproject.toml` config file. Note that `poetry.lock` file is generated, please do not modified it manually.
