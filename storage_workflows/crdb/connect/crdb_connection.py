@@ -39,12 +39,13 @@ class CrdbConnection:
         self._client = os.getenv('CRDB_CLIENT')
 
     def connect(self):
+        host_suffix = os.getenv('CRDB_PROD_HOST_SUFFIX') if os.getenv('DEPLOYMENT_ENV') == 'prod' else os.getenv('CRDB_STAGING_HOST_SUFFIX')
         try:
             self._connection = psycopg2.connect(
                 dbname=self._db_name,
                 port=os.getenv('CRDB_PORT'),
                 user=self._client,
-                host=self._cluster_name.replace('_', '-') + os.getenv('CRDB_HOST_SUFFIX'),
+                host=self._cluster_name.replace('_', '-') + host_suffix,
                 sslmode=os.getenv('CRDB_CONNECTION_SSL_MODE'),
                 sslrootcert=self._credential_dir_path + os.getenv('CRDB_CA_CERT_FILE_NAME'),
                 sslcert=self._credential_dir_path + os.getenv('CRDB_PUBLIC_CERT_FILE_NAME'),
