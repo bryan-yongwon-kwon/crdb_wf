@@ -1,4 +1,5 @@
 import os
+from io import StringIO
 from functools import cached_property
 from paramiko import SSHClient,RSAKey
 from paramiko import AutoAddPolicy
@@ -7,7 +8,7 @@ class SSH:
 
     @cached_property
     def ssh_private_key(self):
-        return RSAKey.from_private_key(os.getenv('DEPLOYMENT_ENV'), os.getenv('PASSPHRASE'))
+        return RSAKey.from_private_key(StringIO(os.getenv('SSH_PRIVATE_KEY')), os.getenv('PASSPHRASE'))
 
     @cached_property
     def client(self):
