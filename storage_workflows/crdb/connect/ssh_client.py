@@ -3,9 +3,6 @@ from functools import cached_property
 from paramiko import SSHClient,RSAKey
 
 class SSHClient:
-    
-    def __init__(self, cluster_name:str):
-        self._cluster_name = cluster_name
 
     @cached_property
     def ssh_private_key(self):
