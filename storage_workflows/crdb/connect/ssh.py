@@ -2,7 +2,7 @@ import os
 from functools import cached_property
 from paramiko import SSHClient,RSAKey
 
-class SSHClient:
+class SSH:
 
     @cached_property
     def ssh_private_key(self):
