@@ -1,6 +1,7 @@
 import os
 from functools import cached_property
 from paramiko import SSHClient,RSAKey
+from paramiko import AutoAddPolicy
 
 class SSH:
 
@@ -10,7 +11,9 @@ class SSH:
 
     @cached_property
     def client(self):
-        return SSHClient()
+        ssh_client = SSHClient()
+        ssh_client.set_missing_host_key_policy(AutoAddPolicy())
+        return ssh_client
     
     def connect_to_node(self, ip):
         self.client.connect(ip, username='ubuntu')
