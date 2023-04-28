@@ -17,5 +17,6 @@ def repave_pre_check(deployment_env, region, cluster_name):
     else:
         print("Check passed")
 
+
 if __name__ == "__main__":
     app()
