@@ -4,7 +4,8 @@ class Node:
 
     @staticmethod
     def get_nodes():
-        return list(map(lambda node: Node(node), CrdbApiGateway.list_nodes()['nodes']))
+        session = CrdbApiGateway.login()
+        return list(map(lambda node: Node(node), CrdbApiGateway.list_nodes(session)['nodes']))
 
     def __init__(self, api_response):
         self.api_response = api_response
