@@ -6,7 +6,9 @@ class CrdbApiGateway:
     @staticmethod
     def login():
         test_response = post("https://{}".format(CrdbApiGateway.__make_url()))
-        print("Test connect UI: {}".format(test_response.json()))
+        print("Test connect UI1: {}".format(test_response))
+        print("Test connect UI2: {}".format(test_response.content))
+        print("Test connect UI3: {}".format(test_response.text))
         response = post("https://{}/api/v2/login/?username=root&password={}".format(CrdbApiGateway.__make_url(), os.getenv('ROOT_PASSWORD')))
         return response.json()["session"]
     
