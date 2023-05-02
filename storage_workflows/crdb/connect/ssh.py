@@ -8,7 +8,7 @@ class SSH:
 
     @cached_property
     def ssh_private_key(self):
-        return RSAKey.from_private_key(StringIO(os.getenv('SSH_PRIVATE_KEY')), os.getenv('SSH_KEY_PASSPHRASE'))
+        return RSAKey.from_private_key(StringIO(os.getenv('SSH_PRIVATE_KEY')), password=os.getenv('SSH_KEY_PASSPHRASE'))
 
     @cached_property
     def client(self):

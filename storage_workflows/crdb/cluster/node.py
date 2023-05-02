@@ -12,4 +12,4 @@ class Node:
 
     @property
     def ip_address(self):
-        return self.api_response['address']['address_field']
+        return str(self.api_response['address']['address_field']).split(":")[0]
