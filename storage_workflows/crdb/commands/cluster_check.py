@@ -14,7 +14,6 @@ def check_crontab(deployment_env, region, cluster_name):
         print("ip: {}".format(ip))
         ssh_client.connect_to_node(ip)
         stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
-        print("stdin: {}".format(stdin.readlines()))
         print("stdout: {}".format(stdout.readlines()))
         print("stderr: {}".format(stderr.readlines()))
 
