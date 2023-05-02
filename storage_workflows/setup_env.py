@@ -1,7 +1,8 @@
 import os
 from storage_workflows.crdb.aws.sts_role import StsRole
 
-def setup_env(deployment_env, region):
+def setup_env(deployment_env, region, cluster_name):
+    os.environ['CLUSTER_NAME'] = cluster_name
     os.environ['REGION'] = region
     os.environ['DEPLOYMENT_ENV'] = deployment_env
     role = StsRole.assume_role()
