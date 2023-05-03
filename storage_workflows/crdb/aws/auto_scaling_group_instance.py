@@ -10,6 +10,10 @@ class AutoScalingGroupInstance:
         return self._api_response['LifecycleState'] == "InService"
     
     @cached_property
+    def instance_id(self):
+        return self._api_response['InstanceId']
+    
+    @cached_property
     def launch_time(self):
         filters = [{
             'Name': 'instance-id',
