@@ -1,4 +1,5 @@
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
+import os
 
 class CrdbBackupJob():
 
@@ -6,8 +7,8 @@ class CrdbBackupJob():
     FIND_ALL_CRDB_BACKUP_JOBS_SQL = CHECK_RUNNING_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='BACKUP' AND status = 'running';"
 
     @staticmethod
-    def find_all_crdb_backup_running_jobs(cluster_name):
-        connection = CrdbConnection.get_crdb_connection(cluster_name)
+    def find_all_crdb_backup_running_jobs():
+        connection = CrdbConnection.get_crdb_connection(os.getenv('CLUSTER_NAME'))
         connection.connect()
         response = connection.execute_sql(CrdbBackupJob.FIND_ALL_CRDB_BACKUP_JOBS_SQL)
         connection.close()
