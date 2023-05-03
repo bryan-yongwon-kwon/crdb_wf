@@ -15,7 +15,7 @@ class SecretManagerGateway:
                                                 NextToken=next_token)
         if 'NextToken' in response:
             response['SecretList'].extend(
-                SecretManagerGateway.list_secrets(secret_manager_aws_client, filters, response['NextToken']))
+                SecretManagerGateway.list_secrets(filters, response['NextToken']))
         return response['SecretList']
     
     @staticmethod

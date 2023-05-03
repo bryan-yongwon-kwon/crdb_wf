@@ -14,5 +14,5 @@ class AutoScalingGroupGateway:
                                                                NextToken=next_token)
         if 'NextToken' in response:
             response['AutoScalingGroups'].extend(
-                AutoScalingGroupGateway.describe_auto_scaling_groups(auto_scaling_group_aws_client, filters, response['NextToken']))
+                AutoScalingGroupGateway.describe_auto_scaling_groups(filters, response['NextToken']))
         return response['AutoScalingGroups']
