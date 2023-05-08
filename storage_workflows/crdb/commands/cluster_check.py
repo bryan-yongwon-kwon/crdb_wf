@@ -41,12 +41,15 @@ def copy_cron_scripts_to_new_node(old_node_ssh_client: SSH, new_node_ssh_client:
 
 def schedule_cron_jobs(crontab_file_lines:list, new_node_ssh_client:SSH):
     new_node_ssh_client.execute_command('sudo mkdir /var/log/crdb/export_logs && \
-                                        ln -s /var/log/crdb/export_logs /root/export_logs && \
-                                        ln -s /var/log/crdb/export_logs /root/.cockroach-certs/export_logs')
+                                        sudo ln -s /var/log/crdb/export_logs /root/export_logs && \
+                                        sudo ln -s /var/log/crdb/export_logs /root/.cockroach-certs/export_logs')
     for line in crontab_file_lines:
         if line[0] == '#':
             continue
-        new_node_ssh_client.execute_command('(crontab -l 2>/dev/null; {}") | crontab -'.format(line))
+        print("schedule cron: {}".format(line))
+        stdin, stdout, stderr = new_node_ssh_client.execute_command('(crontab -l 2>/dev/null; {}") | crontab -'.format(line))
+        print("stdout: ".format(stdout.readlines()))
+        print("stderr: ".format(stderr.readlines()))
 
 
 
