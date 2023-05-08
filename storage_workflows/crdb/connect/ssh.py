@@ -50,7 +50,10 @@ class SSH:
             raise Exception(error)
     
     def create_remote_dir(self, dir_path):
-        self.sftp_client.mkdir(dir_path)
+        try:
+            self.sftp_client.stat(dir_path)
+        except FileNotFoundError:
+            self.sftp_client.mkdir(dir_path)
 
     def create_remote_dir_with_root(self, dir_path):
         stdin, stdout, stderr = self.execute_command('sudo mkdir {}'.format(dir_path))
