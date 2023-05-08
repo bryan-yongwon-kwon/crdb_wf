@@ -47,7 +47,7 @@ def schedule_cron_jobs(crontab_file_lines:list, new_node_ssh_client:SSH):
         if line[0] == '#':
             continue
         print("schedule cron: {}".format(line))
-        stdin, stdout, stderr = new_node_ssh_client.execute_command('(crontab -l 2>/dev/null; {}") | crontab -'.format(line))
+        stdin, stdout, stderr = new_node_ssh_client.execute_command('(crontab -l 2>/dev/null; echo "{}") | crontab -'.format(line))
         print("stdout: ".format(stdout.readlines()))
         print("stderr: ".format(stderr.readlines()))
 
