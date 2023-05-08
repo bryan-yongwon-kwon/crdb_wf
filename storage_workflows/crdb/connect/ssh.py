@@ -86,9 +86,10 @@ class SSH:
     def read_remote_file_with_root(self, file_path):
         print("Read remote file with root:")
         stdin, stdout, stderr = self.execute_command('sudo cat {}'.format(file_path))
-        print(stdout.readlines())
+        lines = stdout.readlines()
+        print(lines)
         error = stderr.readlines()
         if error:
             raise Exception(error)
-        return stdout.readlines()
+        return lines
 
