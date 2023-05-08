@@ -46,12 +46,12 @@ def schedule_cron_jobs(crontab_file_lines:list, new_node_ssh_client:SSH):
     for line in crontab_file_lines:
         if line[0] == '#':
             continue
-        print("schedule cron: {}".format(line))
-        command = '(crontab -l 2>/dev/null; echo "{}") | crontab -'.format(line)
-        print("command is: {}".format(command))
+        print("scheduling cron: {}".format(line))
+        command = 'sudo (crontab -l 2>/dev/null; echo "{}") | crontab -'.format(line)
         stdin, stdout, stderr = new_node_ssh_client.execute_command(command)
-        print("stdout: ".format(stdout.readlines()))
-        print("stderr: ".format(stderr.readlines()))
+        error = stderr.readlines()
+        if not error:
+            raise Exception(error)
 
 
 
