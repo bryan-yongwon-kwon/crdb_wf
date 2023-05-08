@@ -30,19 +30,21 @@ class SSH:
     def execute_command(self, command):
         return self.client.exec_command(command)
     
-    def write_remote_file(self, file_lines, file_path, chmod=stat.S_IROTH):
+    def write_remote_file(self, file_lines, file_path, chmod=stat.S_IRWXO):
         sftp_file = self.sftp_client.open(file_path, 'w')
         sftp_file.chmod(chmod)
         sftp_file.writelines(file_lines)
         sftp_file.close()
 
-    def write_remote_file_with_root(self, file_lines, file_path, chmod=stat.S_IROTH):
+    def write_remote_file_with_root(self, file_lines, file_path, chmod=stat.S_IRWXO):
         print("Write remote file with root:")
         temp_file_dir = '/home/ubuntu/temp_files/'
         file_name = file_path.split('/')[-1]
+        print('file name: {}'.format(file_name))
         temp_file_path = temp_file_dir + file_name
+        print('temple file path: {}'.format(temp_file_path))
         self.create_remote_dir(temp_file_dir)
-        self.write_remote_file(file_lines=file_lines, file_path=temp_file_path)
+        self.write_remote_file(file_lines=file_lines, file_path=temp_file_path, chmod=chmod)
         stdin, stdout, stderr = self.execute_command('sudo mv {} {}'.format(temp_file_path, file_path))
         print(stdout.readlines())
         error = stderr.readlines()
