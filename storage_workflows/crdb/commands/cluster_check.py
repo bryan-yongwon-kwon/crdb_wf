@@ -44,6 +44,7 @@ def schedule_cron_jobs(crontab_file_lines:list, new_node_ssh_client:SSH):
                                         sudo ln -s /var/log/crdb/export_logs /root/export_logs && \
                                         sudo ln -s /var/log/crdb/export_logs /root/.cockroach-certs/export_logs')
     for line in crontab_file_lines:
+        line = str(line).rstrip()
         if line[0] == '#':
             continue
         print("scheduling cron: {}".format(line))
