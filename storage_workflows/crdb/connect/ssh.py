@@ -42,7 +42,7 @@ class SSH:
         file_name = file_lines.split('/')[-1]
         temp_file_path = temp_file_dir + file_name
         self.write_remote_file(file_lines, temp_file_path)
-        stdin, stdout, stderr = self.execute_command('sudo su mv {} {}'.format(temp_file_path, file_path))
+        stdin, stdout, stderr = self.execute_command('sudo mv {} {}'.format(temp_file_path, file_path))
         print(stdout.readlines())
         print(stderr.readlines())
     
@@ -59,7 +59,7 @@ class SSH:
     
     def list_remote_dir_with_root(self, dir_path) -> list:
         print("List remote dir with root:")
-        stdin, stdout, stderr = self.execute_command('sudo su - && ls {}'.format(dir_path))
+        stdin, stdout, stderr = self.execute_command('sudo ls {}'.format(dir_path))
         print(stdout.readlines())
         print(stderr.readlines())
         return stdout.readlines()
