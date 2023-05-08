@@ -14,6 +14,7 @@ def check_crontab(deployment_env, region, cluster_name):
     nodes = Node.get_nodes()
     nodes.sort(key=lambda node: node.started_at, reverse=True)
     node_ip_list = list(map(lambda node: node.ip_address, nodes))
+    print("New node IP: {}".format(nodes[0].ip_address))
     new_node_ssh_client = SSH(nodes[0].ip_address)
     new_node_ssh_client.connect_to_node()
     for ip in node_ip_list:

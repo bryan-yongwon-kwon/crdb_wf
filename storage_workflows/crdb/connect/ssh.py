@@ -60,9 +60,10 @@ class SSH:
     def list_remote_dir_with_root(self, dir_path) -> list:
         print("List remote dir with root:")
         stdin, stdout, stderr = self.execute_command('sudo ls {}'.format(dir_path))
-        print(stdout.readlines())
+        lines = list(map(lambda line: str(line).rstrip(), stdout.readlines()))
+        print(lines)
         print(stderr.readlines())
-        return stdout.readlines()
+        return lines
     
     def read_remote_file(self, file_path):
         sftp_file = self.sftp_client.open(file_path, 'r')
