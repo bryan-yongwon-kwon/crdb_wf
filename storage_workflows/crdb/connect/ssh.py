@@ -37,6 +37,7 @@ class SSH:
         sftp_file.close()
 
     def write_remote_file_with_root(self, file_lines, file_path, chmod=stat.S_IROTH):
+        print("Write remote file with root:")
         temp_file_dir = '/temp_file/'
         file_name = file_lines.split('/')[-1]
         temp_file_path = temp_file_dir + file_name
@@ -57,9 +58,8 @@ class SSH:
         return self.sftp_client.listdir(dir_path)
     
     def list_remote_dir_with_root(self, dir_path) -> list:
-        self.execute_command('sudo su -')
-        stdin, stdout, stderr = self.execute_command('ls {}'.format(dir_path))
         print("List remote dir with root:")
+        stdin, stdout, stderr = self.execute_command('sudo su - && ls {}'.format(dir_path))
         print(stdout.readlines())
         print(stderr.readlines())
         return stdout.readlines()
@@ -71,8 +71,8 @@ class SSH:
         return lines
     
     def read_remote_file_with_root(self, file_path):
-        stdin, stdout, stderr = self.execute_command('sudo cat file_path')
         print("Read remote file with root:")
+        stdin, stdout, stderr = self.execute_command('sudo cat file_path')
         print(stdout.readlines())
         print(stderr.readlines())
         return stdout.readlines()
