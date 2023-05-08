@@ -12,7 +12,7 @@ CRONTAB_SCRIPTS_DIR = '/root/.cockroach-certs/'
 def check_crontab(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     nodes = Node.get_nodes()
-    nodes.sort(lambda node: node.started_at, reverse=True)
+    nodes.sort(key=lambda node: node.started_at, reverse=True)
     node_ip_list = list(map(lambda node: node.ip_address, nodes))
     new_node_ssh_client = SSH(nodes[0].ip_address)
     new_node_ssh_client.connect_to_node()
@@ -26,8 +26,6 @@ def check_crontab(deployment_env, region, cluster_name):
         if stderr.readlines():
             continue
         copy_cron_scripts_to_new_node(ssh_client, new_node_ssh_client)
-
-
 
 
 def copy_cron_scripts_to_new_node(old_node_ssh_client: SSH, new_node_ssh_client: SSH):
