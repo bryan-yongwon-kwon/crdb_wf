@@ -38,7 +38,7 @@ class SSH:
 
     def write_remote_file_with_root(self, file_lines, file_path, chmod=stat.S_IROTH):
         print("Write remote file with root:")
-        temp_file_dir = '/temp_file/'
+        temp_file_dir = '/home/ubuntu/temp_files/'
         file_name = file_path.split('/')[-1]
         temp_file_path = temp_file_dir + file_name
         self.create_remote_dir(temp_file_dir)
