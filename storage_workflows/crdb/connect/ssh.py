@@ -31,11 +31,9 @@ class SSH:
         return self.client.exec_command(command)
     
     def write_remote_file(self, file_lines, file_path, chmod=stat.S_IROTH):
-        print("before write input: {}".format(file_lines))
-        sftp_file = self.sftp_client.open(file_path, 'w+')
+        sftp_file = self.sftp_client.open(file_path, 'w')
         sftp_file.chmod(chmod)
         sftp_file.writelines(file_lines)
-        print("after write verify writelines: {}".format(sftp_file.readlines()))
         sftp_file.close()
 
     def write_remote_file_with_root(self, file_lines, file_path, chmod=stat.S_IROTH):
