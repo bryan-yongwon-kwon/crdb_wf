@@ -39,12 +39,14 @@ class SSH:
     def write_remote_file_with_root(self, file_lines, file_path, chmod=stat.S_IROTH):
         print("Write remote file with root:")
         temp_file_dir = '/temp_file/'
-        file_name = file_lines.split('/')[-1]
+        file_name = file_path.split('/')[-1]
         temp_file_path = temp_file_dir + file_name
         self.write_remote_file(file_lines, temp_file_path)
         stdin, stdout, stderr = self.execute_command('sudo mv {} {}'.format(temp_file_path, file_path))
         print(stdout.readlines())
-        print(stderr.readlines())
+        error = stderr.readlines()
+        if error:
+            raise Exception(error)
     
     def create_remote_dir(self, dir_path):
         self.sftp_client.mkdir(dir_path)
@@ -52,7 +54,9 @@ class SSH:
     def create_remote_dir_with_root(self, dir_path):
         stdin, stdout, stderr = self.execute_command('sudo mkdir {}'.format(dir_path))
         print(stdout.readlines())
-        print(stderr.readlines())
+        error = stderr.readlines()
+        if error:
+            raise Exception(error)
 
     def list_remote_dir(self, dir_path) -> list:
         return self.sftp_client.listdir(dir_path)
@@ -62,7 +66,9 @@ class SSH:
         stdin, stdout, stderr = self.execute_command('sudo ls {}'.format(dir_path))
         lines = list(map(lambda line: str(line).rstrip(), stdout.readlines()))
         print(lines)
-        print(stderr.readlines())
+        error = stderr.readlines()
+        if error:
+            raise Exception(error)
         return lines
     
     def read_remote_file(self, file_path):
@@ -73,8 +79,10 @@ class SSH:
     
     def read_remote_file_with_root(self, file_path):
         print("Read remote file with root:")
-        stdin, stdout, stderr = self.execute_command('sudo cat file_path')
+        stdin, stdout, stderr = self.execute_command('sudo cat {}'.format(file_path))
         print(stdout.readlines())
-        print(stderr.readlines())
+        error = stderr.readlines()
+        if error:
+            raise Exception(error)
         return stdout.readlines()
 
