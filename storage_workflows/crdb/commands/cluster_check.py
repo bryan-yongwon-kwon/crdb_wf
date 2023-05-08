@@ -30,7 +30,7 @@ def check_crontab(deployment_env, region, cluster_name):
 
 def copy_cron_scripts_to_new_node(old_node_ssh_client: SSH, new_node_ssh_client: SSH):
     old_node_script_names = filter(lambda file_name: '.sh' in file_name, 
-                                   old_node_ssh_client.list_remote_dir_with_root())
+                                   old_node_ssh_client.list_remote_dir_with_root(CRONTAB_SCRIPTS_DIR))
     for script_name in old_node_script_names:
         file_path = CRONTAB_SCRIPTS_DIR + script_name
         lines = old_node_ssh_client.read_remote_file_with_root(file_path)
