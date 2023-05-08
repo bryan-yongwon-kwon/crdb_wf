@@ -37,7 +37,7 @@ def copy_cron_scripts_to_new_node(old_node_ssh_client: SSH, new_node_ssh_client:
         print("Moving script {} from {} to {}".format(script_name, old_node_ssh_client.ip, new_node_ssh_client.ip))
         file_path = CRONTAB_SCRIPTS_DIR + script_name
         lines = old_node_ssh_client.read_remote_file_with_root(file_path)
-        new_node_ssh_client.write_remote_file_with_root(lines, file_path)
+        new_node_ssh_client.write_remote_file_with_root(file_lines=lines, file_path=file_path)
 
 
 

@@ -34,6 +34,7 @@ class SSH:
         sftp_file = self.sftp_client.open(file_path, 'w')
         sftp_file.chmod(chmod)
         sftp_file.writelines(file_lines)
+        print("verify writelines: {}".format(sftp_file.readlines()))
         sftp_file.close()
 
     def write_remote_file_with_root(self, file_lines, file_path, chmod=stat.S_IROTH):
@@ -42,7 +43,7 @@ class SSH:
         file_name = file_path.split('/')[-1]
         temp_file_path = temp_file_dir + file_name
         self.create_remote_dir(temp_file_dir)
-        self.write_remote_file(file_lines, temp_file_path)
+        self.write_remote_file(file_lines=file_lines, file_path=temp_file_path)
         stdin, stdout, stderr = self.execute_command('sudo mv {} {}'.format(temp_file_path, file_path))
         print(stdout.readlines())
         error = stderr.readlines()
