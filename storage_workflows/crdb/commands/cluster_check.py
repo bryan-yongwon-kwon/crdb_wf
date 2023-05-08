@@ -52,7 +52,7 @@ def schedule_cron_jobs(crontab_file_lines:list, new_node_ssh_client:SSH):
         print("command: {}".format(command))
         stdin, stdout, stderr = new_node_ssh_client.execute_command(command)
         error = stderr.readlines()
-        if not error:
+        if error:
             raise Exception(error)
         print("cron job scheduled.")
 
