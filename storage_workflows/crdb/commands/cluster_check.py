@@ -6,21 +6,38 @@ from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 
 app = typer.Typer()
 
+CRONTAB_SCRIPTS_DIR = '/root/.cockroach-certs/'
+
 @app.command()
 def check_crontab(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    instances = asg.instances
-    for instance in instances:
-        print("LaunchTime: {}".format(instance.launch_time))
-    node_ip_list = list(map(lambda node: node.ip_address, Node.get_nodes()))
-    ssh_client = SSH()
+    nodes = Node.get_nodes()
+    nodes.sort(lambda node: node.started_at, reverse=True)
+    node_ip_list = list(map(lambda node: node.ip_address, nodes))
+    new_node_ssh_client = SSH(nodes[0].ip_address)
+    new_node_ssh_client.connect_to_node()
     for ip in node_ip_list:
+        ssh_client = SSH(ip)
         print("ip: {}".format(ip))
-        ssh_client.connect_to_node(ip)
+        ssh_client.connect_to_node()
         stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
         print("stdout: {}".format(stdout.readlines()))
         print("stderr: {}".format(stderr.readlines()))
+        if stderr.readlines():
+            continue
+        copy_cron_scripts_to_new_node(ssh_client, new_node_ssh_client)
+
+
+
+
+def copy_cron_scripts_to_new_node(old_node_ssh_client: SSH, new_node_ssh_client: SSH):
+    old_node_script_names = filter(lambda file_name: '.sh' in file_name, 
+                                   old_node_ssh_client.list_remote_dir_with_root())
+    for script_name in old_node_script_names:
+        file_path = CRONTAB_SCRIPTS_DIR + script_name
+        lines = old_node_ssh_client.read_remote_file_with_root(file_path)
+        new_node_ssh_client.write_remote_file_with_root(lines, file_path)
+
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
-import os
+from __future__ import annotations
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.crdb.aws.auto_scaling_group_instance import AutoScalingGroupInstance
+import os
+
 
 class AutoScalingGroup:
 
@@ -10,7 +12,7 @@ class AutoScalingGroup:
                         AutoScalingGroupGateway.describe_auto_scaling_groups(filters)))
     
     @staticmethod
-    def find_auto_scaling_group_by_cluster_name(cluster_name):
+    def find_auto_scaling_group_by_cluster_name(cluster_name) -> AutoScalingGroup:
         filter = {
             'Name': 'tag:crdb_cluster_name',
             'Values': [
@@ -23,7 +25,7 @@ class AutoScalingGroup:
         self._api_response = api_response
 
     @property
-    def instances(self):
+    def instances(self) -> list:
         return list(map(lambda instance: AutoScalingGroupInstance(instance), self._api_response['Instances']))
 
     def instances_not_in_service_exist(self):
