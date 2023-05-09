@@ -13,3 +13,7 @@ class Node:
     @property
     def ip_address(self):
         return str(self.api_response['address']['address_field']).split(":")[0]
+    
+    @property
+    def started_at(self):
+        return self.api_response['started_at']
