@@ -17,13 +17,11 @@ def check_crontab(deployment_env, region, cluster_name):
     new_node_ssh_client.connect_to_node()
     for ip in node_ip_list:
         ssh_client = SSH(ip)
-        print("Listing cron jobs for: {}".format(ip))
         ssh_client.connect_to_node()
         stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
         lines = stdout.readlines()
         errors = stderr.readlines()
-        print("stdout: {}".format(lines))
-        print("stderr: {}".format(errors))
+        print("Listing cron jobs for {}: {}".format(ip, lines))
         if errors:
             continue
         copy_cron_scripts_to_new_node(ssh_client, new_node_ssh_client)
