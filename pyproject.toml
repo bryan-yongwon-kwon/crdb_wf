@@ -43,6 +43,7 @@ build-backend = "poetry.core.masonry.api"
 storage-workflows = "storage_workflows.main:app"
 crdb-repave = "storage_workflows.crdb.commands.repave:app"
 cluster-check = "storage_workflows.crdb.commands.cluster_check:app"
+mute-alerts = "storage_workflows.crdb.chronosphere.mute_alerts:app"
 
 [tool.pytest.ini_options]
 pythonpath = "storage_workflows"
