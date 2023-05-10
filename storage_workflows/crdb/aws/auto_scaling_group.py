@@ -21,7 +21,7 @@ class AutoScalingGroup:
         }
         return AutoScalingGroup.find_all_auto_scaling_groups([filter])[0]
 
-    def __init__(self, api_response: list):
+    def __init__(self, api_response):
         self._api_response = api_response
 
     @property
