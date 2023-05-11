@@ -1,5 +1,5 @@
 import datetime
-from storage_workflows.crdb.chronsphere.chronosphere_client import ChronosphereClient
+from storage_workflows.crdb.chronosphere.chronosphere_client import ChronosphereClient
 
 app = typer.Typer()
 
