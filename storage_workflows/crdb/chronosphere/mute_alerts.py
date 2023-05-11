@@ -1,13 +1,13 @@
 import typer
 import datetime
-from storage_workflows.crdb.chronosphere.chronosphere_client import ChronosphereClient
+from storage_workflows.crdb.api_gateway.chronosphere_api_gateway import ChronosphereApiGateway
 
 app = typer.Typer()
 
 @app.command()
 def create_alert_muting_rule(cluster_name):
     # Define the client and muting rule parameters
-    client = ChronosphereClient()
+    client = ChronosphereApiGateway()
     label_matchers = [
         {
             "name": "cluster",

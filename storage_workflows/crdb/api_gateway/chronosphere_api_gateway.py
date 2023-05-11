@@ -3,7 +3,7 @@ import json
 
 CHRONOSPHERE_API_TOKEN="cd1bf1bf8bfb8fa8a932ee136f11f78a121369f84a9ee5acff3542abc09bd1c2"
 
-class ChronosphereClient():
+class ChronosphereApiGateway():
     def __init__(self, api_token=CHRONOSPHERE_API_TOKEN, url="doordash.chronosphere.io"):
         self.api_token = api_token
         self.url = url
@@ -25,4 +25,7 @@ class ChronosphereClient():
         headers = {'Content-type': 'application/json', 'Api-token': self.api_token}
         conn.request(http_method, path, body=muting_rule_json, headers=headers)
         response = conn.getresponse()
-        print(response.read().decode())
+        if response.status != http.client.OK:
+            raise Exception("Chronosphere API to mute alerts failed with "+ response.status)
+        
+        
