@@ -30,9 +30,9 @@ def mute_alerts_repave(cluster_name):
         }
     
     backup_failed_label_matcher = {
-            "name": "cluster",
+            "name": "Description",
             "type": "EXACT",
-            "value": cluster_name
+            "value": "Incremental or full backup failed."
         }
     
     mute_alerts_using_label_matchers([cluster_name_label_matcher, live_node_count_changed_label_matcher])
