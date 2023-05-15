@@ -30,7 +30,7 @@ def mute_alerts_repave(cluster_name):
             "name": "Description",
             "type": "EXACT",
             "value": "Incremental or full backup failed."
-        },
+        }
     ]
     
     client = ChronosphereApiGateway()

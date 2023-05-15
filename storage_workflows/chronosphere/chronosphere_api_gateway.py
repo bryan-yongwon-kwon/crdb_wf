@@ -28,6 +28,6 @@ class ChronosphereApiGateway():
         conn.request(http_method, path, body=muting_rule_json, headers=headers)
         response = conn.getresponse()
         if response.status != http.client.OK:
-            raise Exception("Chronosphere API to mute alerts failed with "+ str(response.status))
+            raise Exception("Chronosphere API to mute alerts failure details "+ str(response.json()))
         
         
