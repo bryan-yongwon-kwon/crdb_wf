@@ -1,14 +1,16 @@
+import datetime
 import http.client
 import json
-
-CHRONOSPHERE_API_TOKEN="cd1bf1bf8bfb8fa8a932ee136f11f78a121369f84a9ee5acff3542abc09bd1c2"
+import os
 
 class ChronosphereApiGateway():
-    def __init__(self, api_token=CHRONOSPHERE_API_TOKEN, url="doordash.chronosphere.io"):
-        self.api_token = api_token
-        self.url = url
+    def __init__(self):
+        self.api_token = os.getenv('CHRONOSPHERE_API_TOKEN')
+        self.url = os.getenv('CHRONOSPHERE_URL')
 
-    def create_muting_rule(self, label_matchers, name, starts_at, ends_at, path="/api/v1/config/muting-rules", http_method="POST"):
+    def create_muting_rule(self, label_matchers, name="Muting rule created from operator service.", starts_at=datetime.datetime.now(datetime.timezone.utc), path="/api/v1/config/muting-rules", http_method="POST"):
+        #rules expire in 1 hour
+        ends_at = starts_at + datetime.timedelta(hours=1)
         # Define the muting rule parameters
         data = {
             "muting_rule": {

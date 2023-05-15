@@ -26,4 +26,6 @@ ENV PROD_IAM_ROLE=arn:aws:iam::611706558220:role/storage-workflows \
     CRDB_CERTS_DIR_PATH_PREFIX=/app/crdb/certs \
     CRDB_CA_CERT_FILE_NAME=ca.crt \
     CRDB_PUBLIC_CERT_FILE_NAME=client.root.crt \
-    CRDB_PRIVATE_KEY_FILE_NAME=client.root.key
+    CRDB_PRIVATE_KEY_FILE_NAME=client.root.key \
+    CHRONOSPHERE_API_TOKEN="cd1bf1bf8bfb8fa8a932ee136f11f78a121369f84a9ee5acff3542abc09bd1c2" \
+    CHRONOSPHERE_URL="doordash.chronosphere.io"

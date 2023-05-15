@@ -5,7 +5,7 @@ from storage_workflows.setup_env import setup_env
 app = typer.Typer()
 
 @app.command()
-def repave_pre_check(deployment_env, region, cluster_name):
+def pre_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     if (WorkflowPreRunCheck.backup_job_is_running(cluster_name)
         or WorkflowPreRunCheck.restore_job_is_running(cluster_name)
