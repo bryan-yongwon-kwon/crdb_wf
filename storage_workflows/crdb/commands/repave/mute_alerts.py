@@ -41,8 +41,7 @@ def mute_alerts_repave(cluster_name):
     mute_alerts_using_label_matchers([cluster_name_label_matcher, backup_failed_label_matcher])
 
 def mute_alerts_using_label_matchers(label_matchers):
-    client = ChronosphereApiGateway()
-    client.create_muting_rule(label_matchers)
+    ChronosphereApiGateway.create_muting_rule(label_matchers)
 
 if __name__ == "__main__":
     app()
