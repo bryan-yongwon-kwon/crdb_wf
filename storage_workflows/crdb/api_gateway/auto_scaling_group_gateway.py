@@ -16,3 +16,27 @@ class AutoScalingGroupGateway:
             response['AutoScalingGroups'].extend(
                 AutoScalingGroupGateway.describe_auto_scaling_groups(filters, response['NextToken']))
         return response['AutoScalingGroups']
+
+
+    @staticmethod
+    def increase_auto_scaling_group_capacity(auto_scaling_group_name, desired_capacity):
+        auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
+        response = auto_scaling_group_aws_client.update_auto_scaling_group(
+            AutoScalingGroupName=auto_scaling_group_name,
+            DesiredCapacity=desired_capacity
+        )
+
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            print('Auto Scaling group capacity updated successfully.')
+        else:
+            print('Failed to update Auto Scaling group capacity.')
+            print('Error message:', response['ResponseMetadata']['HTTPHeaders']['x-amzn-requestid'])
+    
+
+    @staticmethod
+    def get_auto_scaling_group_capacity(auto_scaling_group_name):
+        auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
+        response = auto_scaling_group_aws_client.describe_auto_scaling_groups(AutoScalingGroupNames=[auto_scaling_group_name])
+        desired_capacity = response['AutoScalingGroups'][0]['DesiredCapacity']
+        print('Desired capacity:', desired_capacity)
+      
