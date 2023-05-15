@@ -35,13 +35,10 @@ def mute_alerts_repave(cluster_name):
             "value": "Incremental or full backup failed."
         }
     
-    mute_alerts_using_label_matchers([cluster_name_label_matcher, live_node_count_changed_label_matcher])
-    mute_alerts_using_label_matchers([cluster_name_label_matcher, changefeed_stoppped_label_matcher])
-    mute_alerts_using_label_matchers([cluster_name_label_matcher, underreplicated_range_label_matcher])
-    mute_alerts_using_label_matchers([cluster_name_label_matcher, backup_failed_label_matcher])
-
-def mute_alerts_using_label_matchers(label_matchers):
-    ChronosphereApiGateway.create_muting_rule(label_matchers)
+    ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, live_node_count_changed_label_matcher])
+    ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, changefeed_stoppped_label_matcher])
+    ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher])
+    ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher])
 
 if __name__ == "__main__":
     app()
