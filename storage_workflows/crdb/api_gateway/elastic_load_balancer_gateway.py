@@ -24,7 +24,6 @@ class ElasticLoadBalancerGateway:
     @staticmethod
     def register_instances_with_load_balancer(load_balancer_name, instances):
         elastic_load_balancer_client = AwsSessionFactory.elb()
-        instances = list(map(lambda instance: {'InstanceId': instance}, instances))
         response = elastic_load_balancer_client.register_instances_with_load_balancer(LoadBalancerName=load_balancer_name, 
                                                                                       Instances=instances)
         return response['Instances']
@@ -32,7 +31,6 @@ class ElasticLoadBalancerGateway:
     @staticmethod
     def deregister_instances_from_load_balancer(load_balancer_name, instances):
         elastic_load_balancer_client = AwsSessionFactory.elb()
-        instances = list(map(lambda instance: {'InstanceId': instance}, instances))
         response = elastic_load_balancer_client.deregister_instances_from_load_balancer(LoadBalancerName=load_balancer_name, 
                                                                                         Instances=instances)
         return response['Instances']
