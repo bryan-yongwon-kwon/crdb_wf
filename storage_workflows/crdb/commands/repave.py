@@ -24,6 +24,7 @@ def pre_check(deployment_env, region, cluster_name):
 @app.command()
 def refresh_etl_load_balancer(deployment_env, region, cluster_name):
     if deployment_env == 'staging':
+        print("Staging clusters doesn't have ETL load balancers.")
         return
     setup_env(deployment_env, region, cluster_name)
     etl_load_balancer_name = (cluster_name.replace("_", "-") + "-crdb-etl")[:32]
