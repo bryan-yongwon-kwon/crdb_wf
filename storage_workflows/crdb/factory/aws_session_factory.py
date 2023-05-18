@@ -36,3 +36,11 @@ class AwsSessionFactory:
                             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
                             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
                             aws_session_token=os.getenv('AWS_SESSION_TOKEN'))
+    
+    @staticmethod
+    @cache
+    def elb():
+        return boto3.client('elb',
+                            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+                            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+                            aws_session_token=os.getenv('AWS_SESSION_TOKEN'))
