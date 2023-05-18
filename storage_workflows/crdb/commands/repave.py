@@ -33,18 +33,14 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
         print("Mode not enabled. ETL load balancer doesn't exist.")
         return
     old_instances = load_balancers[0].instances
-    if not old_instances:
-        print("No old instances in this ELB")
-        return
     print("Old instances: {}".format(old_instances))
     new_instances = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances
     new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id}, new_instances))
-    if not new_instances:
-        print("No new instances to add to this ELB")
-        return
     print("New instances: {}".format(new_instances))
-    ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(etl_load_balancer_name, old_instances)
-    ElasticLoadBalancerGateway.register_instances_with_load_balancer(etl_load_balancer_name, new_instances)
+    if old_instances:
+        ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(etl_load_balancer_name, old_instances)
+    if new_instances:
+        ElasticLoadBalancerGateway.register_instances_with_load_balancer(etl_load_balancer_name, new_instances)
 
 @app.command()
 def mute_alerts_repave(cluster_name):    
