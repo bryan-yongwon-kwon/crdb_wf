@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM 839591177169.dkr.ecr.us-west-2.amazonaws.com/open-source-mirror/dockerhub/python:3.11-slim
 WORKDIR /app
 
 RUN apt update && apt install -y \
