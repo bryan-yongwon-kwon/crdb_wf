@@ -7,16 +7,18 @@ app = typer.Typer()
 @app.command()
 def read_asg_capacity(cluster_name): 
     capacity = AutoScalingGroupGateway.get_auto_scaling_group_capacity()
+    print("Read capacity:" + capacity)
     insert_into_cluster_info(cluster_name, capacity)
     return{} 
 
 def insert_into_cluster_info(cluster_name, node_count):
-        connection = CrdbConnection.get_crdb_connection(cluster_name)
-        connection.connect()
-        query = "INSERT INTO clusters_info (cluster_name, node_count) VALUES ('{}', {});".format(cluster_name, node_count)
-        response = connection.execute_sql(query)
-        connection.close()
-        return response
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    query = "INSERT INTO clusters_info (cluster_name, node_count) VALUES ('{}', {});".format(cluster_name, node_count)
+    response = connection.execute_sql(query)
+    print("response received: " + response)
+    connection.close()
+    return response
 
 if __name__ == "__main__":
     app()

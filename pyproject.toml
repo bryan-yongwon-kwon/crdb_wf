@@ -44,6 +44,7 @@ storage-workflows = "storage_workflows.main:app"
 crdb-repave = "storage_workflows.crdb.commands.repave.pre_check:app"
 cluster-check = "storage_workflows.crdb.commands.cluster_check:app"
 mute-alerts-repave = "storage_workflows.crdb.commands.repave.mute_alerts:app"
+asg-read-capacity = "storage_workflows.crdb.commands.repave.read_asg_capacity:app"
 
 [tool.pytest.ini_options]
 pythonpath = "storage_workflows"
