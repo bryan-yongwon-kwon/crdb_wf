@@ -47,6 +47,7 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
 
 @app.command()
 def drain_node(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
     nodes = Node.get_nodes()
     crdb_conn = CrdbConnection.get_crdb_connection(cluster_name=cluster_name)
     node = nodes[0]
