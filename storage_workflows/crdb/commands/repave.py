@@ -48,13 +48,15 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
 @app.command()
 def drain_node(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    nodes = Node.get_nodes()
+    nodes = Node.get_nodes()[0:3]
     crdb_conn = CrdbConnection.get_crdb_connection(cluster_name=cluster_name)
-    node = nodes[0]
-    crdb_conn.drain_node(nodes[0])
-    while node.sql_conns > 1:
-        time.sleep(30)
-    print("node drain complete")
+    for node in nodes:
+        print("node drain start: {}".format(node.id))
+        crdb_conn.drain_node(node)
+        # while node.sql_conns > 1:
+        #     time.sleep(30)
+        #     node.reload()
+        print("node drain complete: {}".format(node.id))
 
 
 @app.command()
