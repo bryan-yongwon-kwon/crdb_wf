@@ -74,7 +74,7 @@ class CrdbConnection:
     
     def drain_node(self, node: Node):
         certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self._cluster_name + "/"
-        node_drain_command = "cockroach node drain {} --host={}:26256 --certs-dir={}".format(node.id, node.ip_address, certs_dir)
+        node_drain_command = "crdb node drain {} --host={}:26256 --certs-dir={}".format(node.id, node.ip_address, certs_dir)
         result = subprocess.run(node_drain_command, capture_output=True, shell=True)
         print(result.stderr)
         result.check_returncode()
