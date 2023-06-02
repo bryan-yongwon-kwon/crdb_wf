@@ -1,9 +1,11 @@
 import os
 import psycopg2
+import subprocess
 from storage_workflows.crdb.connect.cred_type import CredType
 from storage_workflows.crdb.aws.secret import Secret
 from storage_workflows.crdb.aws.secret_value import SecretValue
 from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
+from storage_workflows.crdb.cluster.node import Node
 
 
 class CrdbConnection:
@@ -69,6 +71,14 @@ class CrdbConnection:
             print(error)
             raise
         return cursor.fetchall()
+    
+    def drain_node(self, node: Node):
+        certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self._cluster_name + "/"
+        node_drain_command = "cockroach node drain {} --host={}:26256 --certs-dir={}".format(node.id, node.ip_address, certs_dir)
+        result = subprocess.run(node_drain_command)
+        print(result.stderr)
+        result.check_returncode()
+        print(result.stdout)
 
     
 def transform_filters(filters):

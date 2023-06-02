@@ -1,10 +1,13 @@
 import typer
+import time
 from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
 from storage_workflows.crdb.operations.workflow_pre_run_check import WorkflowPreRunCheck
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
+from storage_workflows.crdb.cluster.node import Node
 from storage_workflows.setup_env import setup_env
+from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
 app = typer.Typer()
 
@@ -41,6 +44,17 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
         ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(etl_load_balancer_name, old_instances)
     if new_instances:
         ElasticLoadBalancerGateway.register_instances_with_load_balancer(etl_load_balancer_name, new_instances)
+
+@app.command()
+def drain_node(deployment_env, region, cluster_name):
+    nodes = Node.get_nodes()
+    crdb_conn = CrdbConnection.get_crdb_connection(cluster_name=cluster_name)
+    node = nodes[0]
+    crdb_conn.drain_node(nodes[0])
+    while node.sql_conns > 1:
+        time.sleep(30)
+    print("node drain complete")
+
 
 @app.command()
 def mute_alerts_repave(cluster_name):    
