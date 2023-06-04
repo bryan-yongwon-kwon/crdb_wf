@@ -37,6 +37,7 @@ class AutoScalingGroupGateway:
     def get_auto_scaling_group_capacity(auto_scaling_group_name):
         auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
         response = auto_scaling_group_aws_client.describe_auto_scaling_groups(AutoScalingGroupNames=[auto_scaling_group_name])
+        print(response)
         desired_capacity = response['AutoScalingGroups'][0]['DesiredCapacity']
         print('Desired capacity:', desired_capacity)
         return desired_capacity
