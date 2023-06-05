@@ -49,12 +49,21 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
 def drain_node(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     nodes = Node.get_nodes()
-    old_nodes = sorted(nodes, key=lambda node: node.started_at, reverse=False)[0:len(nodes)//2]
-    crdb_conn = CrdbConnection.get_crdb_connection(cluster_name=cluster_name)
-    for node in old_nodes:
-        print("node drain start: {}".format(node.id))
-        crdb_conn.drain_node(node)
-        print("node drain complete: {}".format(node.id))
+    old_nodes = sorted(nodes, key=lambda node: node.started_at)
+    print("Whole List: ")
+    for n in old_nodes:
+        print("Node ID: {}".format(n.id))
+        print("Creation Time: {}".format(n.started_at))
+    old_nodes = old_nodes[0:len(nodes)//2]
+    print("Half List: ")
+    for n in old_nodes:
+        print("Node ID: {}".format(n.id))
+        print("Creation Time: {}".format(n.started_at))
+    # crdb_conn = CrdbConnection.get_crdb_connection(cluster_name=cluster_name)
+    # for node in old_nodes:
+    #     print("node drain start: {}".format(node.id))
+    #     crdb_conn.drain_node(node)
+    #     print("node drain complete: {}".format(node.id))
 
 
 @app.command()
