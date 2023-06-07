@@ -41,4 +41,22 @@ class AutoScalingGroupGateway:
         desired_capacity = response['AutoScalingGroups'][0]['DesiredCapacity']
         print('Desired capacity:', desired_capacity)
         return desired_capacity
-      
+
+    @staticmethod
+    def remove_instance_from_autoscaling_group(instance_id, autoscaling_group_name):
+        auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
+        try:
+            # Detach the instance from the Auto Scaling group
+            auto_scaling_group_aws_client.detach_instances(
+                InstanceIds=[instance_id],
+                AutoScalingGroupName=autoscaling_group_name,
+                ShouldDecrementDesiredCapacity=True
+            )
+
+            print(f"Instance {instance_id} has been removed from Auto Scaling group {autoscaling_group_name}.")
+
+        except ClientError as e:
+            error_message = e.response['Error']['Message']
+            print(
+                f"Failed to remove instance {instance_id} from Auto Scaling group {autoscaling_group_name}: {error_message}")
+
