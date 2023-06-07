@@ -28,5 +28,13 @@ class AutoScalingGroup:
     def instances(self) -> list:
         return list(map(lambda instance: AutoScalingGroupInstance(instance), self._api_response['Instances']))
 
+    @property
+    def capacity(self):
+        return self._api_response['DesiredCapacity']
+
+    @property
+    def name(self):
+        return self._api_response['AutoScalingGroupName']
+
     def instances_not_in_service_exist(self):
         return any(map(lambda instance: not instance.in_service(), self.instances))

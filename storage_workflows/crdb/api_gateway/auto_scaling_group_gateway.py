@@ -16,3 +16,37 @@ class AutoScalingGroupGateway:
             response['AutoScalingGroups'].extend(
                 AutoScalingGroupGateway.describe_auto_scaling_groups(filters, response['NextToken']))
         return response['AutoScalingGroups']
+
+
+    @staticmethod
+    def update_auto_scaling_group_capacity(auto_scaling_group_name, desired_capacity):
+        auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
+        response = auto_scaling_group_aws_client.update_auto_scaling_group(
+            AutoScalingGroupName=auto_scaling_group_name,
+            DesiredCapacity=desired_capacity
+        )
+
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            print('Auto Scaling group capacity updated successfully.')
+        else:
+            print('Failed to update Auto Scaling group capacity.')
+            print('Error message:', response['ResponseMetadata']['HTTPHeaders']['x-amzn-requestid'])
+
+    @staticmethod
+    def remove_instance_from_autoscaling_group(instance_id, autoscaling_group_name):
+        auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
+        try:
+            # Detach the instance from the Auto Scaling group
+            auto_scaling_group_aws_client.detach_instances(
+                InstanceIds=[instance_id],
+                AutoScalingGroupName=autoscaling_group_name,
+                ShouldDecrementDesiredCapacity=True
+            )
+
+            print(f"Instance {instance_id} has been removed from Auto Scaling group {autoscaling_group_name}.")
+
+        except ClientError as e:
+            error_message = e.response['Error']['Message']
+            print(
+                f"Failed to remove instance {instance_id} from Auto Scaling group {autoscaling_group_name}: {error_message}")
+
