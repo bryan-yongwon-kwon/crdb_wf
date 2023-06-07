@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM 839591177169.dkr.ecr.us-west-2.amazonaws.com/open-source-mirror/dockerhub/python:3.11-slim
 WORKDIR /app
 
 RUN apt update && apt install -y \
@@ -15,6 +15,11 @@ RUN poetry config virtualenvs.create false
 ADD . /app
 
 RUN poetry install
+RUN wget --quiet --no-clobber "--output-document=cockroach-v22.2.9.linux-amd64.tgz" "https://binaries.cockroachdb.com/cockroach-v22.2.9.linux-amd64.tgz"
+RUN echo "7ed169bf5f1f27bd49ab4e04a00068f7b44cff8a0672778b0f67d87ece3de07b  cockroach-v22.2.9.linux-amd64.tgz" | sha256sum -c
+RUN tar xvf "cockroach-v22.2.9.linux-amd64.tgz"
+RUN install "cockroach-v22.2.9.linux-amd64/cockroach" "/usr/local/bin/crdb"
+RUN rm -rf cockroach-v22.2.9.linux-amd64*
 
 ENV PROD_IAM_ROLE=arn:aws:iam::611706558220:role/storage-workflows \
     STAGING_IAM_ROLE=arn:aws:iam::914801092467:role/storage-workflows \
