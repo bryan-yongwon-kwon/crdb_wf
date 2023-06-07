@@ -19,7 +19,7 @@ class AutoScalingGroupGateway:
 
 
     @staticmethod
-    def increase_auto_scaling_group_capacity(auto_scaling_group_name, desired_capacity):
+    def update_auto_scaling_group_capacity(auto_scaling_group_name, desired_capacity):
         auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
         response = auto_scaling_group_aws_client.update_auto_scaling_group(
             AutoScalingGroupName=auto_scaling_group_name,

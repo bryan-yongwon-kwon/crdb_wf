@@ -14,7 +14,7 @@ def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
     print("Autoscaling group name: " + asg_name)
     capacity = AutoScalingGroupGateway.get_auto_scaling_group_capacity(asg_name)
     # TODO: persist_asg_capacity(capacity)
-    AutoScalingGroupGateway.increase_auto_scaling_group_capacity(asg_name, 2*capacity)
+    AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg_name, 2*capacity)
     capacity = AutoScalingGroupGateway.get_auto_scaling_group_capacity(asg_name)
     # TODO: persist updated capacity persist_asg_capacity(capacity)
     return
