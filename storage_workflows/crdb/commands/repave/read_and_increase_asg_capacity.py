@@ -10,13 +10,11 @@ app = typer.Typer()
 def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    asg_name = asg._api_response['AutoScalingGroupName']
-    print("Autoscaling group name: " + asg_name)
-    capacity = AutoScalingGroupGateway.get_auto_scaling_group_capacity(asg_name)
+    capacity = asg.capacity
+    print("ASG capacity: " + str(capacity))
     # TODO: persist_asg_capacity(capacity)
-    AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg_name, 2*capacity)
-    capacity = AutoScalingGroupGateway.get_auto_scaling_group_capacity(asg_name)
-    # TODO: persist updated capacity persist_asg_capacity(capacity)
+    AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg.name, 2*capacity)
+    # TODO: persist updated capacity
     return
 
 if __name__ == "__main__":
