@@ -9,20 +9,11 @@ app = typer.Typer()
 @app.command()
 def read_asg_capacity(cluster_name, deployment_env, region):
     setup_env(deployment_env, region, cluster_name)
-    asg_name = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances.AutoScalingGroupName
-    print(asg_name)
-    capacity = AutoScalingGroupGateway.get_auto_scaling_group_capacity(asg_name)
-    print("Read capacity:" + capacity)
-    return insert_into_cluster_info(cluster_name, capacity)
-
-def insert_into_cluster_info(cluster_name, node_count):
-    connection = CrdbConnection.get_crdb_connection(cluster_name)
-    connection.connect()
-    query = "INSERT INTO clusters_info (cluster_name, node_count) VALUES ('{}', {});".format(cluster_name, node_count)
-    response = connection.execute_sql(query)
-    print("response received: " + response)
-    connection.close()
-    return response
+    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+    print("Autoscaling group name: " + asg._api_response['AutoScalingGroupName'])
+    capacity = AutoScalingGroupGateway.get_auto_scaling_group_capacity(asg._api_response['AutoScalingGroupName'])
+    print("Read capacity:" + str(capacity))
+    return capacity
 
 if __name__ == "__main__":
-    read_asg_capacity("crdb_benchmark", "staging", "us-west-2")
+    app()
