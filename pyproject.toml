@@ -35,6 +35,10 @@ mypy = "^1.0.0"
 boto3-stubs = "^1.26.89"
 botocore = "^1.29.90"
 
+[tool.poetry.source]
+name = "doordash-python-lib"
+url = "https://github.com/doordash/doordash-python-lib/tree/1.8.0"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
