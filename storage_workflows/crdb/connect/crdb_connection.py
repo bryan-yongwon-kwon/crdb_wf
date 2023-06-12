@@ -72,7 +72,7 @@ class CrdbConnection:
             raise
         return cursor.fetchall()
     
-    def decommission_node(self, nodes:list[Node]):
+    def decommission_nodes(self, nodes:list[Node]):
         certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self._cluster_name + "/"
         cluster_name = "{}-{}".format(self._cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
         nodes_str = ' '.join(list(map(lambda node: node.id, nodes)))
