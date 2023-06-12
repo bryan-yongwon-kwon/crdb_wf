@@ -80,10 +80,12 @@ class CrdbConnection:
                                                                                                                        nodes[0].ip_address,
                                                                                                                        certs_dir,
                                                                                                                        cluster_name)
+        print("Decommissioning...")
         result = subprocess.run(node_decommission_command, capture_output=True, shell=True)
         print(result.stderr)
         result.check_returncode()
         print(result.stdout)
+        print("Completed decommissioning.")
     
     def drain_node(self, node: Node):
         certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self._cluster_name + "/"
