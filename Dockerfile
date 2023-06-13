@@ -15,11 +15,18 @@ RUN poetry config virtualenvs.create false
 ADD . /app
 
 RUN poetry install
+#install crdb 22.2
 RUN wget --quiet --no-clobber "--output-document=cockroach-v22.2.9.linux-amd64.tgz" "https://binaries.cockroachdb.com/cockroach-v22.2.9.linux-amd64.tgz"
 RUN echo "7ed169bf5f1f27bd49ab4e04a00068f7b44cff8a0672778b0f67d87ece3de07b  cockroach-v22.2.9.linux-amd64.tgz" | sha256sum -c
 RUN tar xvf "cockroach-v22.2.9.linux-amd64.tgz"
-RUN install "cockroach-v22.2.9.linux-amd64/cockroach" "/usr/local/bin/crdb"
+RUN install "cockroach-v22.2.9.linux-amd64/cockroach" "/usr/local/bin/crdb22"
 RUN rm -rf cockroach-v22.2.9.linux-amd64*
+#install crdb 23.1
+RUN wget --quiet --no-clobber "--output-document=cockroach-v23.1.2.linux-amd64.tgz" "https://binaries.cockroachdb.com/cockroach-v23.1.2.linux-amd64.tgz"
+RUN echo "6924da4e047f8d6bba4cb6c7d844a5377002c9a60074e6bc8813c780f9d2d71c  cockroach-v23.1.2.linux-amd64.tgz" | sha256sum -c
+RUN tar xvf "cockroach-v23.1.2.linux-amd64.tgz"
+RUN install "cockroach-v23.1.2.linux-amd64/cockroach" "/usr/local/bin/crdb23"
+RUN rm -rf cockroach-v23.1.2.linux-amd64*
 
 ENV PROD_IAM_ROLE=arn:aws:iam::611706558220:role/storage-workflows \
     STAGING_IAM_ROLE=arn:aws:iam::914801092467:role/storage-workflows \
