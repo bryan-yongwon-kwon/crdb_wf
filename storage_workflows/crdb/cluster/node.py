@@ -16,6 +16,8 @@ class Node:
     
     @property
     def major_version(self):
+        print("ServerVersion")
+        print(self.api_response['ServerVersion'])
         return self.api_response['ServerVersion']['major_val']
 
     @property
