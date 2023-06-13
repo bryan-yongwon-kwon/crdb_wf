@@ -59,14 +59,6 @@ def mute_alerts_repave(cluster_name):
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher])
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher])
 
-@app.command()
-def decommission_nodes(deployment_env, region, cluster_name):
-    setup_env(deployment_env, region, cluster_name)
-    ids = [1,2,3]
-    connection = CrdbConnection.get_crdb_connection(cluster_name)
-    connection.connect()
-    nodes = list(filter(lambda node: node.id in ids, Node.get_nodes()))
-    connection.decommission_nodes(nodes)
 
 if __name__ == "__main__":
     app()
