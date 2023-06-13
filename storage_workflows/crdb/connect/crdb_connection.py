@@ -78,10 +78,11 @@ class CrdbConnection:
         major_version_dict = dict()
         for node in nodes:
             major_version = node.major_version
+            node_id = str(node.id)
             if major_version in major_version_dict:
-                major_version_dict[major_version].append(node.id)
+                major_version_dict[major_version].append(node_id)
             else:
-                major_version_dict[major_version] = [node.id]
+                major_version_dict[major_version] = [node_id]
         for major_version in major_version_dict:
             nodes_str = ' '.join(major_version_dict[major_version])
             node_decommission_command = "crdb{} node decommission {} --host={}:26256 --certs-dir={} --cluster-name={}".format(major_version,
