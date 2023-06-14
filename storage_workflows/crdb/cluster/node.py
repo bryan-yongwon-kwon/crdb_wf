@@ -13,6 +13,10 @@ class Node:
     @property
     def id(self):
         return self.api_response['node_id']
+    
+    @property
+    def major_version(self):
+        return self.api_response['ServerVersion']['major']
 
     @property
     def ip_address(self):
