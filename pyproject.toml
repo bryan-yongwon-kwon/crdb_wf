@@ -23,7 +23,6 @@ requests-mock = "^1.10.0"
 pytest = "^7.2.1"
 psycopg2-binary = "^2.9.5"
 paramiko = "^3.1.0"
-doordash-python-lib= "^0.13.9"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.2"
