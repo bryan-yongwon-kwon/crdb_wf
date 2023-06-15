@@ -65,7 +65,8 @@ def terminate_instances(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     for instance in asg.instances:
-        if instance.instance_id == 'i-0b7b5284763b3f0fe':
+        print("instance ID: {}".format(instance.instance_id))
+        if instance.instance_id == '0b7b5284763b3f0fe':
             instance.terminate()
 
 
