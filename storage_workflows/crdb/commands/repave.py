@@ -58,13 +58,6 @@ def mute_alerts_repave(cluster_name):
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher])
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher])
 
-@app.command()
-def terminate_instances(deployment_env, region, cluster_name):
-    # i-0b7b5284763b3f0fe
-    setup_env(deployment_env, region, cluster_name)
-    response = Ec2Gateway.terminate_instances(['i-0b7b5284763b3f0fe'])
-    print(response)
-
 
 if __name__ == "__main__":
     app()
