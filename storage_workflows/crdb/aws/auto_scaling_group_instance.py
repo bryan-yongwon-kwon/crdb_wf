@@ -9,6 +9,11 @@ class AutoScalingGroupInstance:
     def in_service(self):
         return self._api_response['LifecycleState'] == "InService"
     
+    def terminate(self):
+        response = Ec2Gateway.terminate_instances([self.instance_id])
+        print(response)
+        return response
+    
     @cached_property
     def instance_id(self):
         return self._api_response['InstanceId']

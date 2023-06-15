@@ -59,6 +59,15 @@ def mute_alerts_repave(cluster_name):
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher])
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher])
 
+@app.command()
+def terminate_instances(deployment_env, region, cluster_name):
+    # i-0b7b5284763b3f0fe
+    setup_env(deployment_env, region, cluster_name)
+    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+    for instance in asg.instances:
+        if instance.instance_id == 'i-0b7b5284763b3f0fe':
+            instance.terminate()
+
 
 if __name__ == "__main__":
     app()
