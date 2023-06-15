@@ -25,7 +25,7 @@ class AutoScalingGroup:
         self._api_response = api_response
 
     @property
-    def instances(self) -> list:
+    def instances(self) -> list[AutoScalingGroupInstance]:
         return list(map(lambda instance: AutoScalingGroupInstance(instance), self._api_response['Instances']))
 
     @property

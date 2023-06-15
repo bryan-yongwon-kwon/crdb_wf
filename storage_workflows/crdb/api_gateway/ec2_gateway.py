@@ -20,3 +20,8 @@ class Ec2Gateway:
         if 'NextToken' in response:
             instances.extend(Ec2Gateway.describe_ec2_instances(filters, response['NextToken']))
         return instances
+    
+    @staticmethod
+    def terminate_instances(instances:list[str]):
+        ec2_aws_client = AwsSessionFactory.ec2()
+        return ec2_aws_client.terminate_instances(InstanceIds=instances, DryRun=False)
