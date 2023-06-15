@@ -4,8 +4,7 @@ from storage_workflows.crdb.operations.workflow_pre_run_check import WorkflowPre
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
-from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
-from storage_workflows.crdb.cluster.node import Node
+from storage_workflows.crdb.api_gateway.ec2_gateway import Ec2Gateway
 from storage_workflows.setup_env import setup_env
 
 app = typer.Typer()
@@ -63,11 +62,8 @@ def mute_alerts_repave(cluster_name):
 def terminate_instances(deployment_env, region, cluster_name):
     # i-0b7b5284763b3f0fe
     setup_env(deployment_env, region, cluster_name)
-    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    for instance in asg.instances:
-        print("instance ID: {}".format(instance.instance_id))
-        if instance.instance_id == '0b7b5284763b3f0fe':
-            instance.terminate()
+    response = Ec2Gateway.terminate_instances(['i-0b7b5284763b3f0fe'])
+    print(response)
 
 
 if __name__ == "__main__":
