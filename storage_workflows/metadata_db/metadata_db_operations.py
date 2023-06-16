@@ -11,9 +11,9 @@ class MetadataDBOperations:
         ca_cert = SecretValue(os.getenv('ROOT-CA'))
         public_cert = SecretValue(os.getenv('CLIENT-CERT'))
         private_cert = SecretValue(os.getenv('CLIENT-KEY'))
-        ca_cert.write_to_file(dir_path, ca.crt)
-        public_cert.write_to_file(dir_path, client.storage_metadata_app_20230509.crt)
-        private_cert.write_to_file(dir_path, client.storage_metadata_app_20230509.key)
+        ca_cert.write_to_file(dir_path, "ca.crt")
+        public_cert.write_to_file(dir_path, "client.storage_metadata_app_20230509.crt")
+        private_cert.write_to_file(dir_path, "client.storage_metadata_app_20230509.key")
 
         connection = psycopg2.connect(
             database="crdb_workflows",
