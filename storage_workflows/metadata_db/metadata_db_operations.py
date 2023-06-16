@@ -1,6 +1,8 @@
 from storage_workflows.crdb.aws.secret_value import SecretValue
 import psycopg2
 import os
+import stat
+
 
 
 class MetadataDBOperations:
@@ -8,12 +10,12 @@ class MetadataDBOperations:
     @staticmethod
     def metadata_db_connection():
         dir_path = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + "storage-metadata" + "/"
-        ca_cert = SecretValue(os.getenv('ROOT-CA'))
-        public_cert = SecretValue(os.getenv('CLIENT-CERT'))
-        private_cert = SecretValue(os.getenv('CLIENT-KEY'))
-        ca_cert.write_to_file(dir_path, "ca.crt")
-        public_cert.write_to_file(dir_path, "client.storage_metadata_app_20230509.crt")
-        private_cert.write_to_file(dir_path, "client.storage_metadata_app_20230509.key")
+        ca_cert = os.getenv('ROOT-CA')
+        public_cert = os.getenv('CLIENT-CERT')
+        private_cert = os.getenv('CLIENT-KEY')
+        MetadataDBOperations.write_to_file(dir_path, "ca.crt", ca_cert)
+        MetadataDBOperations.write_to_file(dir_path, "client.storage_metadata_app_20230509.crt", public_cert)
+        MetadataDBOperations.write_to_file(dir_path, "client.storage_metadata_app_20230509.key", private_cert)
 
         connection = psycopg2.connect(
             database="crdb_workflows",
@@ -26,6 +28,21 @@ class MetadataDBOperations:
             sslkey=dir_path+"client.storage_metadata_app_20230509.key"
         )
         return connection
+
+    @staticmethod
+    def close(connection):
+        if connection:
+            connection.close()
+
+    @staticmethod
+    def write_to_file(dir_path, file_name, file_content):
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        file_path = os.path.join(dir_path, file_name)
+        file = open(file_path, "w")
+        file.write(file_content)
+        file.close()
+        os.chmod(file_path, stat.S_IREAD|stat.S_IWRITE)
 
     @staticmethod
     def execute_sql(connection, sql: str, need_commit: bool = False, need_fetchall: bool = False, need_fetchone: bool = False):
