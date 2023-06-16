@@ -12,9 +12,9 @@ class MetadataDBOperations:
             user="storage_metadata_app_20230509",
             host="storage-metadata-crdb.us-west-2.aws.ddnw.net",
             sslmode="require",
-            sslrootcert=os.getenv('root_ca'),
-            sslcert=os.getenv('client_cert'),
-            sslkey=os.getenv('client_key')
+            sslrootcert=os.getenv('ROOT-CA'),
+            sslcert=os.getenv('CLIENT-CERT'),
+            sslkey=os.getenv('CLIENT-KEY')
         )
         return connection
 
