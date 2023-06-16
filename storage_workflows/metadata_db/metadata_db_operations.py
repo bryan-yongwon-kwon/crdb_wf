@@ -11,11 +11,11 @@ class MetadataDBOperations:
     def metadata_db_connection():
         dir_path = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + "storage-metadata" + "/"
         ca_cert = os.getenv('ROOT-CA')
-        public_cert = os.getenv('CLIENT-CERT')
-        private_cert = os.getenv('CLIENT-KEY')
+        client_cert = os.getenv('CLIENT-CERT')
+        client_key = os.getenv('CLIENT-KEY')
         MetadataDBOperations.write_to_file(dir_path, "ca.crt", ca_cert)
-        MetadataDBOperations.write_to_file(dir_path, "client.storage_metadata_app_20230509.crt", public_cert)
-        MetadataDBOperations.write_to_file(dir_path, "client.storage_metadata_app_20230509.key", private_cert)
+        MetadataDBOperations.write_to_file(dir_path, "client.storage_metadata_app_20230509.crt", client_cert)
+        MetadataDBOperations.write_to_file(dir_path, "client.storage_metadata_app_20230509.key", client_key)
 
         connection = psycopg2.connect(
             database="crdb_workflows",
