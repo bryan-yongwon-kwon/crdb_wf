@@ -43,7 +43,7 @@ class AutoScalingGroupGateway:
                 ShouldDecrementDesiredCapacity=True
             )
 
-            print(f"Instance {instance_id} has been removed from Auto Scaling group {autoscaling_group_name}.")
+            print(f"Instances have been removed from Auto Scaling group {autoscaling_group_name}.")
 
         except ClientError as e:
             error_message = e.response['Error']['Message']
