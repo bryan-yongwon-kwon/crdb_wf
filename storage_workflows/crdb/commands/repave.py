@@ -62,8 +62,7 @@ def mute_alerts_repave(cluster_name):
 @app.command()
 def terminate_instances(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    # should get instance ids from metadata database
-    instance_ids = ['i-0fb0baa81b94afe69']
+    instance_ids = [] # place holder, should get instance ids from metadata database
     for id in instance_ids:
         ec2_instance = Ec2Instance.find_ec2_instance(id)
         ec2_instance.terminate_instance()
