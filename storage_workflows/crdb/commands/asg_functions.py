@@ -2,6 +2,7 @@ import typer
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.setup_env import setup_env
 from storage_workflows.metadata_db.metadata_db_operations import MetadataDBOperations
+from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 
 
 app = typer.Typer()
