@@ -16,11 +16,11 @@ class Ec2Instance:
     def __init__(self, api_response):
         self._api_response = api_response
 
-    @cached_property
+    @property
     def instance_id(self):
         return self._api_response['InstanceId']
     
-    @cached_property
+    @property
     def launch_time(self):
         return self._api_response['LaunchTime']
     
@@ -29,12 +29,20 @@ class Ec2Instance:
     def state(self):
         return self._api_response['State']['Name']
     
+    def reload(self):
+        filters = [{
+            'Name': 'instance-id',
+            'Values': [self.instance_id]
+        }]
+        self._api_response = Ec2Gateway.describe_ec2_instances(filters)[0]
+    
     def terminate_instance(self):
         print("Terminating instance {}...".format(self.instance_id))
-        response = Ec2Gateway.terminate_instances([self.instance_id])
-        while response['CurrentState']['Name'] != 'terminated':
-            print("Current state is {}, previous state is {}".format(response['CurrentState']['Name'], response['PreviousState']['Name']))
+        Ec2Gateway.terminate_instances([self.instance_id])
+        while self.state != 'terminated':
+            print("Current state is {}".format(self.state))
             print("sleeping 30s...")
             time.sleep(30)
+            self.reload()
         print("Instance {} terminated.".format(self.instance_id))
 
