@@ -6,15 +6,24 @@ class MetadataDBOperations:
 
     @staticmethod
     def metadata_db_connection():
+
+        dir_path = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + cluster_name + "/"
+        ca_cert = os.getenv('ROOT-CA')
+        public_cert = os.getenv('CLIENT-CERT')
+        private_cert = os.getenv('CLIENT-KEY')
+        ca_cert.write_to_file(dir_path, "ca.crt")
+        public_cert.write_to_file(dir_path, "client.storage_metadata_app_20230509.crt")
+        private_cert.write_to_file(dir_path, "client.storage_metadata_app_20230509.key")
+        
         connection = psycopg2.connect(
             database="crdb_workflows",
             port="26257",
             user="storage_metadata_app_20230509",
             host="storage-metadata-crdb.us-west-2.aws.ddnw.net",
             sslmode="require",
-            sslrootcert=os.getenv('ROOT-CA'),
-            sslcert=os.getenv('CLIENT-CERT'),
-            sslkey=os.getenv('CLIENT-KEY')
+            sslrootcert=dir_path+"ca.crt",
+            sslcert=dir_path+"client.storage_metadata_app_20230509.crt",
+            sslkey=dir_path+"client.storage_metadata_app_20230509.key"
         )
         return connection
 
