@@ -20,7 +20,6 @@ def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
     #AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg.name, 2*capacity)
     return
 
-@app.command()
 def delete_old_nodes_from_asg(asg_name, cluster_name):
     old_instances = MetadataDBOperations.get_old_nodes(cluster_name)
     AutoScalingGroupGateway.remove_instance_from_autoscaling_group(old_instances[0], asg_name)
