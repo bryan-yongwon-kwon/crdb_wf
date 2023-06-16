@@ -1,5 +1,6 @@
 from functools import cached_property
 from storage_workflows.crdb.api_gateway.ec2_gateway import Ec2Gateway
+from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 
 class AutoScalingGroupInstance:
 
@@ -12,12 +13,4 @@ class AutoScalingGroupInstance:
     @cached_property
     def instance_id(self):
         return self._api_response['InstanceId']
-    
-    @cached_property
-    def launch_time(self):
-        filters = [{
-            'Name': 'instance-id',
-            'Values': [self.instance_id]
-        }]
-        return Ec2Gateway.describe_ec2_instances(filters)[0]['LaunchTime']
     
