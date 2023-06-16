@@ -33,17 +33,17 @@ class AutoScalingGroupGateway:
             print('Error message:', response['ResponseMetadata']['HTTPHeaders']['x-amzn-requestid'])
 
     @staticmethod
-    def remove_instance_from_autoscaling_group(instance_id, autoscaling_group_name):
+    def remove_instance_from_autoscaling_group(instance_ids, autoscaling_group_name):
         auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
         try:
             # Detach the instance from the Auto Scaling group
             auto_scaling_group_aws_client.detach_instances(
-                InstanceIds=[instance_id],
+                InstanceIds=instance_ids,
                 AutoScalingGroupName=autoscaling_group_name,
                 ShouldDecrementDesiredCapacity=True
             )
 
-            print(f"Instance {instance_id} has been removed from Auto Scaling group {autoscaling_group_name}.")
+            print(f"Instances have been removed from Auto Scaling group {autoscaling_group_name}.")
 
         except ClientError as e:
             error_message = e.response['Error']['Message']
