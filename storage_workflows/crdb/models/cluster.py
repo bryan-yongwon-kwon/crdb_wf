@@ -11,7 +11,7 @@ from storage_workflows.crdb.models.node import Node
 class Cluster:
 
     def __init__(self):
-        self.cluster_name = os.getenv['CLUSTER_NAME']
+        self.cluster_name = os.getenv('CLUSTER_NAME')
 
     @property
     def nodes(self):

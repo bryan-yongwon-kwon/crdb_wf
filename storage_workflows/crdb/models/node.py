@@ -14,7 +14,7 @@ class Node:
 
     @property
     def cluster_name(self):
-        return os.getenv['CLUSTER_NAME']
+        return os.getenv('CLUSTER_NAME')
 
     @property
     def id(self):
