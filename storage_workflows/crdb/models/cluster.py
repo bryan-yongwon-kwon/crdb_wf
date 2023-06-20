@@ -15,7 +15,7 @@ class Cluster:
 
     @property
     def nodes(self):
-        return Node.get_nodes(self.cluster_name)
+        return Node.get_nodes()
     
     def backup_job_is_running(self) -> bool:
         contains_running_backup_job = any(CrdbBackupJob.find_all_crdb_backup_running_jobs(self.cluster_name))
