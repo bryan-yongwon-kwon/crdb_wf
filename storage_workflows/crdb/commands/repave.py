@@ -1,6 +1,6 @@
 import typer
 from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
-from storage_workflows.crdb.operations.workflow_pre_run_check import WorkflowPreRunCheck
+from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
@@ -14,12 +14,13 @@ app = typer.Typer()
 @app.command()
 def pre_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    if (WorkflowPreRunCheck.backup_job_is_running(cluster_name)
-        or WorkflowPreRunCheck.restore_job_is_running(cluster_name)
-        or WorkflowPreRunCheck.schema_change_job_is_running(cluster_name)
-        or WorkflowPreRunCheck.row_level_ttl_job_is_running(cluster_name)
-        or WorkflowPreRunCheck.unhealthy_ranges_exist(cluster_name)
-        or WorkflowPreRunCheck.instances_not_in_service_exist(cluster_name)):
+    cluster = Cluster(cluster_name)
+    if (cluster.backup_job_is_running()
+        or cluster.restore_job_is_running()
+        or cluster.schema_change_job_is_running()
+        or cluster.row_level_ttl_job_is_running()
+        or cluster.unhealthy_ranges_exist()
+        or cluster.instances_not_in_service_exist()):
         raise Exception("Pre run check failed")
     else:
         print("Check passed")

@@ -1,3 +1,5 @@
+import os
+import subprocess
 from storage_workflows.crdb.api_gateway.crdb_api_gateway import CrdbApiGateway
 
 class Node:
@@ -9,6 +11,10 @@ class Node:
 
     def __init__(self, api_response):
         self.api_response = api_response
+
+    @property
+    def cluster_name(self):
+        return os.getenv['CLUSTER_NAME']
 
     @property
     def id(self):
@@ -32,3 +38,12 @@ class Node:
     
     def reload(self):
         self.api_response = list(filter(lambda node: node.id == self.id, Node.get_nodes()))[0].api_response
+
+    def drain(self):
+        certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self.cluster_name + "/"
+        cluster_name = "{}-{}".format(self.cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
+        node_drain_command = "crdb node drain {} --host={}:26256 --certs-dir={} --cluster-name={}".format(self.id, self.ip_address, certs_dir, cluster_name)
+        result = subprocess.run(node_drain_command, capture_output=True, shell=True)
+        print(result.stderr)
+        result.check_returncode()
+        print(result.stdout)
