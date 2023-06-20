@@ -14,7 +14,7 @@ app = typer.Typer()
 @app.command()
 def pre_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    cluster = Cluster(cluster_name)
+    cluster = Cluster()
     if (cluster.backup_job_is_running()
         or cluster.restore_job_is_running()
         or cluster.schema_change_job_is_running()
