@@ -11,11 +11,7 @@ from storage_workflows.crdb.models.node import Node
 class Cluster:
 
     def __init__(self):
-        pass
-
-    @property
-    def cluster_name(self):
-        return os.getenv['CLUSTER_NAME']
+        self.cluster_name = os.getenv['CLUSTER_NAME']
 
     @property
     def nodes(self):
@@ -69,7 +65,7 @@ class Cluster:
     
     def decommission_nodes(self, nodes:list[Node]):
         certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self.cluster_name + "/"
-        cluster_name = "{}-{}".format(self.cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
+        formatted_cluster_name = "{}-{}".format(self.cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
         major_version_dict = dict()
         for node in nodes:
             major_version = node.major_version
@@ -84,7 +80,7 @@ class Cluster:
                                                                                                                               nodes_str, 
                                                                                                                               nodes[-1].ip_address,
                                                                                                                               certs_dir,
-                                                                                                                              cluster_name)
+                                                                                                                              formatted_cluster_name)
             print("Decommissioning nodes with major version {}...".format(major_version))
             result = subprocess.run(node_decommission_command, capture_output=True, shell=True)
             print(result.stderr)
