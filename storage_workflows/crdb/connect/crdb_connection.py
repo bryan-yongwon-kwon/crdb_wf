@@ -1,11 +1,9 @@
 import os
 import psycopg2
-import subprocess
 from storage_workflows.crdb.connect.cred_type import CredType
 from storage_workflows.crdb.aws.secret import Secret
 from storage_workflows.crdb.aws.secret_value import SecretValue
 from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
-from storage_workflows.crdb.cluster.node import Node
 
 
 class CrdbConnection:
@@ -71,40 +69,6 @@ class CrdbConnection:
             print(error)
             raise
         return cursor.fetchall()
-    
-    def decommission_nodes(self, nodes:list[Node]):
-        certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self._cluster_name + "/"
-        cluster_name = "{}-{}".format(self._cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
-        major_version_dict = dict()
-        for node in nodes:
-            major_version = node.major_version
-            node_id = str(node.id)
-            if major_version in major_version_dict:
-                major_version_dict[major_version].append(node_id)
-            else:
-                major_version_dict[major_version] = [node_id]
-        for major_version in major_version_dict:
-            nodes_str = ' '.join(major_version_dict[major_version])
-            node_decommission_command = "crdb{} node decommission {} --host={}:26256 --certs-dir={} --cluster-name={}".format(major_version,
-                                                                                                                              nodes_str, 
-                                                                                                                              nodes[-1].ip_address,
-                                                                                                                              certs_dir,
-                                                                                                                              cluster_name)
-            print("Decommissioning nodes with major version {}...".format(major_version))
-            result = subprocess.run(node_decommission_command, capture_output=True, shell=True)
-            print(result.stderr)
-            result.check_returncode()
-            print(result.stdout)
-            print("Completed decommissioning nodes with major version {}.".format(major_version))
-    
-    def drain_node(self, node: Node):
-        certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self._cluster_name + "/"
-        cluster_name = "{}-{}".format(self._cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
-        node_drain_command = "crdb node drain {} --host={}:26256 --certs-dir={} --cluster-name={}".format(node.id, node.ip_address, certs_dir, cluster_name)
-        result = subprocess.run(node_drain_command, capture_output=True, shell=True)
-        print(result.stderr)
-        result.check_returncode()
-        print(result.stdout)
 
     
 def transform_filters(filters):

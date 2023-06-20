@@ -1,7 +1,7 @@
 import typer
 from storage_workflows.setup_env import setup_env
 from storage_workflows.crdb.connect.ssh import SSH
-from storage_workflows.crdb.cluster.node import Node
+from storage_workflows.crdb.models.node import Node
 
 app = typer.Typer()
 
