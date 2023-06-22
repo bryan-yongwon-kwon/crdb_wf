@@ -8,6 +8,7 @@ from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import Ela
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.metadata_db.metadata_db_operations import MetadataDBOperations
 from storage_workflows.setup_env import setup_env
+from storage_workflows.crdb.models.node import Node
 
 app = typer.Typer()
 
@@ -88,6 +89,13 @@ def terminate_instances(deployment_env, region, cluster_name):
     for id in instance_ids:
         ec2_instance = Ec2Instance.find_ec2_instance(id)
         ec2_instance.terminate_instance()
+
+@app.command()
+def get_replicas_count(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    nodes = Node.get_nodes()
+    for node in nodes:
+        print("The replica count in node {} is : {}".format(node.id, node.replicas))
 
 if __name__ == "__main__":
     app()

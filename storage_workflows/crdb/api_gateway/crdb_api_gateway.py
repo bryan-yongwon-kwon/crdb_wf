@@ -12,6 +12,11 @@ class CrdbApiGateway:
     def list_nodes(session:str, limit=200, offset=0):
         return get("https://{}/api/v2/nodes/?limit={}&offset={}".format(CrdbApiGateway.__make_url(), limit, offset),
                        headers={"X-Cockroach-API-Session":session}).json()
+    
+    @staticmethod
+    def get_node_details_from_endpoint(session:str, node_id:str):
+        return get("https://{}/_status/nodes/{}".format(CrdbApiGateway.__make_url(), node_id),
+                   cookies="session={}; Path=/; HttpOnly".format(session))
 
     @staticmethod
     def __make_url():
