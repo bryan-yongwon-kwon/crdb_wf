@@ -8,6 +8,7 @@ from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import Ela
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.metadata_db.metadata_db_operations import MetadataDBOperations
 from storage_workflows.setup_env import setup_env
+from storage_workflows.crdb.models.node import Node
 
 app = typer.Typer()
 

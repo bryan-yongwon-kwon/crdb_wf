@@ -1,5 +1,6 @@
 import os
 import subprocess
+from functools import reduce
 from storage_workflows.crdb.api_gateway.crdb_api_gateway import CrdbApiGateway
 
 class Node:
@@ -35,6 +36,12 @@ class Node:
     @property
     def sql_conns(self):
         return int(self.api_response['metrics']['sql.conns'])
+    
+    @property
+    def replicas(self):
+        stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
+        replicas_list = map(lambda store: int(store['metrics']['replicas']), stores)
+        return reduce(lambda replica_count_1, replica_count_2: replica_count_1+replica_count_2, replicas_list)
     
     def reload(self):
         self.api_response = list(filter(lambda node: node.id == self.id, Node.get_nodes()))[0].api_response
