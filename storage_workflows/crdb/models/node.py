@@ -80,4 +80,4 @@ class Node:
             print(errors)
         else:
             print(lines)
-            print("Starting crdb on node {}".format(self.id))
+            print("Started crdb on node {}".format(self.id))
