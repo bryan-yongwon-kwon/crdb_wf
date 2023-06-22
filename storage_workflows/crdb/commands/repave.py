@@ -94,7 +94,7 @@ def terminate_instances(deployment_env, region, cluster_name):
 @app.command()
 def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    instance_ids = [] # place holder, should get instance ids from metadata database
+    instance_ids = ['i-09ece384a38950299'] # place holder, should get instance ids from metadata database
     instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
     nodes = list(filter(lambda node: node.ip_address in instances_ips, Node.get_nodes()))
     for node in nodes:
