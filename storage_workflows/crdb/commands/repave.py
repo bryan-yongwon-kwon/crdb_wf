@@ -90,12 +90,5 @@ def terminate_instances(deployment_env, region, cluster_name):
         ec2_instance = Ec2Instance.find_ec2_instance(id)
         ec2_instance.terminate_instance()
 
-@app.command()
-def get_replicas_count(deployment_env, region, cluster_name):
-    setup_env(deployment_env, region, cluster_name)
-    nodes = Node.get_nodes()
-    for node in nodes:
-        print("The replica count in node {} is : {}".format(node.id, node.replicas))
-
 if __name__ == "__main__":
     app()
