@@ -18,7 +18,7 @@ class CrdbApiGateway:
         jar = cookies.RequestsCookieJar()
         jar.set(name='session', value=session, path='/')
         return get("https://{}/_status/nodes/{}".format(CrdbApiGateway.__make_url(), node_id),
-                   cookies=jar)
+                   cookies=jar).json()
 
     @staticmethod
     def __make_url():
