@@ -29,6 +29,10 @@ class Ec2Instance:
     def state(self):
         return self._api_response['State']['Name']
     
+    @property
+    def private_ip_address(self):
+        return self._api_response['PrivateIpAddress']
+    
     def reload(self):
         filters = [{
             'Name': 'instance-id',

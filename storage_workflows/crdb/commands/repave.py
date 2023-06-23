@@ -7,6 +7,8 @@ from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.metadata_db.metadata_db_operations import MetadataDBOperations
+from storage_workflows.crdb.models.node import Node
+from storage_workflows.crdb.connect.ssh import SSH
 from storage_workflows.setup_env import setup_env
 from storage_workflows.crdb.models.node import Node
 
@@ -89,6 +91,16 @@ def terminate_instances(deployment_env, region, cluster_name):
     for id in instance_ids:
         ec2_instance = Ec2Instance.find_ec2_instance(id)
         ec2_instance.terminate_instance()
+
+@app.command()
+def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    instance_ids = [] # place holder, should get instance ids from metadata database
+    instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
+    nodes = list(filter(lambda node: node.ip_address in instances_ips, Node.get_nodes()))
+    for node in nodes:
+        node.stop_crdb()
+
 
 if __name__ == "__main__":
     app()
