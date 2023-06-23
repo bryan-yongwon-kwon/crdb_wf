@@ -3,10 +3,10 @@ from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 class RowLevelTtlJob:
 
 
-    FIND_ALL_ROW_LEVEL_TTL_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='ROW LEVEL TTL' AND status = 'running';"
+    FIND_ALL_ROW_LEVEL_TTL_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='ROW LEVEL TTL';"
 
     @staticmethod
-    def find_all_crdb_row_level_ttl_running_jobs(cluster_name):
+    def find_all_row_level_ttl_running_jobs(cluster_name):
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
         response = connection.execute_sql(RowLevelTtlJob.FIND_ALL_ROW_LEVEL_TTL_JOBS_SQL)

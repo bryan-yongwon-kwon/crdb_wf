@@ -2,10 +2,10 @@ from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
 class RestorelJob:
 
-    FIND_ALL_RESTORE_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='RESTORE' AND status = 'running';"
+    FIND_ALL_RESTORE_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='RESTORE'';"
 
     @staticmethod
-    def find_all_crdb_restore_running_jobs(cluster_name):
+    def find_all_restore_running_jobs(cluster_name):
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
         response = connection.execute_sql(RestorelJob.FIND_ALL_RESTORE_JOBS_SQL)
