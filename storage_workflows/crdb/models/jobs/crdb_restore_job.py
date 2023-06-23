@@ -1,6 +1,6 @@
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
-class CrdbRestorelJob():
+class CrdbRestorelJob:
 
 
     FIND_ALL_CRDB_RESTORE_JOBS_SQL = CHECK_RUNNING_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='RESTORE' AND status = 'running';"
