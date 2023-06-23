@@ -1,18 +1,18 @@
-from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 import os
+from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
-class CrdbBackupJob:
+class BackupJob:
 
 
-    FIND_ALL_CRDB_BACKUP_JOBS_SQL = CHECK_RUNNING_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='BACKUP' AND status = 'running';"
+    FIND_ALL_BACKUP_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='BACKUP' AND status = 'running';"
 
     @staticmethod
     def find_all_crdb_backup_running_jobs(cluster_name):
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        response = connection.execute_sql(CrdbBackupJob.FIND_ALL_CRDB_BACKUP_JOBS_SQL)
+        response = connection.execute_sql(BackupJob.FIND_ALL_BACKUP_JOBS_SQL)
         connection.close()
-        return list(map(lambda job: CrdbBackupJob(job), response))
+        return list(map(lambda job: BackupJob(job), response))
 
     def __init__(self, response):
         self._response = response

@@ -1,17 +1,17 @@
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
-class CrdbSchemaChangelJob:
+class SchemaChangelJob:
 
 
-    FIND_ALL_CRDB_SCHEMA_CHANGE_JOBS_SQL = CHECK_RUNNING_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='SCHEMA CHANGE' AND status = 'running';"
+    FIND_ALL_SCHEMA_CHANGE_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='SCHEMA CHANGE' AND status = 'running';"
 
     @staticmethod
     def find_crdb_schema_change_running_jobs(cluster_name):
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        response = connection.execute_sql(CrdbSchemaChangelJob.FIND_ALL_CRDB_SCHEMA_CHANGE_JOBS_SQL)
+        response = connection.execute_sql(SchemaChangelJob.FIND_ALL_SCHEMA_CHANGE_JOBS_SQL)
         connection.close()
-        return list(map(lambda job: CrdbSchemaChangelJob(job), response))
+        return list(map(lambda job: SchemaChangelJob(job), response))
 
     def __init__(self, response):
         self._response = response

@@ -2,10 +2,10 @@ import os
 import subprocess
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
-from storage_workflows.crdb.models.jobs.crdb_backup_job import CrdbBackupJob
-from storage_workflows.crdb.models.jobs.crdb_restore_job import CrdbRestorelJob
-from storage_workflows.crdb.models.jobs.crdb_row_level_ttl_job import CrdbRowLevelTtlJob
-from storage_workflows.crdb.models.jobs.crdb_schema_change_job import CrdbSchemaChangelJob
+from storage_workflows.crdb.models.jobs.backup_job import BackupJob
+from storage_workflows.crdb.models.jobs.restore_job import RestorelJob
+from storage_workflows.crdb.models.jobs.row_level_ttl_job import RowLevelTtlJob
+from storage_workflows.crdb.models.jobs.schema_change_job import SchemaChangelJob
 from storage_workflows.crdb.models.node import Node
 
 class Cluster:
@@ -18,25 +18,25 @@ class Cluster:
         return Node.get_nodes()
     
     def backup_job_is_running(self) -> bool:
-        contains_running_backup_job = any(CrdbBackupJob.find_all_crdb_backup_running_jobs(self.cluster_name))
+        contains_running_backup_job = any(BackupJob.find_all_crdb_backup_running_jobs(self.cluster_name))
         if contains_running_backup_job:
             print("Running backup job(s) found!")
         return contains_running_backup_job
     
     def restore_job_is_running(self) -> bool:
-        contains_running_restore_job = any(CrdbRestorelJob.find_all_crdb_restore_running_jobs(self.cluster_name))
+        contains_running_restore_job = any(RestorelJob.find_all_crdb_restore_running_jobs(self.cluster_name))
         if contains_running_restore_job:
             print("Running restore job(s) found!")
         return contains_running_restore_job
     
     def schema_change_job_is_running(self) -> bool:
-        contains_schema_change_job = any(CrdbSchemaChangelJob.find_crdb_schema_change_running_jobs(self.cluster_name))
+        contains_schema_change_job = any(SchemaChangelJob.find_crdb_schema_change_running_jobs(self.cluster_name))
         if contains_schema_change_job:
             print("Running schema change job found!")
         return contains_schema_change_job
     
     def row_level_ttl_job_is_running(self) -> bool:
-        contains_row_level_ttl_job = any(CrdbRowLevelTtlJob.find_all_crdb_row_level_ttl_running_jobs(self.cluster_name))
+        contains_row_level_ttl_job = any(RowLevelTtlJob.find_all_crdb_row_level_ttl_running_jobs(self.cluster_name))
         if contains_row_level_ttl_job:
             print("Running row level ttl job(s) found!")
         return contains_row_level_ttl_job

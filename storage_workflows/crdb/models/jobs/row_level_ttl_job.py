@@ -1,17 +1,17 @@
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
-class CrdbRestorelJob:
+class RowLevelTtlJob:
 
 
-    FIND_ALL_CRDB_RESTORE_JOBS_SQL = CHECK_RUNNING_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='RESTORE' AND status = 'running';"
+    FIND_ALL_ROW_LEVEL_TTL_JOBS_SQL = "SELECT job_id,job_type,status  FROM [SHOW JOBS] WHERE job_type='ROW LEVEL TTL' AND status = 'running';"
 
     @staticmethod
-    def find_all_crdb_restore_running_jobs(cluster_name):
+    def find_all_crdb_row_level_ttl_running_jobs(cluster_name):
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        response = connection.execute_sql(CrdbRestorelJob.FIND_ALL_CRDB_RESTORE_JOBS_SQL)
+        response = connection.execute_sql(RowLevelTtlJob.FIND_ALL_ROW_LEVEL_TTL_JOBS_SQL)
         connection.close()
-        return list(map(lambda job: CrdbRestorelJob(job), response))
+        return list(map(lambda job: RowLevelTtlJob(job), response))
 
     def __init__(self, response):
         self._response = response
