@@ -7,7 +7,9 @@ from storage_workflows.crdb.models.jobs.restore_job import RestorelJob
 from storage_workflows.crdb.models.jobs.row_level_ttl_job import RowLevelTtlJob
 from storage_workflows.crdb.models.jobs.schema_change_job import SchemaChangelJob
 from storage_workflows.crdb.models.node import Node
+from storage_workflows.logging.logger import Logger
 
+logger = Logger()
 class Cluster:
 
     def __init__(self):
@@ -20,25 +22,25 @@ class Cluster:
     def backup_job_is_running(self) -> bool:
         contains_running_backup_job = any(BackupJob.find_all_crdb_backup_running_jobs(self.cluster_name))
         if contains_running_backup_job:
-            print("Running backup job(s) found!")
+            logger.warning("Running backup job(s) found!")
         return contains_running_backup_job
     
     def restore_job_is_running(self) -> bool:
         contains_running_restore_job = any(RestorelJob.find_all_crdb_restore_running_jobs(self.cluster_name))
         if contains_running_restore_job:
-            print("Running restore job(s) found!")
+            logger.warning("Running restore job(s) found!")
         return contains_running_restore_job
     
     def schema_change_job_is_running(self) -> bool:
         contains_schema_change_job = any(SchemaChangelJob.find_crdb_schema_change_running_jobs(self.cluster_name))
         if contains_schema_change_job:
-            print("Running schema change job found!")
+            logger.warning("Running schema change job found!")
         return contains_schema_change_job
     
     def row_level_ttl_job_is_running(self) -> bool:
         contains_row_level_ttl_job = any(RowLevelTtlJob.find_all_crdb_row_level_ttl_running_jobs(self.cluster_name))
         if contains_row_level_ttl_job:
-            print("Running row level ttl job(s) found!")
+            logger.warning("Running row level ttl job(s) found!")
         return contains_row_level_ttl_job
     
     def unhealthy_ranges_exist(self) -> bool:
@@ -57,7 +59,7 @@ class Cluster:
                                 + unhealthy_ranges[OVER_REPLICATED_RANGES_COUNT_INDEX])
         contains_unhealthy_ranges = unhealthy_ranges_sum > 0
         if contains_unhealthy_ranges:
-            print("Unhealthy ranges found!")
+            logger.warning("Unhealthy ranges found!")
         return contains_unhealthy_ranges
     
     def instances_not_in_service_exist(self) -> bool:
