@@ -1,7 +1,7 @@
-from functools import cached_property
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
+from storage_workflows.crdb.models.jobs.base_job import BaseJob
 
-class ChangefeedJob:
+class ChangefeedJob(BaseJob):
 
     @staticmethod
     def find_all_paused_crdb_changefeed_jobs(cluster_name):
@@ -14,23 +14,12 @@ class ChangefeedJob:
         return list(map(lambda job: ChangefeedJob(job, cluster_name), response))
     
     def __init__(self, response, cluster_name):
+        super().__init__(response[0], response[1], cluster_name)
         self._response = response
         self._cluster_name = cluster_name
-
-    @property
-    def cluster_name(self):
-        return self._cluster_name
-
-    @property
-    def job_id(self):
-        return self._response[0]
     
-    @property
-    def status(self):
-        return self._response[1]
-    
-    @cached_property
-    def connection(self):
-        connection = CrdbConnection.get_crdb_connection(self.cluster_name)
-        connection.connect()
-        return connection
+    def pause(self):
+        self.connection.execute_sql(self.PAUSE_JOB_BY_ID_SQL.format(self.job_id))
+
+    def resume(self):
+        self.connection.execute_sql(self.RESUME_JOB_BY_ID_SQL.format(self.job_id))
