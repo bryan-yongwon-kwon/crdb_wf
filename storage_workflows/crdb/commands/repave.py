@@ -32,19 +32,19 @@ def pre_check(deployment_env, region, cluster_name):
 @app.command()
 def refresh_etl_load_balancer(deployment_env, region, cluster_name):
     if deployment_env == 'staging':
-        print("Staging clusters doesn't have ETL load balancers.")
+        logger.info("Staging clusters doesn't have ETL load balancers.")
         return
     setup_env(deployment_env, region, cluster_name)
     etl_load_balancer_name = (cluster_name.replace("_", "-") + "-crdb-etl")[:32]
     load_balancers = ElasticLoadBalancer.find_elastic_load_balancers([etl_load_balancer_name])
     if not load_balancers:
-        print("Mode not enabled. ETL load balancer doesn't exist.")
+        logger.warning("Mode not enabled. ETL load balancer doesn't exist.")
         return
     old_instances = load_balancers[0].instances
-    print("Old instances: {}".format(old_instances))
+    logger.info("Old instances: {}".format(old_instances))
     new_instances = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances
     new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id}, new_instances))
-    print("New instances: {}".format(new_instances))
+    logger.info("New instances: {}".format(new_instances))
     if old_instances:
         ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(etl_load_balancer_name, old_instances)
     if new_instances:
@@ -70,7 +70,7 @@ def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     capacity = asg.capacity
-    print("ASG capacity: " + str(capacity))
+    logger.info("ASG capacity: " + str(capacity))
     instances=[]
     for instance in asg.instances:
         instances.append(instance.instance_id)
@@ -108,18 +108,18 @@ def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
     changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
     paused_changefeed_jobs = list(filter(lambda job: job.status == 'paused', changefeed_jobs))
     for job in paused_changefeed_jobs:
-        print("Resuming changefeed job {}".format(job.id))
+        logger.info("Resuming changefeed job {}".format(job.id))
         job.resume()
-    print("Resumed all paused changefeed jobs!")
+    logger.info("Resumed all paused changefeed jobs!")
 
 @app.command()
 def pause_all_changefeeds(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
     for job in changefeed_jobs:
-        print("Pausing changefeed job {}".format(job.id))
+        logger.info("Pausing changefeed job {}".format(job.id))
         job.pause()
-    print("Paused all changefeed jobs!")
+    logger.info("Paused all changefeed jobs!")
     
 
 
