@@ -8,9 +8,9 @@ from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import Ela
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.metadata_db.metadata_db_operations import MetadataDBOperations
 from storage_workflows.crdb.models.node import Node
-from storage_workflows.crdb.connect.ssh import SSH
+from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
 from storage_workflows.setup_env import setup_env
-from storage_workflows.crdb.models.node import Node
+
 
 app = typer.Typer()
 
@@ -100,6 +100,26 @@ def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
     nodes = list(filter(lambda node: node.ip_address in instances_ips, Node.get_nodes()))
     for node in nodes:
         node.stop_crdb()
+
+@app.command()
+def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+    paused_changefeed_jobs = list(filter(lambda job: job.status == 'paused', changefeed_jobs))
+    for job in paused_changefeed_jobs:
+        print("Resuming changefeed job {}".format(job.id))
+        job.resume()
+    print("Resumed all paused changefeed jobs!")
+
+@app.command()
+def pause_all_changefeeds(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+    for job in changefeed_jobs:
+        print("Pausing changefeed job {}".format(job.id))
+        job.pause()
+    print("Paused all changefeed jobs!")
+    
 
 
 if __name__ == "__main__":

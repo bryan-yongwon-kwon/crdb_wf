@@ -5,7 +5,7 @@ from storage_workflows.crdb.models.jobs.base_job import BaseJob
 class RestorelJob(BaseJob):
 
     @staticmethod
-    def find_all_restore_running_jobs(cluster_name) -> list[RestorelJob]:
+    def find_all_restore_jobs(cluster_name) -> list[RestorelJob]:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
         response = connection.execute_sql(BaseJob.FIND_ALL_JOBS_BY_TYPE_SQL.format('RESTORE'))
@@ -13,9 +13,5 @@ class RestorelJob(BaseJob):
         return list(map(lambda job: RestorelJob(job, cluster_name), response))
 
     def __init__(self, response, cluster_name):
-        super().__init__(response[0], response[2], cluster_name)
+        super().__init__(response[0], response[1], response[2], cluster_name)
         self._response = response
-    
-    @property
-    def job_type(self):
-        return self._response[1]

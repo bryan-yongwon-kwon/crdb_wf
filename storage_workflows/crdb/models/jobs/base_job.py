@@ -7,8 +7,9 @@ class BaseJob:
     PAUSE_JOB_BY_ID_SQL = "PAUSE JOB {};"
     RESUME_JOB_BY_ID_SQL = "RESUME JOB {};"
 
-    def __init__(self, job_id, status, cluster_name):
+    def __init__(self, job_id, job_type, status, cluster_name):
         self._job_id = job_id
+        self._job_type = job_type
         self._status = status
         self._cluster_name = cluster_name
     
@@ -17,8 +18,12 @@ class BaseJob:
         return self._cluster_name
 
     @property
-    def job_id(self):
+    def id(self):
         return self._job_id
+    
+    @property
+    def type(self):
+        return self._job_type
     
     @property
     def status(self):
