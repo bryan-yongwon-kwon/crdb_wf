@@ -18,7 +18,9 @@ class ChangefeedJob(BaseJob):
         self._cluster_name = cluster_name
     
     def pause(self):
-        self.connection.execute_sql(self.PAUSE_JOB_BY_ID_SQL.format(self.id))
+        self.connection.execute_sql(self.PAUSE_JOB_BY_ID_SQL.format(self.id),
+                                    need_commit=True)
 
     def resume(self):
-        self.connection.execute_sql(self.RESUME_JOB_BY_ID_SQL.format(self.id))
+        self.connection.execute_sql(self.RESUME_JOB_BY_ID_SQL.format(self.id),
+                                    need_commit=True)

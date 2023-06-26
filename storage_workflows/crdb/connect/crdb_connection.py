@@ -68,7 +68,12 @@ class CrdbConnection:
         except Exception as error:
             print(error)
             raise
-        return cursor.fetchall()
+        try:
+            result = cursor.fetchall()
+        except psycopg2.ProgrammingError:
+            print("No result returned for this SQL command.")
+        cursor.close()
+        return result
 
     
 def transform_filters(filters):
