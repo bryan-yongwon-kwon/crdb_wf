@@ -1,10 +1,11 @@
+from __future__ import annotations
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.models.jobs.base_job import BaseJob
 
 class ChangefeedJob(BaseJob):
 
     @staticmethod
-    def find_all_paused_crdb_changefeed_jobs(cluster_name):
+    def find_all_paused_crdb_changefeed_jobs(cluster_name) -> list[ChangefeedJob]:
         FIND_ALL_CHANGEFEED_JOBS_SQL = "SELECT job_id,status FROM [SHOW CHANGEFEED JOBS];"
 
         connection = CrdbConnection.get_crdb_connection(cluster_name)
