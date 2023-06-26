@@ -71,10 +71,12 @@ class CrdbConnection:
             raise
         try:
             result = cursor.fetchall()
+            return result
         except psycopg2.ProgrammingError:
             logger.info("No result returned for this SQL command.")
-        cursor.close()
-        return result
+        finally:
+            cursor.close()
+        
 
     
 def transform_filters(filters):
