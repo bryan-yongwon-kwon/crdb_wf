@@ -10,9 +10,10 @@ from storage_workflows.metadata_db.metadata_db_operations import MetadataDBOpera
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
 from storage_workflows.setup_env import setup_env
-
+from storage_workflows.logging.logger import Logger
 
 app = typer.Typer()
+logger = Logger()
 
 @app.command()
 def pre_check(deployment_env, region, cluster_name):
@@ -26,7 +27,7 @@ def pre_check(deployment_env, region, cluster_name):
         or cluster.instances_not_in_service_exist()):
         raise Exception("Pre run check failed")
     else:
-        print("Check passed")
+        logger.info("Check passed")
 
 @app.command()
 def refresh_etl_load_balancer(deployment_env, region, cluster_name):
