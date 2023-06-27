@@ -4,8 +4,9 @@ from storage_workflows.crdb.connect.cred_type import CredType
 from storage_workflows.crdb.aws.secret import Secret
 from storage_workflows.crdb.aws.secret_value import SecretValue
 from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
+from storage_workflows.logging.logger import Logger
 
-
+logger = Logger()
 class CrdbConnection:
 
     @staticmethod
@@ -52,7 +53,7 @@ class CrdbConnection:
                 sslkey=self._credential_dir_path + os.getenv('CRDB_PRIVATE_KEY_FILE_NAME')
             )
         except Exception as error:
-            print(error)
+            logger.error(error)
             raise
 
     def close(self):
@@ -66,9 +67,16 @@ class CrdbConnection:
             if need_commit:
                 self._connection.commit()
         except Exception as error:
-            print(error)
+            logger.error(error)
             raise
-        return cursor.fetchall()
+        try:
+            result = cursor.fetchall()
+            return result
+        except psycopg2.ProgrammingError:
+            logger.info("No result returned for this SQL command.")
+        finally:
+            cursor.close()
+        
 
     
 def transform_filters(filters):
