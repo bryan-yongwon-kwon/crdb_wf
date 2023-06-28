@@ -1,45 +1,50 @@
 import typer
 from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
-from storage_workflows.crdb.operations.workflow_pre_run_check import WorkflowPreRunCheck
+from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.metadata_db.metadata_db_operations import MetadataDBOperations
+from storage_workflows.crdb.models.node import Node
+from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
 from storage_workflows.setup_env import setup_env
+from storage_workflows.logging.logger import Logger
 
 app = typer.Typer()
+logger = Logger()
 
 @app.command()
 def pre_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    if (WorkflowPreRunCheck.backup_job_is_running(cluster_name)
-        or WorkflowPreRunCheck.restore_job_is_running(cluster_name)
-        or WorkflowPreRunCheck.schema_change_job_is_running(cluster_name)
-        or WorkflowPreRunCheck.row_level_ttl_job_is_running(cluster_name)
-        or WorkflowPreRunCheck.unhealthy_ranges_exist(cluster_name)
-        or WorkflowPreRunCheck.instances_not_in_service_exist(cluster_name)):
+    cluster = Cluster()
+    if (cluster.backup_job_is_running()
+        or cluster.restore_job_is_running()
+        or cluster.schema_change_job_is_running()
+        or cluster.row_level_ttl_job_is_running()
+        or cluster.unhealthy_ranges_exist()
+        or cluster.instances_not_in_service_exist()):
         raise Exception("Pre run check failed")
     else:
-        print("Check passed")
+        logger.info("Check passed")
 
 @app.command()
 def refresh_etl_load_balancer(deployment_env, region, cluster_name):
     if deployment_env == 'staging':
-        print("Staging clusters doesn't have ETL load balancers.")
+        logger.info("Staging clusters doesn't have ETL load balancers.")
         return
     setup_env(deployment_env, region, cluster_name)
     etl_load_balancer_name = (cluster_name.replace("_", "-") + "-crdb-etl")[:32]
     load_balancers = ElasticLoadBalancer.find_elastic_load_balancers([etl_load_balancer_name])
     if not load_balancers:
-        print("Mode not enabled. ETL load balancer doesn't exist.")
+        logger.warning("Mode not enabled. ETL load balancer doesn't exist.")
         return
     old_instances = load_balancers[0].instances
-    print("Old instances: {}".format(old_instances))
+    logger.info("Old instances: {}".format(old_instances))
     new_instances = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances
     new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id}, new_instances))
-    print("New instances: {}".format(new_instances))
+    logger.info("New instances: {}".format(new_instances))
     if old_instances:
         ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(etl_load_balancer_name, old_instances)
     if new_instances:
@@ -65,7 +70,7 @@ def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     capacity = asg.capacity
-    print("ASG capacity: " + str(capacity))
+    logger.info("ASG capacity: " + str(capacity))
     instances=[]
     for instance in asg.instances:
         instances.append(instance.instance_id)
@@ -87,6 +92,36 @@ def terminate_instances(deployment_env, region, cluster_name):
     for id in instance_ids:
         ec2_instance = Ec2Instance.find_ec2_instance(id)
         ec2_instance.terminate_instance()
+
+@app.command()
+def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    instance_ids = [] # place holder, should get instance ids from metadata database
+    instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
+    nodes = list(filter(lambda node: node.ip_address in instances_ips, Node.get_nodes()))
+    for node in nodes:
+        node.stop_crdb()
+
+@app.command()
+def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+    paused_changefeed_jobs = list(filter(lambda job: job.status == 'paused', changefeed_jobs))
+    for job in paused_changefeed_jobs:
+        logger.info("Resuming changefeed job {}".format(job.id))
+        job.resume()
+    logger.info("Resumed all paused changefeed jobs!")
+
+@app.command()
+def pause_all_changefeeds(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+    for job in changefeed_jobs:
+        logger.info("Pausing changefeed job {}".format(job.id))
+        job.pause()
+    logger.info("Paused all changefeed jobs!")
+    
+
 
 if __name__ == "__main__":
     app()
