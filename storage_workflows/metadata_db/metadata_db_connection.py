@@ -15,9 +15,9 @@ class MetadataDBConnection:
         client_key = os.getenv('CLIENT-KEY')
         client_cert_filename = "client."+self._user_name+".crt"
         client_key_filename = "client."+self._user_name+".key"
-        MetadataDBOperations.write_to_file(dir_path, "ca.crt", ca_cert)
-        MetadataDBOperations.write_to_file(dir_path, client_cert_filename, client_cert)
-        MetadataDBOperations.write_to_file(dir_path, client_key_filename, client_key)
+        MetadataDBConnection.write_to_file(dir_path, "ca.crt", ca_cert)
+        MetadataDBConnection.write_to_file(dir_path, client_cert_filename, client_cert)
+        MetadataDBConnection.write_to_file(dir_path, client_key_filename, client_key)
 
         self._connection = psycopg2.connect(
             database=self._database_name,
