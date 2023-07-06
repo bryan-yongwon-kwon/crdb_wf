@@ -8,7 +8,7 @@ logger = Logger()
 
 class MetadataDBOperations:
 
-    def __int__(self):
+    def __init__(self):
         self._connection = MetadataDBConnection()
 
     def persist_asg_old_instance_ids(self, cluster_name, instances):
@@ -24,7 +24,7 @@ class MetadataDBOperations:
     def get_old_nodes(self, cluster_name):
         self._connection.connect()
         sql_query = "SELECT instance_ids FROM clusters_info WHERE cluster_name ='{}';".format(cluster_name)
-        instances = connection.execute_sql(sql_query, need_fetchone=True)
+        instances = self._connection.execute_sql(sql_query, need_fetchone=True)
         self._connection.close()
         logger.info("List of old instances: " + str(instances))
         return instances
