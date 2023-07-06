@@ -8,7 +8,7 @@ class MetadataDBConnection:
         self._user_name = user_name
         self._database_name = database_name
 
-    def metadata_db_connection(self):
+    def connect(self):
         dir_path = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + "storage-metadata" + "/"
         ca_cert = os.getenv('ROOT-CA')
         client_cert = os.getenv('CLIENT-CERT')
@@ -21,22 +21,21 @@ class MetadataDBConnection:
 
         self._connection = psycopg2.connect(
             database=self._database_name,
-            port="26257",
+            port= "26257",
             user=self._user_name,
-            host="storage-metadata-crdb.us-west-2.aws.ddnw.net",
+            host= "storage-metadata-crdb.us-west-2.aws.ddnw.net",
             sslmode="require",
             sslrootcert=dir_path + "ca.crt",
             sslcert=dir_path + "client.storage_metadata_app_20230509.crt",
             sslkey=dir_path + "client.storage_metadata_app_20230509.key"
         )
-        return connection
 
     def execute_sql(self, sql: str, need_commit: bool = False, need_fetchall: bool = False, need_fetchone: bool = False):
         cursor = self._connection.cursor()
         try:
             cursor.execute(sql)
             if need_commit:
-                connection.commit()
+                self._connection.commit()
         except Exception as error:
             print(error)
             raise
@@ -49,8 +48,6 @@ class MetadataDBConnection:
         if self._connection:
             self._connection.close()
 
-
-    @staticmethod
     def write_to_file(dir_path, file_name, file_content):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)

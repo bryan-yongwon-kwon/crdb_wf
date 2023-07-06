@@ -1,4 +1,3 @@
-import typer
 from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
@@ -6,7 +5,8 @@ from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
-from storage_workflows.metadata_db.metadata_db_operations import MetadataDBOperations
+from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
+from storage_workflows.crdb.metadata_db.autoscaling_group_operations import AutoscalingGroupOperations
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
 from storage_workflows.setup_env import setup_env
@@ -66,7 +66,7 @@ def mute_alerts_repave(cluster_name):
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher])
 
 @app.command()
-def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
+def read_and_increase_asg_capacity(cluster_name="crdb_benchmark", deployment_env="staging", region="us-west-2"):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     capacity = asg.capacity
@@ -74,7 +74,7 @@ def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
     instances=[]
     for instance in asg.instances:
         instances.append(instance.instance_id)
-    MetadataDBOperations.persist_asg_old_instance_ids(cluster_name, instances)
+    AutoscalingGroupOperations.persist_asg_old_instance_ids(cluster_name, instances)
     #detach_old_nodes_from_asg(asg.name, cluster_name)
     #AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg.name, 2*capacity)
     return
