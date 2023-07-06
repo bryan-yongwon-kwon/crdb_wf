@@ -11,6 +11,8 @@ from storage_workflows.crdb.models.node import Node
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
 from storage_workflows.setup_env import setup_env
 from storage_workflows.logging.logger import Logger
+from storage_workflows.global_change_log.global_change_log_gateway import GlobalChangeLogGateway
+from storage_workflows.global_change_log.service_name import ServiceName
 
 app = typer.Typer()
 logger = Logger()
@@ -121,7 +123,18 @@ def pause_all_changefeeds(deployment_env, region, cluster_name):
         job.pause()
     logger.info("Paused all changefeed jobs!")
     
+@app.command()
+def complete_repave_global_change_log(deployment_env, region, cluster_name):
+    GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
+                                      service_name=ServiceName.CRDB,
+                                      message="Repave completed for cluster {} in operator service.".format(cluster_name))
 
+@app.command()
+def start_repave_global_change_log(deployment_env, region, cluster_name):
+    GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
+                                      service_name=ServiceName.CRDB,
+                                      message="Repave started for cluster {} in operator service.".format(cluster_name))
+    
 
 if __name__ == "__main__":
     app()
