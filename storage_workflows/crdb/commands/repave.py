@@ -7,7 +7,7 @@ from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
-from storage_workflows.crdb.metadata_db.autoscaling_group_operations import AutoscalingGroupOperations
+from storage_workflows.crdb.metadata_db.metadata_db_operations import MetadataDBOperations
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
 from storage_workflows.setup_env import setup_env
@@ -77,7 +77,7 @@ def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
     instances=[]
     for instance in asg.instances:
         instances.append(instance.instance_id)
-    AutoscalingGroupOperations.persist_asg_old_instance_ids(cluster_name, instances)
+    MetadataDBOperations.persist_asg_old_instance_ids(cluster_name, instances)
     #detach_old_nodes_from_asg(asg.name, cluster_name)
     #AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg.name, 2*capacity)
     return

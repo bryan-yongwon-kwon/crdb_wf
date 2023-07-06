@@ -6,7 +6,7 @@ from storage_workflows.logging.logger import Logger
 
 logger = Logger()
 
-class AutoscalingGroupOperations:
+class MetadataDBOperations:
 
     def persist_asg_old_instance_ids(cluster_name, instances):
         metadata_db_connection = MetadataDBConnection()
