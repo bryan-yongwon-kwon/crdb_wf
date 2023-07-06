@@ -77,7 +77,8 @@ def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
     instances=[]
     for instance in asg.instances:
         instances.append(instance.instance_id)
-    MetadataDBOperations.persist_asg_old_instance_ids(cluster_name, instances)
+    metadata_db_operations = MetadataDBOperations()
+    metadata_db_operations.persist_asg_old_instance_ids(cluster_name, instances)
     #detach_old_nodes_from_asg(asg.name, cluster_name)
     #AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg.name, 2*capacity)
     return

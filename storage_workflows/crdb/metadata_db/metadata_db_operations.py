@@ -11,7 +11,7 @@ class MetadataDBOperations:
     def __int__(self):
         self._connection = MetadataDBConnection()
 
-    def persist_asg_old_instance_ids(cluster_name, instances):
+    def persist_asg_old_instance_ids(self, cluster_name, instances):
         self._connection.connect()
         node_list = ','.join(instances)
         node_list = str('{') + node_list + str('}')
@@ -21,7 +21,7 @@ class MetadataDBOperations:
         self._connection.close()
         return
 
-    def get_old_nodes(cluster_name):
+    def get_old_nodes(self, cluster_name):
         self._connection.connect()
         sql_query = "SELECT instance_ids FROM clusters_info WHERE cluster_name ='{}';".format(cluster_name)
         instances = connection.execute_sql(sql_query, need_fetchone=True)
