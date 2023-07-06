@@ -2,6 +2,7 @@ import psycopg2
 import os
 import stat
 from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
+from storage_workflows.logging.logger import Logger
 
 logger = Logger()
 
