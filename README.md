@@ -65,3 +65,20 @@ To test in Argo Workflows:
 4. Go to [Argo CD](https://argocd.infra-control-plane.doordash.red/). Make sure it's in sync. If not, you can click `sync` button to trigger sync.
 5.  Then you should be able to find your template in [Argo Workflows](https://argo-workflows.infra-control-plane.doordash.red/workflows/storage-workflows?limit=50).
 6.  If you see errors, you can check `Containers` -> `Logs` to view logs.
+
+#### Hacks to test locally
+1. To test AWS functionalities using your local machine, we need to assume storage-admin role in staging. Make the changes as per [here](https://github.com/doordash/storage-workflows/blob/79432eb45d51c2908d98186531b8d7a50e8a1c67/storage_workflows/setup_env.py) to allow the same.
+
+2. To test CRDB functions locally, you can spin up a cluster on your local environment. Steps for the same: 
+  a. Run the following from terminal 
+```cockroach start-single-node --insecure --store=type=mem,size=0.25 --advertise-addr=localhost```
+This will spin up a cockroach cluster. Now run, ```cockroach demo``` in a new terminal.  This would open a sql session. 
+More details on local testing [here](https://www.cockroachlabs.com/docs/stable/local-testing.html)
+You need to create a db and tables which match storage-metadata cluster's schema. For crdb workflows, the following commands would create the required db and tables:
+
+create database crdb_workflows ; 
+CREATE TYPE deployment_env AS ENUM ('prod', 'staging');
+CREATE TABLE crdb_settings( cluster_name STRING, setting_name STRING, setting_value STRING, create_time TIMESTAMP, update_time TIMESTAMP, deployment_env deployment_env, PRIMARY KEY(cluster_name, setting_name, deployment_env)); 
+CREATE TABLE clusters_info( cluster_name STRING, node_list STRING[], deployment_env deployment_env, PRIMARY KEY(cluster_name, deployment_env)); 
+
+Once done, just change the location of certificates in the source code to pull from your local. Like [this](https://github.com/doordash/storage-workflows/blob/79432eb45d51c2908d98186531b8d7a50e8a1c67/storage_workflows/metadata_db/metadata_db_connection.py#L12)
