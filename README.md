@@ -76,9 +76,9 @@ This will spin up a cockroach cluster. Now run, ```cockroach demo``` in a new te
 More details on local testing [here](https://www.cockroachlabs.com/docs/stable/local-testing.html)
 You need to create a db and tables which match storage-metadata cluster's schema. For crdb workflows, the following commands would create the required db and tables:
 
-create database crdb_workflows ; 
-CREATE TYPE deployment_env AS ENUM ('prod', 'staging');
-CREATE TABLE crdb_settings( cluster_name STRING, setting_name STRING, setting_value STRING, create_time TIMESTAMP, update_time TIMESTAMP, deployment_env deployment_env, PRIMARY KEY(cluster_name, setting_name, deployment_env)); 
-CREATE TABLE clusters_info( cluster_name STRING, node_list STRING[], deployment_env deployment_env, PRIMARY KEY(cluster_name, deployment_env)); 
+```create database crdb_workflows ; ```
+```CREATE TYPE deployment_env AS ENUM ('prod', 'staging');```
+```CREATE TABLE crdb_settings( cluster_name STRING, setting_name STRING, setting_value STRING, create_time TIMESTAMP, update_time TIMESTAMP, deployment_env deployment_env, PRIMARY KEY(cluster_name, setting_name, deployment_env)); ```
+```CREATE TABLE clusters_info( cluster_name STRING, node_list STRING[], deployment_env deployment_env, PRIMARY KEY(cluster_name, deployment_env)); ```
 
 Once done, just change the location of certificates in the source code to pull from your local. Like [this](https://github.com/doordash/storage-workflows/blob/79432eb45d51c2908d98186531b8d7a50e8a1c67/storage_workflows/metadata_db/metadata_db_connection.py#L12)
