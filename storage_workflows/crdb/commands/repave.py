@@ -68,7 +68,7 @@ def mute_alerts_repave(cluster_name):
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher])
 
 @app.command()
-def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
+def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     capacity = asg.capacity
