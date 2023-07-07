@@ -103,9 +103,8 @@ def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
     metadata_db_operations = MetadataDBOperations()
     instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
     instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
-    nodes = list(filter(lambda node: node.ip_address in instances_ips, Node.get_nodes()))
-    for node in nodes:
-        node.stop_crdb()
+    for ip in instances_ips:
+        Node.stop_crdb(ip)
 
 @app.command()
 def decommission_old_nodes(deployment_env, region, cluster_name):

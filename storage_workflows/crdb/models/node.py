@@ -10,6 +10,38 @@ class Node:
     def get_nodes():
         session = CrdbApiGateway.login()
         return list(map(lambda node: Node(node), CrdbApiGateway.list_nodes(session)['nodes']))
+    
+    @staticmethod
+    def stop_crdb(ip):
+        ssh_client = SSH(ip)
+        ssh_client.connect_to_node()
+        print("Stopping crdb on node {}...".format(ip))
+        stdin, stdout, stderr = ssh_client.execute_command("sudo systemctl stop crdb")
+        stdin.close()
+        lines = stdout.readlines()
+        errors = stderr.readlines()
+        if errors:
+            print("Stopping crdb failed!")
+            print(errors)
+        else:
+            print(lines)
+            print("Stopped crdb on node {}".format(ip))
+
+    @staticmethod
+    def start_crdb(ip):
+        ssh_client = SSH(ip)
+        ssh_client.connect_to_node()
+        print("Starting crdb on node {}...".format(ip))
+        stdin, stdout, stderr = ssh_client.execute_command("sudo systemctl start crdb")
+        stdin.close()
+        lines = stdout.readlines()
+        errors = stderr.readlines()
+        if errors:
+            print("Starting crdb failed!")
+            print(errors)
+        else:
+            print(lines)
+            print("Started crdb on node {}".format(ip))
 
     def __init__(self, api_response):
         self.api_response = api_response
@@ -59,31 +91,3 @@ class Node:
         print(result.stderr)
         result.check_returncode()
         print(result.stdout)
-
-    def stop_crdb(self):
-        self.ssh_client.connect_to_node()
-        print("Stopping crdb on node {}...".format(self.id))
-        stdin, stdout, stderr = self.ssh_client.execute_command("sudo systemctl stop crdb")
-        stdin.close()
-        lines = stdout.readlines()
-        errors = stderr.readlines()
-        if errors:
-            print("Stopping crdb failed!")
-            print(errors)
-        else:
-            print(lines)
-            print("Stopped crdb on node {}".format(self.id))
-
-    def start_crdb(self):
-        self.ssh_client.connect_to_node()
-        print("Starting crdb on node {}...".format(self.id))
-        stdin, stdout, stderr = self.ssh_client.execute_command("sudo systemctl start crdb")
-        stdin.close()
-        lines = stdout.readlines()
-        errors = stderr.readlines()
-        if errors:
-            print("Starting crdb failed!")
-            print(errors)
-        else:
-            print(lines)
-            print("Started crdb on node {}".format(self.id))
