@@ -6,7 +6,6 @@ from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
-from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
 from storage_workflows.crdb.metadata_db.metadata_db_operations import MetadataDBOperations
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
@@ -136,6 +135,12 @@ def start_repave_global_change_log(deployment_env, region, cluster_name):
     GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
                                       service_name=ServiceName.CRDB,
                                       message="Repave started for cluster {} in operator service.".format(cluster_name))
+    
+@app.command()
+def test_get_old_nodes(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    metadata_db_operations = MetadataDBOperations()
+    print(metadata_db_operations.get_old_nodes(cluster_name))
     
 
 if __name__ == "__main__":
