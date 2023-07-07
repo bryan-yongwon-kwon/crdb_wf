@@ -26,6 +26,7 @@ def check_crontab(deployment_env, region, cluster_name):
             continue
         copy_cron_scripts_to_new_node(ssh_client, new_node_ssh_client)
         schedule_cron_jobs(lines, new_node_ssh_client)
+        ssh_client.close_connection()
 
 
 def copy_cron_scripts_to_new_node(old_node_ssh_client: SSH, new_node_ssh_client: SSH):
