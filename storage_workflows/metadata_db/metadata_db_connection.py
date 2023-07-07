@@ -1,6 +1,9 @@
 import psycopg2
 import os
 import stat
+from storage_workflows.logging.logger import Logger
+
+logger = Logger()
 
 class MetadataDBConnection:
 
@@ -37,7 +40,7 @@ class MetadataDBConnection:
             if need_commit:
                 self._connection.commit()
         except Exception as error:
-            print(error)
+            logger.error(error)
             raise
         if need_fetchall:
             return cursor.fetchall()

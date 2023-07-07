@@ -4,6 +4,9 @@ from io import StringIO
 from functools import cached_property
 from paramiko import SSHClient,RSAKey
 from paramiko import AutoAddPolicy
+from storage_workflows.logging.logger import Logger
+
+logger = Logger()
 
 class SSH:
 
@@ -58,7 +61,7 @@ class SSH:
 
     def create_remote_dir_with_root(self, dir_path):
         stdin, stdout, stderr = self.execute_command('sudo mkdir {}'.format(dir_path))
-        print(stdout.readlines())
+        logger.info(stdout.readlines())
         error = stderr.readlines()
         if error:
             raise Exception(error)
@@ -69,7 +72,7 @@ class SSH:
     def list_remote_dir_with_root(self, dir_path) -> list:
         stdin, stdout, stderr = self.execute_command('sudo ls {}'.format(dir_path))
         lines = list(map(lambda line: str(line).rstrip(), stdout.readlines()))
-        print(lines)
+        logger.info(lines)
         error = stderr.readlines()
         if error:
             raise Exception(error)
@@ -84,7 +87,7 @@ class SSH:
     def read_remote_file_with_root(self, file_path):
         stdin, stdout, stderr = self.execute_command('sudo cat {}'.format(file_path))
         lines = stdout.readlines()
-        print(lines)
+        logger.info(lines)
         error = stderr.readlines()
         if error:
             raise Exception(error)

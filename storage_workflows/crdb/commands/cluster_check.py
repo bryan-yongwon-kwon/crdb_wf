@@ -2,8 +2,10 @@ import typer
 from storage_workflows.setup_env import setup_env
 from storage_workflows.crdb.connect.ssh import SSH
 from storage_workflows.crdb.models.node import Node
+from storage_workflows.logging.logger import Logger
 
 app = typer.Typer()
+logger = Logger()
 
 CRONTAB_SCRIPTS_DIR = '/root/.cockroach-certs/'
 
@@ -21,7 +23,7 @@ def check_crontab(deployment_env, region, cluster_name):
         stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
         lines = stdout.readlines()
         errors = stderr.readlines()
-        print("Listing cron jobs for {}: {}".format(ip, lines))
+        logger.info("Listing cron jobs for {}: {}".format(ip, lines))
         if errors:
             continue
         copy_cron_scripts_to_new_node(ssh_client, new_node_ssh_client)
@@ -33,7 +35,7 @@ def copy_cron_scripts_to_new_node(old_node_ssh_client: SSH, new_node_ssh_client:
     old_node_script_names = filter(lambda file_name: '.sh' in file_name, 
                                    old_node_ssh_client.list_remote_dir_with_root(CRONTAB_SCRIPTS_DIR))
     for script_name in old_node_script_names:
-        print("Moving script {} from {} to {}".format(script_name, old_node_ssh_client.ip, new_node_ssh_client.ip))
+        logger.info("Moving script {} from {} to {}".format(script_name, old_node_ssh_client.ip, new_node_ssh_client.ip))
         file_path = CRONTAB_SCRIPTS_DIR + script_name
         lines = old_node_ssh_client.read_remote_file_with_root(file_path)
         new_node_ssh_client.write_remote_file_with_root(file_lines=lines, file_path=file_path)
@@ -46,14 +48,14 @@ def schedule_cron_jobs(crontab_file_lines:list, new_node_ssh_client:SSH):
         line = str(line).rstrip()
         if line[0] == '#':
             continue
-        print("scheduling cron: {}".format(line))
+        logger.info("scheduling cron: {}".format(line))
         command = '(sudo crontab -l 2>/dev/null; echo "{}") | sudo crontab -'.format(line)
-        print("command: {}".format(command))
+        logger.info("command: {}".format(command))
         stdin, stdout, stderr = new_node_ssh_client.execute_command(command)
         error = stderr.readlines()
         if error:
             raise Exception(error)
-        print("cron job scheduled.")
+        logger.info("cron job scheduled.")
 
 
 

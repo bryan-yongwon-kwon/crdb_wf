@@ -93,9 +93,9 @@ class Cluster:
                                                                                                                               nodes[-1].ip_address,
                                                                                                                               certs_dir,
                                                                                                                               formatted_cluster_name)
-            print("Decommissioning nodes with major version {}...".format(major_version))
+            logger.info("Decommissioning nodes with major version {}...".format(major_version))
             result = subprocess.run(node_decommission_command, capture_output=True, shell=True)
-            print(result.stderr)
+            logger.error(result.stderr)
             result.check_returncode()
-            print(result.stdout)
-            print("Completed decommissioning nodes with major version {}.".format(major_version))
+            logger.info(result.stdout)
+            logger.info("Completed decommissioning nodes with major version {}.".format(major_version))
