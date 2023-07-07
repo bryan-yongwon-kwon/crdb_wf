@@ -77,7 +77,7 @@ def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
     for instance in asg.instances:
         instances.append(instance.instance_id)
     metadata_db_operations = MetadataDBOperations()
-    metadata_db_operations.persist_asg_old_instance_ids(cluster_name, instances)
+    metadata_db_operations.persist_asg_old_instance_ids(cluster_name, deployment_env, instances)
     #detach_old_nodes_from_asg(asg.name, cluster_name)
     #AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg.name, 2*capacity)
     return
@@ -91,7 +91,8 @@ def detach_old_nodes_from_asg(asg_name, cluster_name):
 @app.command()
 def terminate_instances(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    instance_ids = [] # place holder, should get instance ids from metadata database
+    metadata_db_operations = MetadataDBOperations()
+    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
     for id in instance_ids:
         ec2_instance = Ec2Instance.find_ec2_instance(id)
         ec2_instance.terminate_instance()
@@ -99,11 +100,21 @@ def terminate_instances(deployment_env, region, cluster_name):
 @app.command()
 def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    instance_ids = [] # place holder, should get instance ids from metadata database
+    metadata_db_operations = MetadataDBOperations()
+    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
     instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
     nodes = list(filter(lambda node: node.ip_address in instances_ips, Node.get_nodes()))
     for node in nodes:
         node.stop_crdb()
+
+@app.command()
+def decommission_old_nodes(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    metadata_db_operations = MetadataDBOperations()
+    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
+    nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+    cluster = Cluster()
+    cluster.decommission_nodes(nodes)
 
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
@@ -135,16 +146,6 @@ def start_repave_global_change_log(deployment_env, region, cluster_name):
     GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
                                       service_name=ServiceName.CRDB,
                                       message="Repave started for cluster {} in operator service.".format(cluster_name))
-    
-@app.command()
-def test_get_old_nodes(deployment_env, region, cluster_name):
-    setup_env(deployment_env, region, cluster_name)
-    metadata_db_operations = MetadataDBOperations()
-    response = metadata_db_operations.get_old_nodes(cluster_name)
-    instances = response[0]
-    print("Is list? {}".format(isinstance(instances, list)))
-    print("Is string? {}".format(isinstance(instances, str)))
-    print(instances[0])
     
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ from __future__ import annotations
 import time
 from functools import cached_property
 from storage_workflows.crdb.api_gateway.ec2_gateway import Ec2Gateway
+from storage_workflows.crdb.models.node import Node
 
 class Ec2Instance:
 
@@ -32,6 +33,10 @@ class Ec2Instance:
     @property
     def private_ip_address(self):
         return self._api_response['PrivateIpAddress']
+    
+    @cached_property
+    def crdb_node(self):
+        return list(filter(lambda node: node.ip_address == self.private_ip_address, Node.get_nodes()))[0]
     
     def reload(self):
         filters = [{
