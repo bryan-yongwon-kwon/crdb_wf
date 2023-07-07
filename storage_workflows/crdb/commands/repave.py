@@ -140,7 +140,11 @@ def start_repave_global_change_log(deployment_env, region, cluster_name):
 def test_get_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
-    print(metadata_db_operations.get_old_nodes(cluster_name))
+    response = metadata_db_operations.get_old_nodes(cluster_name)
+    instances = response[0]
+    print("Is list? {}".format(isinstance(instances, list)))
+    print("Is string? {}".format(isinstance(instances, str)))
+    print(instances[0])
     
 
 if __name__ == "__main__":
