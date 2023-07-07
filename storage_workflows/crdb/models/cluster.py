@@ -8,6 +8,7 @@ from storage_workflows.crdb.models.jobs.row_level_ttl_job import RowLevelTtlJob
 from storage_workflows.crdb.models.jobs.schema_change_job import SchemaChangelJob
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.logging.logger import Logger
+from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
 logger = Logger()
 class Cluster:
@@ -75,6 +76,7 @@ class Cluster:
     
     def decommission_nodes(self, nodes:list[Node]):
         certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self.cluster_name + "/"
+        CrdbConnection.get_crdb_connection(self.cluster_name)
         formatted_cluster_name = "{}-{}".format(self.cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
         major_version_dict = dict()
         for node in nodes:

@@ -6,7 +6,6 @@ from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
-from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
 from storage_workflows.crdb.metadata_db.metadata_db_operations import MetadataDBOperations
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
@@ -69,7 +68,7 @@ def mute_alerts_repave(cluster_name):
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher])
 
 @app.command()
-def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
+def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     capacity = asg.capacity
@@ -78,7 +77,7 @@ def read_and_increase_asg_capacity(cluster_name, deployment_env, region):
     for instance in asg.instances:
         instances.append(instance.instance_id)
     metadata_db_operations = MetadataDBOperations()
-    metadata_db_operations.persist_asg_old_instance_ids(cluster_name, instances)
+    metadata_db_operations.persist_asg_old_instance_ids(cluster_name, deployment_env, instances)
     #detach_old_nodes_from_asg(asg.name, cluster_name)
     #AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg.name, 2*capacity)
     return
@@ -92,7 +91,8 @@ def detach_old_nodes_from_asg(asg_name, cluster_name):
 @app.command()
 def terminate_instances(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    instance_ids = [] # place holder, should get instance ids from metadata database
+    metadata_db_operations = MetadataDBOperations()
+    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
     for id in instance_ids:
         ec2_instance = Ec2Instance.find_ec2_instance(id)
         ec2_instance.terminate_instance()
@@ -100,11 +100,20 @@ def terminate_instances(deployment_env, region, cluster_name):
 @app.command()
 def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    instance_ids = [] # place holder, should get instance ids from metadata database
+    metadata_db_operations = MetadataDBOperations()
+    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
     instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
-    nodes = list(filter(lambda node: node.ip_address in instances_ips, Node.get_nodes()))
-    for node in nodes:
-        node.stop_crdb()
+    for ip in instances_ips:
+        Node.stop_crdb(ip)
+
+@app.command()
+def decommission_old_nodes(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    metadata_db_operations = MetadataDBOperations()
+    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
+    nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+    cluster = Cluster()
+    cluster.decommission_nodes(nodes)
 
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):

@@ -2,6 +2,10 @@ from __future__ import annotations
 import time
 from functools import cached_property
 from storage_workflows.crdb.api_gateway.ec2_gateway import Ec2Gateway
+from storage_workflows.crdb.models.node import Node
+from storage_workflows.logging.logger import Logger
+
+logger = Logger()
 
 class Ec2Instance:
 
@@ -33,6 +37,10 @@ class Ec2Instance:
     def private_ip_address(self):
         return self._api_response['PrivateIpAddress']
     
+    @cached_property
+    def crdb_node(self):
+        return list(filter(lambda node: node.ip_address == self.private_ip_address, Node.get_nodes()))[0]
+    
     def reload(self):
         filters = [{
             'Name': 'instance-id',
@@ -41,12 +49,12 @@ class Ec2Instance:
         self._api_response = Ec2Gateway.describe_ec2_instances(filters)[0]
     
     def terminate_instance(self):
-        print("Terminating instance {}...".format(self.instance_id))
+        logger.info("Terminating instance {}...".format(self.instance_id))
         Ec2Gateway.terminate_instances([self.instance_id])
         while self.state != 'terminated':
-            print("Current state is {}".format(self.state))
-            print("sleeping 30s...")
+            logger.info("Current state is {}".format(self.state))
+            logger.info("sleeping 30s...")
             time.sleep(30)
             self.reload()
-        print("Instance {} terminated.".format(self.instance_id))
+        logger.info("Instance {} terminated.".format(self.instance_id))
 

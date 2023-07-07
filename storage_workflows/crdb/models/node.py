@@ -3,13 +3,49 @@ import subprocess
 from functools import cached_property, reduce
 from storage_workflows.crdb.api_gateway.crdb_api_gateway import CrdbApiGateway
 from storage_workflows.crdb.connect.ssh import SSH
+from storage_workflows.logging.logger import Logger
 
+logger = Logger()
 class Node:
 
     @staticmethod
     def get_nodes():
         session = CrdbApiGateway.login()
         return list(map(lambda node: Node(node), CrdbApiGateway.list_nodes(session)['nodes']))
+    
+    @staticmethod
+    def stop_crdb(ip):
+        ssh_client = SSH(ip)
+        ssh_client.connect_to_node()
+        logger.info("Stopping crdb on node {}...".format(ip))
+        stdin, stdout, stderr = ssh_client.execute_command("sudo systemctl stop crdb")
+        stdin.close()
+        lines = stdout.readlines()
+        errors = stderr.readlines()
+        if errors:
+            logger.error("Stopping crdb failed!")
+            logger.error(errors)
+        else:
+            logger.info(lines)
+            logger.info("Stopped crdb on node {}".format(ip))
+        ssh_client.close_connection()
+
+    @staticmethod
+    def start_crdb(ip):
+        ssh_client = SSH(ip)
+        ssh_client.connect_to_node()
+        logger.info("Starting crdb on node {}...".format(ip))
+        stdin, stdout, stderr = ssh_client.execute_command("sudo systemctl start crdb")
+        stdin.close()
+        lines = stdout.readlines()
+        errors = stderr.readlines()
+        if errors:
+            logger.error("Starting crdb failed!")
+            logger.error(errors)
+        else:
+            logger.info(lines)
+            logger.info("Started crdb on node {}".format(ip))
+        ssh_client.close_connection()
 
     def __init__(self, api_response):
         self.api_response = api_response
@@ -56,34 +92,6 @@ class Node:
         cluster_name = "{}-{}".format(self.cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
         node_drain_command = "crdb node drain {} --host={}:26256 --certs-dir={} --cluster-name={}".format(self.id, self.ip_address, certs_dir, cluster_name)
         result = subprocess.run(node_drain_command, capture_output=True, shell=True)
-        print(result.stderr)
+        logger.error(result.stderr)
         result.check_returncode()
-        print(result.stdout)
-
-    def stop_crdb(self):
-        self.ssh_client.connect_to_node()
-        print("Stopping crdb on node {}...".format(self.id))
-        stdin, stdout, stderr = self.ssh_client.execute_command("sudo systemctl stop crdb")
-        stdin.close()
-        lines = stdout.readlines()
-        errors = stderr.readlines()
-        if errors:
-            print("Stopping crdb failed!")
-            print(errors)
-        else:
-            print(lines)
-            print("Stopped crdb on node {}".format(self.id))
-
-    def start_crdb(self):
-        self.ssh_client.connect_to_node()
-        print("Starting crdb on node {}...".format(self.id))
-        stdin, stdout, stderr = self.ssh_client.execute_command("sudo systemctl start crdb")
-        stdin.close()
-        lines = stdout.readlines()
-        errors = stderr.readlines()
-        if errors:
-            print("Starting crdb failed!")
-            print(errors)
-        else:
-            print(lines)
-            print("Started crdb on node {}".format(self.id))
+        logger.info(result.stdout)

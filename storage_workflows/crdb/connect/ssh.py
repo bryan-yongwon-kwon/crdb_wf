@@ -27,6 +27,9 @@ class SSH:
     def connect_to_node(self):
         self.client.connect(self.ip, username='ubuntu', pkey=self.ssh_private_key)
 
+    def close_connection(self):
+        self.client.close()
+
     def execute_command(self, command):
         return self.client.exec_command(command)
     
