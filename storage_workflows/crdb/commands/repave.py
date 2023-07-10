@@ -1,5 +1,6 @@
 import time
 import typer
+import sys
 from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
@@ -84,6 +85,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
 
     if initial_capacity % 3 != 0:
         logger.error("The number of nodes in this cluster are not balanced.")
+        raise Exception("Imbalanced cluster, exiting.")
         return
     final_capacity = 2*initial_capacity
     current_capacity = initial_capacity
