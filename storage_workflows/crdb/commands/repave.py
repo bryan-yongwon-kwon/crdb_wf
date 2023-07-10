@@ -83,7 +83,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     metadata_db_operations.persist_asg_old_instance_ids(cluster_name, deployment_env, instances)
 
     if initial_capacity % 3 != 0:
-        logger.info("The number of nodes in this cluster are not balanced.")
+        logger.error("The number of nodes in this cluster are not balanced.")
         return
     final_capacity = 2*initial_capacity
     current_capacity = initial_capacity
@@ -93,6 +93,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         new_nodes = add_ec2_instances(asg.name, current_capacity)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_nodes)
         confirm_new_node_fully_hydrated(asg.name, new_nodes)
+        #todo: put nodes back to InService state
     #detach_old_nodes_from_asg(asg.name, cluster_name)
     return
 
@@ -116,6 +117,7 @@ def add_ec2_instances(asg_name, desired_capacity):
                 new_instance_ids.add(instance["InstanceId"])
         # Check if all new instances are found
         if len(new_instance_ids) == desired_capacity-initial_capacity:
+            logger.info("All new instances are ready.")
             break
         # Wait before checking again
         time.sleep(10)
