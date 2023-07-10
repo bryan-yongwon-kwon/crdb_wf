@@ -134,6 +134,16 @@ def confirm_new_node_fully_hydrated(instance_ids):
     logger.info(f"Hydration check returned: {are_new_nodes_hydrated}")
     return
 
+def check_within_10_percent(replicas):
+    for i in range(len(replicas)):
+        for j in range(i + 1, len(replicas)):
+            if abs(replicas[i] - replicas[j]) <= 0.1 * min(replicas[i], replicas[j]):
+                continue
+            else:
+                return False
+
+    return True
+
 @app.command()
 def detach_old_nodes_from_asg(asg_name, cluster_name):
     old_instances = MetadataDBOperations.get_old_nodes(cluster_name)
