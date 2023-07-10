@@ -92,7 +92,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         current_capacity=current_capacity+3
         new_nodes = add_ec2_instances(asg.name, current_capacity)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_nodes)
-        confirm_new_node_fully_hydrated(asg.name, new_nodes)
+        confirm_new_node_fully_hydrated(new_nodes)
     #detach_old_nodes_from_asg(asg.name, cluster_name)
     return
 
@@ -123,7 +123,11 @@ def add_ec2_instances(asg_name, desired_capacity):
     return list(new_instance_ids)
 
 
-def confirm_new_node_fully_hydrated(asg_name, instance_ids):
+def confirm_new_node_fully_hydrated(instance_ids):
+    nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+    replicas = list(map(lambda node: node.replicas, nodes))
+    are_new_nodes_hydrated = check_within_10_percent(replicas)
+    logger.info(f"Hydration check returned: {are_new_nodes_hydrated}")
     return
 
 @app.command()
