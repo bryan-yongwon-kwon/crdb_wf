@@ -1,4 +1,4 @@
-import typer
+import time
 from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
@@ -6,6 +6,7 @@ from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
+from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
 from storage_workflows.crdb.metadata_db.metadata_db_operations import MetadataDBOperations
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
@@ -67,19 +68,61 @@ def mute_alerts_repave(cluster_name):
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher])
     ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher])
 
+
 @app.command()
 def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    capacity = asg.capacity
-    logger.info("ASG capacity: " + str(capacity))
+    initial_capacity = asg.capacity
+    logger.info("ASG capacity: " + str(initial_capacity))
     instances=[]
     for instance in asg.instances:
         instances.append(instance.instance_id)
     metadata_db_operations = MetadataDBOperations()
     metadata_db_operations.persist_asg_old_instance_ids(cluster_name, deployment_env, instances)
+
+    if initial_capacity % 3 != 0:
+        logger.info("The number of nodes in this cluster are not balanced.")
+        return
+    final_capacity = 2*initial_capacity
+    current_capacity = initial_capacity
+    new_nodes=[]
+    while current_capacity < final_capacity:
+        current_capacity=current_capacity+3
+        new_nodes = add_ec2_instances(asg.name, current_capacity)
+        AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_nodes)
+        confirm_new_node_fully_hydrated(asg.name, new_nodes)
     #detach_old_nodes_from_asg(asg.name, cluster_name)
-    #AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg.name, 2*capacity)
+    return
+
+
+def add_ec2_instances(asg_name, desired_capacity):
+    asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
+    initial_capacity = len(asg_instances)
+    old_instance_ids = set()
+    # Retrieve the existing instance IDs
+    for instance in asg_instances:
+        old_instance_ids.add(instance["InstanceId"])
+
+    AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg_name, desired_capacity)
+    # Wait for the new instances to be added to the Auto Scaling group
+    while True:
+        asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
+        new_instance_ids = set()  # Store new instance IDs
+        # Retrieve the instance IDs of the newly added instances
+        for instance in asg_instances:
+            if instance["InstanceId"] not in old_instance_ids and instance["LifecycleState"] == "InService":
+                new_instance_ids.add(instance["InstanceId"])
+        # Check if all new instances are found
+        if len(new_instance_ids) == desired_capacity-initial_capacity:
+            break
+        # Wait before checking again
+        time.sleep(10)
+
+    return list(new_instance_ids)
+
+
+def confirm_new_node_fully_hydrated(asg_name, instance_ids):
     return
 
 @app.command()
