@@ -136,7 +136,7 @@ def confirm_new_node_fully_hydrated(instance_ids):
     while not are_new_nodes_hydrated:
         are_new_nodes_hydrated = check_within_10_percent(replicas)
         logger.info(f"Hydration check returned: {are_new_nodes_hydrated}")
-        sleep(10)
+        time.sleep(10)
 
     return
 
