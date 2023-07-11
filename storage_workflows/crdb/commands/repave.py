@@ -144,7 +144,7 @@ def confirm_new_node_fully_hydrated(instance_ids):
 def check_within_10_percent(replicas):
     for i in range(len(replicas)):
         for j in range(i + 1, len(replicas)):
-            if abs(replicas[i] - replicas[j]) <= math.ceil(0.1 * min(replicas[i], replicas[j])):
+            if abs(replicas[i] - replicas[j]) <= math.ceil(0.1 * max(replicas[i], replicas[j])):
                 continue
             else:
                 return False
