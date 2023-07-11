@@ -98,6 +98,6 @@ class AutoScalingGroupGateway:
 
                     status_code = response['Activities'][0]['StatusCode']
 
-                logger.error(f"Status Code: {status_code}")
+                logger.info(f"Status Code: {status_code}")
         else:
             logger.error("Error: Failed to put instances into standby mode.")

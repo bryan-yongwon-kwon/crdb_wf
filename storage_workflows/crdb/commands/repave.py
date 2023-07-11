@@ -137,14 +137,14 @@ def confirm_new_node_fully_hydrated(instance_ids):
         are_new_nodes_hydrated = check_within_10_percent(replicas)
         logger.info(f"Hydration check returned: {are_new_nodes_hydrated}")
         sleep(10)
-        
+
     return
 
 
 def check_within_10_percent(replicas):
     for i in range(len(replicas)):
         for j in range(i + 1, len(replicas)):
-            if abs(replicas[i] - replicas[j]) <= ceil(0.1 * min(replicas[i], replicas[j])):
+            if abs(replicas[i] - replicas[j]) <= math.ceil(0.1 * min(replicas[i], replicas[j])):
                 continue
             else:
                 return False
