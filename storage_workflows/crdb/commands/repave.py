@@ -1,6 +1,7 @@
+import math
+import sys
 import time
 import typer
-import sys
 from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
@@ -130,14 +131,20 @@ def add_ec2_instances(asg_name, desired_capacity):
 def confirm_new_node_fully_hydrated(instance_ids):
     nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
     replicas = list(map(lambda node: node.replicas, nodes))
-    are_new_nodes_hydrated = check_within_10_percent(replicas)
-    logger.info(f"Hydration check returned: {are_new_nodes_hydrated}")
+    are_new_nodes_hydrated = False
+
+    while not are_new_nodes_hydrated:
+        are_new_nodes_hydrated = check_within_10_percent(replicas)
+        logger.info(f"Hydration check returned: {are_new_nodes_hydrated}")
+        sleep(10)
+        
     return
+
 
 def check_within_10_percent(replicas):
     for i in range(len(replicas)):
         for j in range(i + 1, len(replicas)):
-            if abs(replicas[i] - replicas[j]) <= 0.1 * min(replicas[i], replicas[j]):
+            if abs(replicas[i] - replicas[j]) <= ceil(0.1 * min(replicas[i], replicas[j])):
                 continue
             else:
                 return False
