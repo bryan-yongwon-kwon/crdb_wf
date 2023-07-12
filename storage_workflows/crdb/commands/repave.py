@@ -96,7 +96,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         new_nodes = add_ec2_instances(asg.name, current_capacity)
         all_new_nodes.append(new_nodes)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_nodes)
-        wait_for_hydration(asg_name)
+        wait_for_hydration(asg.name)
 
     for index in range(0, len(all_new_nodes), 3):
         AutoScalingGroupGateway.exit_instances_from_standby(asg.name, all_new_nodes[index:index+3])
