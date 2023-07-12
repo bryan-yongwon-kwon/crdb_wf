@@ -65,11 +65,13 @@ For more documentation, please refer to [pytest](https://docs.pytest.org/en/7.2.
 ##### Test in Argo Workflows
 To test in Argo Workflows:
 1. Raise a pr. Your docker image will be uploaded to AWS ECR if all the checks pass.
-2. Go to AWS ECR and find your image in `storage-workflows`. Copy the URI.
-3. Got to cluster-config repo. Checkout `storage-workflows-test` branch. Add your template and specify the docker image URI to use it. Commit you changes.
-4. Go to [Argo CD](https://argocd.infra-control-plane.doordash.red/). Make sure it's in sync. If not, you can click `sync` button to trigger sync.
-5.  Then you should be able to find your template in [Argo Workflows](https://argo-workflows.infra-control-plane.doordash.red/workflows/storage-workflows?limit=50).
-6.  If you see errors, you can check `Containers` -> `Logs` to view logs.
+2. Go to AWS ECR and find your image in `storage-workflows`. Copy the URI. Or you can just replace the commit ID in the URI with your commit ID.
+
+   For example, in following URI `image: 611706558220.dkr.ecr.us-west-2.amazonaws.com/storage-workflows:7d619cef1cb228889d8001425efd26733c2bfd08` you can replace `7d619cef1cb228889d8001425efd26733c2bfd08` with your commit ID.
+4. Got to cluster-config repo. Checkout `storage-workflows-test` branch. Add your template and specify the docker image URI to use it. Commit you changes.
+5. Go to [Argo CD](https://argocd.infra-control-plane.doordash.red/). Click `sync` button to trigger sync.
+6.  Then you should be able to find your template in [Argo Workflows](https://argo-workflows.infra-control-plane.doordash.red/workflows/storage-workflows?limit=50).
+7.  If you see errors, you can check `Containers` -> `Logs` to view logs.
 
 #### Hacks to test locally
 1. To test AWS functionalities using your local machine, we need to assume storage-admin role in staging. Make the changes as per [here](https://github.com/doordash/storage-workflows/blob/79432eb45d51c2908d98186531b8d7a50e8a1c67/storage_workflows/setup_env.py) to allow the same.
