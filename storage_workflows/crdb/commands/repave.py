@@ -142,7 +142,7 @@ def wait_for_hydration(asg_name):
     while True:
         nodes_replications_list = list(map(lambda node: node.replicas, nodes))
         avg_replications = statistics.mean(nodes_replications_list)
-        outliers = list(filter(lambda node_replications: abs(node_replications - avg_replications) / avg_replications > 0.1, node_replications_list))
+        outliers = list(filter(lambda node_replications: abs(node_replications - avg_replications) / avg_replications > 0.1, nodes_replications_list))
         if not any(outliers):
             logger.info("Hydration complete")
             break
