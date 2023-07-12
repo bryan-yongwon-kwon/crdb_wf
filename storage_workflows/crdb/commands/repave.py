@@ -148,7 +148,7 @@ def wait_for_hydration(asg_name):
 
 @app.command
 def exit_new_nodes_from_standby(cluster_name, deployment_env, region):
-    setup_env("staging", "us-west-2","crdb_benchmark")
+    setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg.name)[0]["Instances"]
     standby_instances = []
@@ -159,13 +159,6 @@ def exit_new_nodes_from_standby(cluster_name, deployment_env, region):
     #move instances out of standby 3 at a time
     for index in range(0, len(standby_instances), 3):
         AutoScalingGroupGateway.exit_instances_from_standby(asg.name, standby_instances[index:index+3])
-
-
-@app.command()
-def exit_new_nodes_from_standby(cluster_name):
-    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    for instance in asg.instances:
-        instances.append(instance.instance_id)
 
 
 @app.command()
