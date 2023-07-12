@@ -146,8 +146,8 @@ def wait_for_hydration(asg_name):
     return
 
 
-@app.command
-def exit_new_nodes_from_standby(cluster_name, deployment_env, region):
+@app.command()
+def exit_new_nodes_from_standby(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg.name)[0]["Instances"]
