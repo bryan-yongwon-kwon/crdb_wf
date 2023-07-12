@@ -91,12 +91,12 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         return
     all_new_nodes=[]
     current_capacity = initial_capacity
-    while current_capacity < 2*initial_capacity:
-        current_capacity=current_capacity+3
-        new_nodes = add_ec2_instances(asg.name, current_capacity)
-        all_new_nodes.append(new_nodes)
-        AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_nodes)
-        wait_for_hydration(asg.name)
+    # while current_capacity < 2*initial_capacity:
+    #     current_capacity=current_capacity+3
+    #     new_nodes = add_ec2_instances(asg.name, current_capacity)
+    #     all_new_nodes.append(new_nodes)
+    #     AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_nodes)
+    wait_for_hydration(asg.name)
 
     for index in range(0, len(all_new_nodes), 3):
         AutoScalingGroupGateway.exit_instances_from_standby(asg.name, all_new_nodes[index:index+3])
@@ -136,7 +136,7 @@ def wait_for_hydration(asg_name):
     asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
     instance_ids=[]
     for instance in asg_instances:
-        instance_ids.add(instance["InstanceId"])
+        instance_ids.append(instance["InstanceId"])
     nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
 
     while True:
