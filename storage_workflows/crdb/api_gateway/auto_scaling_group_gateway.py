@@ -76,7 +76,7 @@ class AutoScalingGroupGateway:
         # Check the HTTP status code of the response
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             activities = response['Activities']
-            AutoScalingGroupGateway.wait_for_activity_completion(activities)
+            AutoScalingGroupGateway.wait_for_activity_completion(activities, auto_scaling_group_aws_client)
         else:
             logger.error("Error: Failed to put instances into standby mode.")
 
@@ -91,12 +91,12 @@ class AutoScalingGroupGateway:
         # Check the HTTP status code of the response
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             activities = response['Activities']
-            AutoScalingGroupGateway.wait_for_activity_completion(activities)
+            AutoScalingGroupGateway.wait_for_activity_completion(activities, auto_scaling_group_aws_client)
         else:
             logger.error("Error: Failed to exit instances from standby mode.")
 
     @staticmethod
-    def wait_for_activity_completion(activities):
+    def wait_for_activity_completion(activities, auto_scaling_group_aws_client):
         for activity in activities:
             activity_id = activity['ActivityId']
             description = activity['Description']
