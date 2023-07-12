@@ -1,4 +1,5 @@
 import math
+import statistics
 import sys
 import time
 import typer
@@ -88,15 +89,18 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
-    final_capacity = 2*initial_capacity
+    all_new_nodes=[]
     current_capacity = initial_capacity
-    new_nodes=[]
-    while current_capacity < final_capacity:
+    while current_capacity < 2*initial_capacity:
         current_capacity=current_capacity+3
         new_nodes = add_ec2_instances(asg.name, current_capacity)
+        all_new_nodes.append(new_nodes)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_nodes)
-        confirm_new_node_fully_hydrated(new_nodes)
-        #todo: put nodes back to InService state
+        wait_for_hydration(asg_name)
+
+    for index in range(0, len(all_new_nodes), 3):
+        AutoScalingGroupGateway.exit_instances_from_standby(asg.name, all_new_nodes[index:index+3])
+
     #detach_old_nodes_from_asg(asg.name, cluster_name)
     return
 
@@ -128,28 +132,23 @@ def add_ec2_instances(asg_name, desired_capacity):
     return list(new_instance_ids)
 
 
-def confirm_new_node_fully_hydrated(instance_ids):
+def wait_for_hydration(asg_name):
+    asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
+    instance_ids=[]
+    for instance in asg_instances:
+        instance_ids.add(instance["InstanceId"])
     nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
-    replicas = list(map(lambda node: node.replicas, nodes))
-    are_new_nodes_hydrated = False
 
-    while not are_new_nodes_hydrated:
-        are_new_nodes_hydrated = check_within_10_percent(replicas)
-        logger.info(f"Hydration check returned: {are_new_nodes_hydrated}")
-        time.sleep(10)
+    while True:
+        nodes_replications_list = list(map(lambda node: node.replicas, nodes))
+        avg_replications = statistics.mean(nodes_replications_list)
+        outliers = list(filter(lambda node_replications: abs(node_replications - avg_replications) / avg_replications > 0.1, node_replications_list))
+        if not any(outliers):
+            logger.info("Hydration complete")
+            break
 
     return
 
-
-def check_within_10_percent(replicas):
-    for i in range(len(replicas)):
-        for j in range(i + 1, len(replicas)):
-            if abs(replicas[i] - replicas[j]) <= math.ceil(0.1 * max(replicas[i], replicas[j])):
-                continue
-            else:
-                return False
-
-    return True
 
 @app.command()
 def detach_old_nodes_from_asg(asg_name, cluster_name):

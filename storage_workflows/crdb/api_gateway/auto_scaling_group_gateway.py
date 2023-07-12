@@ -76,28 +76,48 @@ class AutoScalingGroupGateway:
         # Check the HTTP status code of the response
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             activities = response['Activities']
-            for activity in activities:
-                activity_id = activity['ActivityId']
-                description = activity['Description']
-                status_code = activity['StatusCode']
-
-                logger.info(f"Activity ID: {activity_id}")
-                logger.info(f"Description: {description}")
-
-                # Wait and check the status code until it becomes "Successful"
-                while status_code != 'Successful':
-                    time.sleep(10)  # Wait for 10 seconds
-
-                    response = auto_scaling_group_aws_client.describe_scaling_activities(
-                        ActivityIds=[activity_id]
-                    )
-
-                    if response['Activities'][0]['StatusCode'] == 'Failed':
-                        logger.error("Error: Failed to put the instance into standby mode.")
-                        break
-
-                    status_code = response['Activities'][0]['StatusCode']
-
-                logger.info(f"Status Code: {status_code}")
+            AutoScalingGroupGateway.wait_for_activity_completion(activities)
         else:
             logger.error("Error: Failed to put instances into standby mode.")
+
+    @staticmethod
+    def exit_instances_from_standby(asg_name, instance_ids):
+        auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
+        response = auto_scaling_group_aws_client.exit_standby(
+            AutoScalingGroupName=asg_name,
+            InstanceIds=instance_ids
+        )
+
+        # Check the HTTP status code of the response
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            activities = response['Activities']
+            AutoScalingGroupGateway.wait_for_activity_completion(activities)
+        else:
+            logger.error("Error: Failed to exit instances from standby mode.")
+
+    @staticmethod
+    def wait_for_activity_completion(activities):
+        for activity in activities:
+            activity_id = activity['ActivityId']
+            description = activity['Description']
+            status_code = activity['StatusCode']
+
+            logger.info(f"Activity ID: {activity_id}")
+            logger.info(f"Description: {description}")
+
+            # Wait and check the status code until it becomes "Successful"
+            while status_code != 'Successful':
+                time.sleep(10)  # Wait for 10 seconds
+
+                response = auto_scaling_group_aws_client.describe_scaling_activities(
+                    ActivityIds=[activity_id]
+                )
+
+                if response['Activities'][0]['StatusCode'] == 'Failed':
+                    logger.error("Error: Failed Activity")
+                    break
+
+                status_code = response['Activities'][0]['StatusCode']
+
+            logger.info(f"Status Code: {status_code}")
+            return
