@@ -5,7 +5,12 @@ Some useful links:
  - [Operator Service design doc](https://docs.google.com/document/d/1paeLrixuwF9V_8LLMsiT6d3DpEoPo20lDKp9vNoDEv4/edit#heading=h.kmt9462l4emm)
  - [Argo Workflows](https://argo-workflows.infra-control-plane.doordash.red/workflows/storage-workflows?limit=50)
  - [Argo CD](https://argocd.infra-control-plane.doordash.red/) (search `storage-argo-workflows`)
- - storage [workflow templates](https://github.com/doordash/cluster-config/tree/master/argocd/workflows/storage) (today we are using `storage-workflows-test` branch for development)
+ - Templates
+     - storage [workflow templates](https://github.com/doordash/cluster-config/tree/master/argocd/workflows/storage) 
+     - storage-test [workflow templates](https://github.com/doordash/cluster-config/tree/storage-workflows-test/argocd/workflows/storage-test) (today we are using `storage-workflows-test` branch for development)
+ - Storage Workflows AWS IAM Roles
+     - Prod: https://github.com/doordash/infrastructure/blob/master/prod/common/storage/iam.tf
+     - Staging: https://github.com/doordash/tf_account_staging/blob/master/services/common/storage/iam.tf
 
 ### What's in this repo
 
