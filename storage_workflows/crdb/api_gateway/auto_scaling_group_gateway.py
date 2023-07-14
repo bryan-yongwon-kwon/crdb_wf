@@ -120,4 +120,4 @@ class AutoScalingGroupGateway:
                 status_code = response['Activities'][0]['StatusCode']
 
             logger.info(f"Status Code: {status_code}")
-            return
+        return

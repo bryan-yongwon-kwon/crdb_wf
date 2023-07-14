@@ -89,17 +89,17 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
-    all_new_nodes=[]
+    all_new_instance_ids=[]
     current_capacity = initial_capacity
     while current_capacity < 2*initial_capacity:
-        current_capacity=current_capacity+3
-        new_nodes = add_ec2_instances(asg.name, current_capacity)
-        all_new_nodes.append(new_nodes)
-        AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_nodes)
+        current_capacity+=3
+        new_instance_ids = add_ec2_instances(asg.name, current_capacity)
+        all_new_instance_ids.append(new_instance_ids)
+        AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
         wait_for_hydration(asg.name)
 
-    for index in range(0, len(all_new_nodes), 3):
-        AutoScalingGroupGateway.exit_instances_from_standby(asg.name, all_new_nodes[index:index+3])
+    for index in range(0, len(all_new_instance_ids), 3):
+        AutoScalingGroupGateway.exit_instances_from_standby(asg.name, all_new_instance_ids[index:index+3])
 
     #detach_old_nodes_from_asg(asg.name, cluster_name)
     return
@@ -146,6 +146,8 @@ def wait_for_hydration(asg_name):
         if not any(outliers):
             logger.info("Hydration complete")
             break
+        logger.info("Waiting for nodes to hydrate.")
+        time.sleep(60)
 
     return
 
