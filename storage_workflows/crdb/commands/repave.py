@@ -140,13 +140,16 @@ def wait_for_hydration(asg_name):
     nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
 
     while True:
-        nodes_replications_list = list(map(lambda node: node.replicas, nodes))
-        avg_replications = statistics.mean(nodes_replications_list)
-        outliers = list(filter(lambda node_replications: abs(node_replications - avg_replications) / avg_replications > 0.1, nodes_replications_list))
+        nodes_replications_dict = {node: node.replicas for node in nodes}
+        replications_values = list(nodes_replications_dict.values())
+        avg_replications = statistics.mean(replications_values)
+        outliers = [node for node, replications in nodes_replications_dict.items() if abs(replications - avg_replications) / avg_replications > 0.1]
         if not any(outliers):
             logger.info("Hydration complete")
             break
         logger.info("Waiting for nodes to hydrate.")
+        for outlier in outliers:
+            logger.info(f"Node: {outlier.id} Replications: {nodes_replications_dict[outlier]}")
         time.sleep(60)
 
     return
