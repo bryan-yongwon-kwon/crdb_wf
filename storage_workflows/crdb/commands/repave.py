@@ -1,6 +1,8 @@
+import math
+import statistics
+import sys
 import time
 import typer
-import sys
 from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
@@ -87,15 +89,18 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
-    final_capacity = 2*initial_capacity
+    all_new_instance_ids=[]
     current_capacity = initial_capacity
-    new_nodes=[]
-    while current_capacity < final_capacity:
-        current_capacity=current_capacity+3
-        new_nodes = add_ec2_instances(asg.name, current_capacity)
-        AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_nodes)
-        confirm_new_node_fully_hydrated(asg.name, new_nodes)
-        #todo: put nodes back to InService state
+    while current_capacity < 2*initial_capacity:
+        current_capacity+=3
+        new_instance_ids = add_ec2_instances(asg.name, current_capacity)
+        all_new_instance_ids.append(new_instance_ids)
+        AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
+        wait_for_hydration(asg.name)
+
+    for index in range(0, len(all_new_instance_ids), 3):
+        AutoScalingGroupGateway.exit_instances_from_standby(asg.name, all_new_instance_ids[index:index+3])
+
     #detach_old_nodes_from_asg(asg.name, cluster_name)
     return
 
@@ -127,8 +132,28 @@ def add_ec2_instances(asg_name, desired_capacity):
     return list(new_instance_ids)
 
 
-def confirm_new_node_fully_hydrated(asg_name, instance_ids):
+def wait_for_hydration(asg_name):
+    asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
+    instance_ids=[]
+    for instance in asg_instances:
+        instance_ids.append(instance["InstanceId"])
+    nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+
+    while True:
+        nodes_replications_dict = {node: node.replicas for node in nodes}
+        replications_values = list(nodes_replications_dict.values())
+        avg_replications = statistics.mean(replications_values)
+        outliers = [node for node, replications in nodes_replications_dict.items() if abs(replications - avg_replications) / avg_replications > 0.1]
+        if not any(outliers):
+            logger.info("Hydration complete")
+            break
+        logger.info("Waiting for nodes to hydrate.")
+        for outlier in outliers:
+            logger.info(f"Node: {outlier.id} Replications: {nodes_replications_dict[outlier]}")
+        time.sleep(60)
+
     return
+
 
 @app.command()
 def detach_old_nodes_from_asg(asg_name, cluster_name):
