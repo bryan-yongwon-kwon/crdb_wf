@@ -150,6 +150,7 @@ def wait_for_hydration(asg_name):
 def exit_new_nodes_from_standby(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+    logger.info(f"Autoscaling group name is {asg.name}")
     asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg.name)[0]["Instances"]
     standby_instances = []
     for instance in asg_instances:
@@ -158,6 +159,7 @@ def exit_new_nodes_from_standby(deployment_env, region, cluster_name):
 
     #move instances out of standby 3 at a time
     for index in range(0, len(standby_instances), 3):
+        logger.info("Moving instances out of standby mode.")
         AutoScalingGroupGateway.exit_instances_from_standby(asg.name, standby_instances[index:index+3])
 
 
