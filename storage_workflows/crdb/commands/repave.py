@@ -72,10 +72,11 @@ def mute_alerts_repave(deployment_env, cluster_name):
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, changefeed_stoppped_label_matcher]))
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher]))
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher]))
-    print(slug_list)
+    print(json.dumps(slug_list))
 
 @app.command()
 def delete_mute_alerts(slugs:str):
+    logger.info("Unmuting following rules: {}".format(slugs))
     slug_list = json.loads(slugs)
     for slug in slug_list:
         ChronosphereApiGateway.delete_muting_rule(slug)
