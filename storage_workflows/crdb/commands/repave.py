@@ -89,15 +89,14 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
-    all_new_nodes=[]
+    all_new_instance_ids=[]
     current_capacity = initial_capacity
     while current_capacity < 2*initial_capacity:
-        current_capacity=current_capacity+3
-        new_nodes = add_ec2_instances(asg.name, current_capacity)
-        all_new_nodes.append(new_nodes)
-        AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_nodes)
+        current_capacity+=3
+        new_instance_ids = add_ec2_instances(asg.name, current_capacity)
+        all_new_instance_ids.append(new_instance_ids)
+        AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
         wait_for_hydration(asg.name)
-
     return
 
 
@@ -136,12 +135,17 @@ def wait_for_hydration(asg_name):
     nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
 
     while True:
-        nodes_replications_list = list(map(lambda node: node.replicas, nodes))
-        avg_replications = statistics.mean(nodes_replications_list)
-        outliers = list(filter(lambda node_replications: abs(node_replications - avg_replications) / avg_replications > 0.1, nodes_replications_list))
+        nodes_replications_dict = {node: node.replicas for node in nodes}
+        replications_values = list(nodes_replications_dict.values())
+        avg_replications = statistics.mean(replications_values)
+        outliers = [node for node, replications in nodes_replications_dict.items() if abs(replications - avg_replications) / avg_replications > 0.1]
         if not any(outliers):
             logger.info("Hydration complete")
             break
+        logger.info("Waiting for nodes to hydrate.")
+        for outlier in outliers:
+            logger.info(f"Node: {outlier.id} Replications: {nodes_replications_dict[outlier]}")
+        time.sleep(60)
 
     return
 
