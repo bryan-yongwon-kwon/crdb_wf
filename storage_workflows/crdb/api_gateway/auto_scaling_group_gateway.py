@@ -43,8 +43,9 @@ class AutoScalingGroupGateway:
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             logger.info('Auto Scaling group capacity updated successfully.')
         else:
-            logger.error('Failed to update Auto Scaling group capacity.')
             logger.error('Error message:', response['ResponseMetadata']['HTTPHeaders']['x-amzn-requestid'])
+            raise Exception('Failed to update Auto Scaling group capacity.')
+
 
     @staticmethod
     def detach_instance_from_autoscaling_group(instance_ids, autoscaling_group_name):
@@ -78,7 +79,8 @@ class AutoScalingGroupGateway:
             activities = response['Activities']
             AutoScalingGroupGateway.wait_for_activity_completion(activities, auto_scaling_group_aws_client)
         else:
-            logger.error("Error: Failed to put instances into standby mode.")
+            raise Exception("Error: Failed to put instances into standby mode.")
+
 
     @staticmethod
     def exit_instances_from_standby(asg_name, instance_ids):
