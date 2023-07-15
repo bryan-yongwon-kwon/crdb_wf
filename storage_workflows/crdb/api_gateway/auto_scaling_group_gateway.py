@@ -95,7 +95,7 @@ class AutoScalingGroupGateway:
             activities = response['Activities']
             AutoScalingGroupGateway.wait_for_activity_completion(activities, auto_scaling_group_aws_client)
         else:
-            logger.error("Error: Failed to exit instances from standby mode.")
+            raise Exception("Error: Failed to exit instances from standby mode.")
 
     @staticmethod
     def wait_for_activity_completion(activities, auto_scaling_group_aws_client):

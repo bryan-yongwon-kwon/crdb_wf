@@ -97,11 +97,6 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         all_new_instance_ids.append(new_instance_ids)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
         wait_for_hydration(asg.name)
-
-    for index in range(0, len(all_new_instance_ids), 3):
-        AutoScalingGroupGateway.exit_instances_from_standby(asg.name, all_new_instance_ids[index:index+3])
-
-    #detach_old_nodes_from_asg(asg.name, cluster_name)
     return
 
 
@@ -153,6 +148,23 @@ def wait_for_hydration(asg_name):
         time.sleep(60)
 
     return
+
+
+@app.command()
+def exit_new_nodes_from_standby(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+    logger.info(f"Autoscaling group name is {asg.name}")
+    asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg.name)[0]["Instances"]
+    standby_instance_ids = []
+    for instance in asg_instances:
+        if instance["LifecycleState"] == "Standby":
+            standby_instance_ids.append(instance["InstanceId"])
+
+    # move instances out of standby 3 at a time
+    for index in range(0, len(standby_instance_ids), 3):
+        logger.info(f"Moving following instances {standby_instance_ids[index:index+3]} out of standby mode.")
+        AutoScalingGroupGateway.exit_instances_from_standby(asg.name, standby_instance_ids[index:index+3])
 
 
 @app.command()
