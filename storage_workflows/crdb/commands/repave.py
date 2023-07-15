@@ -163,7 +163,7 @@ def exit_new_nodes_from_standby(deployment_env, region, cluster_name):
 
     # move instances out of standby 3 at a time
     for index in range(0, len(standby_instance_ids), 3):
-        logger.info(f"Moving following instances {standby_instances[index:index+3]} out of standby mode.")
+        logger.info(f"Moving following instances {standby_instance_ids[index:index+3]} out of standby mode.")
         AutoScalingGroupGateway.exit_instances_from_standby(asg.name, standby_instance_ids[index:index+3])
 
 
