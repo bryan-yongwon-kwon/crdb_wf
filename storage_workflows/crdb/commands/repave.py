@@ -72,7 +72,7 @@ def mute_alerts_repave(deployment_env, cluster_name):
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, changefeed_stoppped_label_matcher]))
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher]))
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher]))
-    output_file = open("/tmp/output.txt", "w")
+    output_file = open("/tmp/slugs.json", "w")
     output_file.write(json.dumps(slug_list))
     output_file.close()
 
