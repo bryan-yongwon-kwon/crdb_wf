@@ -51,10 +51,16 @@ The `storage-test-workflows` is defined [here](https://github.com/doordash/clust
 
 ##### Run
 In local environment, go to `storage_workflows` directory and run `python main.py echo2 a b`.
-If you are seeing module not found issue, you might need to temporarily add this to main.py's import section to run code locally.
-```
-import sys
-sys.path.append("/Users/aochen/Projects/storage-workflows") # replace with your own path
+If you are encountering following error, add `PYTHONPATH` to `ENV`:
+```bash
+% python main.py echo2 a b 
+Traceback (most recent call last):
+  File "/Users/bryankwon/workspace/storage-workflows/storage_workflows/main.py", line 2, in <module>
+    from storage_workflows.setup_env import setup_env
+ModuleNotFoundError: No module named 'storage_workflows'
+% export PYTHONPATH=/Users/bryankwon/workspace/storage-workflows/
+% python main.py echo2 a b 
+ab
 ```
 
 In Docker container, just run `/usr/local/bin/storage-workflows echo2 a b`.
