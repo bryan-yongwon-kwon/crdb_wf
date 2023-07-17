@@ -1,9 +1,9 @@
+import json
 import math
 import statistics
 import sys
 import time
 import typer
-import json
 from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
