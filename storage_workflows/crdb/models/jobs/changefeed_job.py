@@ -4,6 +4,9 @@ from storage_workflows.crdb.models.jobs.base_job import BaseJob
 
 class ChangefeedJob(BaseJob):
 
+    REMOVE_COORDINATOR_BY_JOB_ID_SQL = "UPDATE system.jobs SET claim_session_id = NULL WHERE id = '{}';"
+    GET_COORDINATOR_BY_JOB_ID_SQL = "SELECT coordinator_id from crdb_internal.jobs WHERE id = '{}';"
+
     @staticmethod
     def find_all_changefeed_jobs(cluster_name) -> list[ChangefeedJob]:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
@@ -23,4 +26,12 @@ class ChangefeedJob(BaseJob):
 
     def resume(self):
         self.connection.execute_sql(self.RESUME_JOB_BY_ID_SQL.format(self.id),
+                                    need_commit=True)
+
+    def remove_coordinator_node(self):
+        self.connection.execute_sql(self.REMOVE_COORDINATOR_BY_JOB_ID_SQL(self.id),
+                                    need_commit=True)
+
+    def get_coordinator_node(self):
+        self.connection.execute_sql(self.GET_COORDINATOR_BY_JOB_ID_SQL(self.id),
                                     need_commit=True)

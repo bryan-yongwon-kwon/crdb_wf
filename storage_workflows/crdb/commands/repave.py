@@ -230,7 +230,39 @@ def start_repave_global_change_log(deployment_env, region, cluster_name):
     GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
                                       service_name=ServiceName.CRDB,
                                       message="Repave started for cluster {} in operator service.".format(cluster_name))
-    
+
+
+@app.command()
+def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+    for job in changefeed_jobs:
+        logger.info("Pausing changefeed job {}".format(job.id))
+        job.pause()
+    logger.info("Paused all changefeed jobs!")
+
+    for job in changefeed_jobs:
+        logger.info("Removing coordinator node for job {}".format(job.id))
+        job.remove_coordinator_node()
+    logger.info("Removed coordinator node for all changefeed jobs!")
+
+    # get old nodes
+    metadata_db_operations = MetadataDBOperations()
+    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
+    old_nodes = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+
+    for job in changefeed_jobs:
+        logger.info("Resuming changefeed job {}".format(job.id))
+        job.resume()
+        coordinator_node = None
+        while coordinator_node == None:
+            coordinator_node = job.get_coordinator_node()
+            if coordinator_node in old_nodes:
+                coordinator_node = None
+                job.remove_coordinator_node()
+                sleep(10)
+        logger.info("Coordinator node updated to {}".format(coordinator_node))
+
 
 if __name__ == "__main__":
     app()
