@@ -1,3 +1,4 @@
+import json
 import math
 import statistics
 import sys
@@ -58,19 +59,30 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
         ElasticLoadBalancerGateway.register_instances_with_load_balancer(etl_load_balancer_name, new_instances)
 
 @app.command()
-def mute_alerts_repave(cluster_name):    
+def mute_alerts_repave(deployment_env, cluster_name):    
     def make_alert_label_matcher(name, type, value):
         return {"name": name, "type": type, "value": value}
-    cluster_name_label_matcher = make_alert_label_matcher("cluster", "EXACT", cluster_name)
+    cluster_name_label_matcher = make_alert_label_matcher("cluster", "EXACT", cluster_name+"_"+deployment_env)
     live_node_count_changed_label_matcher = make_alert_label_matcher("Description", "EXACT", "The count of live nodes has decreased")
     changefeed_stoppped_label_matcher = make_alert_label_matcher("Description", "EXACT", "Changefeed is Stopped")    
     underreplicated_range_label_matcher = make_alert_label_matcher("Description", "EXACT", "Underreplicated Range Detected")
     backup_failed_label_matcher = make_alert_label_matcher("Description", "EXACT", "Incremental or full backup failed.")
+    slug_list = []
+    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, live_node_count_changed_label_matcher]))
+    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, changefeed_stoppped_label_matcher]))
+    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher]))
+    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher]))
+    output_file = open("/tmp/slugs.json", "w")
+    output_file.write(json.dumps(slug_list))
+    output_file.close()
+
+@app.command()
+def delete_mute_alerts(slugs:str):
+    logger.info("Unmuting following rules: {}".format(slugs))
+    slug_list = json.loads(slugs)
+    for slug in slug_list:
+        ChronosphereApiGateway.delete_muting_rule(slug)
     
-    ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, live_node_count_changed_label_matcher])
-    ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, changefeed_stoppped_label_matcher])
-    ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher])
-    ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher])
 
 
 @app.command()
