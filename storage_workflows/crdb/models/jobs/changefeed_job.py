@@ -29,9 +29,9 @@ class ChangefeedJob(BaseJob):
                                     need_commit=True)
 
     def remove_coordinator_node(self):
-        self.connection.execute_sql(self.REMOVE_COORDINATOR_BY_JOB_ID_SQL(self.id),
+        self.connection.execute_sql(self.REMOVE_COORDINATOR_BY_JOB_ID_SQL.format(self.id),
                                     need_commit=True)
 
     def get_coordinator_node(self):
-        self.connection.execute_sql(self.GET_COORDINATOR_BY_JOB_ID_SQL(self.id),
+        self.connection.execute_sql(self.GET_COORDINATOR_BY_JOB_ID_SQL.format(self.id),
                                     need_commit=True)
