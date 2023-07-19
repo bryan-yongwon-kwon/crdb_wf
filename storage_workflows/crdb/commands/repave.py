@@ -271,8 +271,11 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
             coordinator_node = job.get_coordinator_node()
             if coordinator_node in old_nodes:
                 coordinator_node = None
+                logger.info("Removing coordinator node for job {}".format(job.id))
                 job.remove_coordinator_node()
-                sleep(10)
+                logger.info("Pausing job {}".format(job.id))
+                job.pause()
+                sleep(30)
         logger.info("Coordinator node updated to {}".format(coordinator_node))
     logger.info("Resumed all changefeed jobs!")
 
