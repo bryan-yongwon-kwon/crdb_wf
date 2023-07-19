@@ -34,4 +34,4 @@ class ChangefeedJob(BaseJob):
 
     def get_coordinator_node(self):
         return self.connection.execute_sql(self.GET_COORDINATOR_BY_JOB_ID_SQL.format(self.id),
-                                    need_commit=True, need_fetchone=True)
+                                    need_commit=True, need_fetchone=True)[0]
