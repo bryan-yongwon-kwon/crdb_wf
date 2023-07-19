@@ -262,6 +262,8 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     metadata_db_operations = MetadataDBOperations()
     instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
     old_nodes = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+    for node in old_nodes:
+        logger.info(node)
 
     for job in changefeed_jobs:
         logger.info("Resuming changefeed job {}".format(job.id))
@@ -271,6 +273,7 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         while coordinator_node is None:
             logger.info("Checking coordinator node.")
             coordinator_node = job.get_coordinator_node()
+            logger.info("Coordinator node is {}".format(coordinator_node))
             if coordinator_node in old_nodes:
                 coordinator_node = None
                 logger.info("Removing coordinator node for job {}".format(job.id))
