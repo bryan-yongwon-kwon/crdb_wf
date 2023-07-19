@@ -47,3 +47,4 @@ class ChronosphereApiGateway():
         if response.status != http.client.OK:
             raise Exception("Muting rule deletion failed: {}".format(response_content))
         logger.info("Muting rule deleted: {}".format(slug))
+        
