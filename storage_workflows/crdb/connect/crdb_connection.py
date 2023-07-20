@@ -60,7 +60,7 @@ class CrdbConnection:
         if self._connection:
             self._connection.close() 
 
-    def execute_sql(self, sql:str, need_commit:bool=False):
+    def execute_sql(self, sql:str, need_commit:bool=False, need_fetchall: bool = True, need_fetchone: bool = False):
         cursor = self._connection.cursor()
         try:
             cursor.execute(sql)
@@ -70,8 +70,12 @@ class CrdbConnection:
             logger.error(error)
             raise
         try:
-            result = cursor.fetchall()
-            return result
+            if need_fetchone:
+                result = cursor.fetchone()
+                return result
+            if need_fetchall:
+                result = cursor.fetchall()
+                return result
         except psycopg2.ProgrammingError:
             logger.info("No result returned for this SQL command.")
         finally:

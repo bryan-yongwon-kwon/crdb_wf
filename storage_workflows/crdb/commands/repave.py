@@ -242,7 +242,54 @@ def start_repave_global_change_log(deployment_env, region, cluster_name):
     GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
                                       service_name=ServiceName.CRDB,
                                       message="Repave started for cluster {} in operator service.".format(cluster_name))
-    
+
+
+@app.command()
+def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+    for job in changefeed_jobs:
+        logger.info("Pausing changefeed job {}".format(job.id))
+        job.pause()
+    time.sleep(30)
+    logger.info("Paused all changefeed jobs!")
+
+    for job in changefeed_jobs:
+        logger.info("Removing coordinator node for job {}".format(job.id))
+        job.remove_coordinator_node()
+    logger.info("Removed coordinator node for all changefeed jobs!")
+
+    # get old nodes
+    metadata_db_operations = MetadataDBOperations()
+    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
+    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+    old_node_ids = set(map(lambda node: node.id, old_nodes))
+    for node_id in old_node_ids:
+        logger.info(node_id)
+
+    for job in changefeed_jobs:
+        logger.info("Resuming changefeed job {}".format(job.id))
+        job.resume()
+        time.sleep(10)
+        coordinator_node = None
+        while coordinator_node is None:
+            logger.info("Checking coordinator node.")
+            # expected value in int, if this returns anything else exception would be thrown
+            coordinator_node = int(job.get_coordinator_node())
+            logger.info("Coordinator node is {}".format(coordinator_node))
+
+            if coordinator_node in old_node_ids:
+                coordinator_node = None
+                logger.info("Removing coordinator node for job {}".format(job.id))
+                job.remove_coordinator_node()
+                logger.info("Pausing job {}".format(job.id))
+                job.pause()
+                time.sleep(10)
+                job.resume()
+                time.sleep(10)
+        logger.info("Coordinator node updated to {}".format(coordinator_node))
+    logger.info("Resumed all changefeed jobs!")
+
 
 if __name__ == "__main__":
     app()
