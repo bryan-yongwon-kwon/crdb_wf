@@ -251,6 +251,7 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     for job in changefeed_jobs:
         logger.info("Pausing changefeed job {}".format(job.id))
         job.pause()
+    time.sleep(30)
     logger.info("Paused all changefeed jobs!")
 
     for job in changefeed_jobs:
@@ -275,13 +276,19 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
             logger.info("Checking coordinator node.")
             coordinator_node = job.get_coordinator_node()
             logger.info("Coordinator node is {}".format(coordinator_node))
+
+            if coordinator_node is None or type(coordinator_node) not in int:
+                raise Exception("Invalid coordinator node value {}".format(coordinator_node))
+
             if coordinator_node in old_node_ids:
                 coordinator_node = None
                 logger.info("Removing coordinator node for job {}".format(job.id))
                 job.remove_coordinator_node()
                 logger.info("Pausing job {}".format(job.id))
                 job.pause()
-                time.sleep(30)
+                time.sleep(10)
+                job.resume()
+                time.sleep(10)
         logger.info("Coordinator node updated to {}".format(coordinator_node))
     logger.info("Resumed all changefeed jobs!")
 
