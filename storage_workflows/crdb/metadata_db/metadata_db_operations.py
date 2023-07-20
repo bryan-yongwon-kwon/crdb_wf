@@ -8,7 +8,7 @@ class MetadataDBOperations:
     def __init__(self):
         self._connection = MetadataDBConnection()
 
-    def persist_asg_old_instance_ids(self, cluster_name, deployment_env, instances):
+    def persist_old_instance_ids(self, cluster_name, deployment_env, instances):
         self._connection.connect()
         node_list = ','.join(instances)
         node_list = str('{') + node_list + str('}')
