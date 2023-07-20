@@ -274,11 +274,9 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         coordinator_node = None
         while coordinator_node is None:
             logger.info("Checking coordinator node.")
-            coordinator_node = job.get_coordinator_node()
+            # expected value in int, if this returns anything else exception would be thrown
+            coordinator_node = int(job.get_coordinator_node())
             logger.info("Coordinator node is {}".format(coordinator_node))
-
-            if coordinator_node is None or type(coordinator_node) not in int:
-                raise Exception("Invalid coordinator node value {}".format(coordinator_node))
 
             if coordinator_node in old_node_ids:
                 coordinator_node = None
