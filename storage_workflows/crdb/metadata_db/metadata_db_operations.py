@@ -19,7 +19,7 @@ class MetadataDBOperations:
         self._connection.close()
         return
 
-    def get_old_nodes(self, cluster_name, deployment_env) -> list[str]:
+    def get_old_instance_ids(self, cluster_name, deployment_env) -> list[str]:
         self._connection.connect()
         sql_query = "SELECT instance_ids FROM clusters_info WHERE cluster_name ='{}' AND deployment_env='{}';".format(cluster_name, deployment_env)
         instances = self._connection.execute_sql(sql_query, need_fetchone=True)[0]

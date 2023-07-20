@@ -59,7 +59,7 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
         ElasticLoadBalancerGateway.register_instances_with_load_balancer(etl_load_balancer_name, new_instances)
 
 @app.command()
-def mute_alerts_repave(deployment_env, cluster_name):    
+def mute_alerts(deployment_env, cluster_name):
     def make_alert_label_matcher(name, type, value):
         return {"name": name, "type": type, "value": value}
     cluster_name_label_matcher = make_alert_label_matcher("cluster", "EXACT", cluster_name+"_"+deployment_env)
@@ -82,7 +82,6 @@ def delete_mute_alerts(slugs:str):
     slug_list = json.loads(slugs)
     for slug in slug_list:
         ChronosphereApiGateway.delete_muting_rule(slug)
-    
 
 
 @app.command()
@@ -163,7 +162,7 @@ def wait_for_hydration(asg_name):
 
 
 @app.command()
-def exit_new_nodes_from_standby(deployment_env, region, cluster_name):
+def exit_new_instances_from_standby(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     logger.info(f"Autoscaling group name is {asg.name}")
@@ -180,17 +179,17 @@ def exit_new_nodes_from_standby(deployment_env, region, cluster_name):
 
 
 @app.command()
-def detach_old_nodes_from_asg(asg_name, cluster_name):
-    old_instances = MetadataDBOperations.get_old_nodes(cluster_name)
-    AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instances[0], asg_name)
+def detach_old_instances_from_asg(asg_name, cluster_name):
+    old_instance_ids = MetadataDBOperations.get_old_instance_ids(cluster_name)
+    AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids[0], asg_name)
     return
 
 @app.command()
 def terminate_instances(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
-    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
-    for id in instance_ids:
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    for id in old_instance_ids:
         ec2_instance = Ec2Instance.find_ec2_instance(id)
         ec2_instance.terminate_instance()
 
@@ -198,8 +197,8 @@ def terminate_instances(deployment_env, region, cluster_name):
 def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
-    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
-    instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, old_instance_ids))
     for ip in instances_ips:
         Node.stop_crdb(ip)
 
@@ -207,8 +206,8 @@ def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
 def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
-    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
-    nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
     cluster = Cluster()
     cluster.decommission_nodes(nodes)
 
@@ -259,10 +258,10 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         job.remove_coordinator_node()
     logger.info("Removed coordinator node for all changefeed jobs!")
 
-    # get old nodes
+    # get instance ids of old nodes
     metadata_db_operations = MetadataDBOperations()
-    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
-    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
     old_node_ids = set(map(lambda node: node.id, old_nodes))
     for node_id in old_node_ids:
         logger.info(node_id)
