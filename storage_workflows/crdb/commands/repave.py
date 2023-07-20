@@ -64,12 +64,12 @@ def mute_alerts_repave(deployment_env, cluster_name):
         return {"name": name, "type": type, "value": value}
     cluster_name_label_matcher = make_alert_label_matcher("cluster", "EXACT", cluster_name+"_"+deployment_env)
     live_node_count_changed_label_matcher = make_alert_label_matcher("Description", "EXACT", "The count of live nodes has decreased")
-    changefeed_stoppped_label_matcher = make_alert_label_matcher("Description", "EXACT", "Changefeed is Stopped")    
+    changefeed_stopped_label_matcher = make_alert_label_matcher("Description", "EXACT", "Changefeed is Stopped")
     underreplicated_range_label_matcher = make_alert_label_matcher("Description", "EXACT", "Underreplicated Range Detected")
     backup_failed_label_matcher = make_alert_label_matcher("Description", "EXACT", "Incremental or full backup failed.")
     slug_list = []
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, live_node_count_changed_label_matcher]))
-    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, changefeed_stoppped_label_matcher]))
+    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, changefeed_stopped_label_matcher]))
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher]))
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher]))
     output_file = open("/tmp/slugs.json", "w")
@@ -95,7 +95,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     for instance in asg.instances:
         instances.append(instance.instance_id)
     metadata_db_operations = MetadataDBOperations()
-    metadata_db_operations.persist_asg_old_instance_ids(cluster_name, deployment_env, instances)
+    metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instances)
 
     if initial_capacity % 3 != 0:
         logger.error("The number of nodes in this cluster are not balanced.")
@@ -184,15 +184,17 @@ def detach_old_nodes_from_asg(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     logger.info(f"Autoscaling group name is {asg.name}")
-    old_instances = MetadataDBOperations.get_old_nodes(cluster_name, deployment_env)
-    AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instances[0], asg.name)
+    # get instance ids of old nodes
+    metadata_db_operations = MetadataDBOperations()
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids[0], asg.name)
     return
 
 @app.command()
 def terminate_instances(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
-    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
+    instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     for id in instance_ids:
         ec2_instance = Ec2Instance.find_ec2_instance(id)
         ec2_instance.terminate_instance()
@@ -201,7 +203,7 @@ def terminate_instances(deployment_env, region, cluster_name):
 def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
-    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
+    instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
     for ip in instances_ips:
         Node.stop_crdb(ip)
@@ -210,7 +212,7 @@ def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
 def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
-    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
+    instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
     cluster = Cluster()
     cluster.decommission_nodes(nodes)
@@ -262,9 +264,9 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         job.remove_coordinator_node()
     logger.info("Removed coordinator node for all changefeed jobs!")
 
-    # get old nodes
+    # get instance ids of old nodes
     metadata_db_operations = MetadataDBOperations()
-    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
+    instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
     old_node_ids = set(map(lambda node: node.id, old_nodes))
     for node_id in old_node_ids:
