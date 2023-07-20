@@ -184,7 +184,7 @@ def detach_old_nodes_from_asg(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     logger.info(f"Autoscaling group name is {asg.name}")
-    old_instances = MetadataDBOperations.get_old_nodes(cluster_name)
+    old_instances = MetadataDBOperations.get_old_nodes(cluster_name, deployment_env)
     AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instances[0], asg.name)
     return
 
