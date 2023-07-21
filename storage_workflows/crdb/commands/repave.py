@@ -211,8 +211,8 @@ def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
 def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
-    instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
     cluster = Cluster()
     cluster.decommission_nodes(old_nodes)
 
