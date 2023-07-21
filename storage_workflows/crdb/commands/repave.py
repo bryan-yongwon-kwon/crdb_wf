@@ -82,7 +82,6 @@ def delete_mute_alerts(slugs:str):
     slug_list = json.loads(slugs)
     for slug in slug_list:
         ChronosphereApiGateway.delete_muting_rule(slug)
-    
 
 
 @app.command()
@@ -101,10 +100,10 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
-    all_new_instance_ids=[]
+    all_new_instance_ids = []
     current_capacity = initial_capacity
     while current_capacity < 2*initial_capacity:
-        current_capacity+=3
+        current_capacity += 3
         new_instance_ids = add_ec2_instances(asg.name, current_capacity)
         all_new_instance_ids.append(new_instance_ids)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
@@ -213,9 +212,9 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
     cluster = Cluster()
-    cluster.decommission_nodes(nodes)
+    cluster.decommission_nodes(old_nodes)
 
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
