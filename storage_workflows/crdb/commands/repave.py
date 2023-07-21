@@ -31,7 +31,6 @@ def pre_check(deployment_env, region, cluster_name):
         or cluster.restore_job_is_running()
         or cluster.schema_change_job_is_running()
         or cluster.row_level_ttl_job_is_running()
-        or cluster.unhealthy_ranges_exist()
         or cluster.instances_not_in_service_exist()):
         raise Exception("Pre run check failed")
     else:
@@ -53,10 +52,10 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
     new_instances = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances
     new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id}, new_instances))
     logger.info("New instances: {}".format(new_instances))
-    if old_instances:
-        ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(etl_load_balancer_name, old_instances)
     if new_instances:
         ElasticLoadBalancerGateway.register_instances_with_load_balancer(etl_load_balancer_name, new_instances)
+    if old_instances:
+        ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(etl_load_balancer_name, old_instances)
 
 @app.command()
 def mute_alerts(deployment_env, cluster_name):
@@ -82,7 +81,6 @@ def delete_mute_alerts(slugs:str):
     slug_list = json.loads(slugs)
     for slug in slug_list:
         ChronosphereApiGateway.delete_muting_rule(slug)
-
 
 @app.command()
 def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
