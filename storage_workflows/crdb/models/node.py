@@ -4,6 +4,7 @@ from functools import cached_property, reduce
 from storage_workflows.crdb.api_gateway.crdb_api_gateway import CrdbApiGateway
 from storage_workflows.crdb.connect.ssh import SSH
 from storage_workflows.logging.logger import Logger
+from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
 logger = Logger()
 class Node:
@@ -89,12 +90,13 @@ class Node:
 
     def drain(self):
         certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self.cluster_name + "/"
-        cluster_name = "{}-{}".format(self.cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
+        CrdbConnection.get_crdb_connection(self.cluster_name)
+        formatted_cluster_name = "{}-{}".format(self.cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
         node_drain_command = "crdb{} node drain {} --host={}:26256 --certs-dir={} --cluster-name={}".format(self.major_version, 
                                                                                                             self.id, 
                                                                                                             self.ip_address, 
                                                                                                             certs_dir, 
-                                                                                                            cluster_name)
+                                                                                                            formatted_cluster_name)
         result = subprocess.run(node_drain_command, capture_output=True, shell=True)
         logger.error(result.stderr)
         result.check_returncode()
