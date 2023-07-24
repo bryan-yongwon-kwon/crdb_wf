@@ -8,6 +8,7 @@ from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
 logger = Logger()
 class Node:
+    CRONTAB_SCRIPTS_DIR = '/root/.cockroach-certs/'
 
     @staticmethod
     def get_nodes():
@@ -101,3 +102,37 @@ class Node:
         logger.error(result.stderr)
         result.check_returncode()
         logger.info(result.stdout)
+
+    def schedule_cron_jobs(self, crontab_file_lines:list):
+        new_node_ssh_client = self.ssh_client
+        new_node_ssh_client.connect_to_node()
+        new_node_ssh_client.execute_command('sudo mkdir /var/log/crdb/export_logs && \
+                                            sudo ln -s /var/log/crdb/export_logs /root/export_logs && \
+                                            sudo ln -s /var/log/crdb/export_logs /root/.cockroach-certs/export_logs')
+        for line in crontab_file_lines:
+            line = str(line).rstrip()
+            if line[0] == '#':
+                continue
+            logger.info("scheduling cron: {}".format(line))
+            command = '(sudo crontab -l 2>/dev/null; echo "{}") | sudo crontab -'.format(line)
+            logger.info("command: {}".format(command))
+            stdin, stdout, stderr = new_node_ssh_client.execute_command(command)
+            error = stderr.readlines()
+            if error:
+                raise Exception(error)
+            logger.info("cron job scheduled.")
+        new_node_ssh_client.close_connection()
+
+    def copy_cron_scripts_from_old_node(self, old_node_ssh_client: SSH):
+        new_node_ssh_client = self.ssh_client
+        new_node_ssh_client.connect_to_node()
+        old_node_ssh_client.connect_to_node()
+        old_node_script_names = filter(lambda file_name: '.sh' in file_name, 
+                                    old_node_ssh_client.list_remote_dir_with_root(Node.CRONTAB_SCRIPTS_DIR))
+        for script_name in old_node_script_names:
+            logger.info("Moving script {} from {} to {}".format(script_name, old_node_ssh_client.ip, new_node_ssh_client.ip))
+            file_path = Node.CRONTAB_SCRIPTS_DIR + script_name
+            lines = old_node_ssh_client.read_remote_file_with_root(file_path)
+            new_node_ssh_client.write_remote_file_with_root(file_lines=lines, file_path=file_path)
+        new_node_ssh_client.close_connection()
+        old_node_ssh_client.close_connection()

@@ -19,6 +19,7 @@ from storage_workflows.setup_env import setup_env
 from storage_workflows.logging.logger import Logger
 from storage_workflows.global_change_log.global_change_log_gateway import GlobalChangeLogGateway
 from storage_workflows.global_change_log.service_name import ServiceName
+from storage_workflows.crdb.connect.ssh import SSH
 
 app = typer.Typer()
 logger = Logger()
@@ -85,6 +86,27 @@ def delete_mute_alerts(slugs:str):
     slug_list = json.loads(slugs)
     for slug in slug_list:
         ChronosphereApiGateway.delete_muting_rule(slug)
+
+@app.command()
+def copy_crontab(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    metadata_db_operations = MetadataDBOperations()
+    instance_ids = metadata_db_operations.get_old_nodes(cluster_name, deployment_env)
+    old_instance_ips = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
+    nodes = Node.get_nodes()
+    new_node = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))[0]
+    logger.info("Copying crontab jobs to new node: {}".format(new_node.id))
+    for ip in old_instance_ips:
+        ssh_client = SSH(ip)
+        stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
+        lines = stdout.readlines()
+        errors = stderr.readlines()
+        logger.info("Listing cron jobs for {}: {}".format(ip, lines))
+        if errors:
+            continue
+        new_node.copy_cron_scripts_from_old_node(ssh_client)
+        new_node.schedule_cron_jobs(lines)
+    logger.info("Copied all the crontab jobs to new node successfully!")
 
 @app.command()
 def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
