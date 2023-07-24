@@ -90,7 +90,11 @@ class Node:
     def drain(self):
         certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self.cluster_name + "/"
         cluster_name = "{}-{}".format(self.cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
-        node_drain_command = "crdb node drain {} --host={}:26256 --certs-dir={} --cluster-name={}".format(self.id, self.ip_address, certs_dir, cluster_name)
+        node_drain_command = "crdb{} node drain {} --host={}:26256 --certs-dir={} --cluster-name={}".format(self.major_version, 
+                                                                                                            self.id, 
+                                                                                                            self.ip_address, 
+                                                                                                            certs_dir, 
+                                                                                                            cluster_name)
         result = subprocess.run(node_drain_command, capture_output=True, shell=True)
         logger.error(result.stderr)
         result.check_returncode()
