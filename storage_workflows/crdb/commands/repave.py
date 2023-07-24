@@ -63,12 +63,12 @@ def mute_alerts(deployment_env, cluster_name):
         return {"name": name, "type": type, "value": value}
     cluster_name_label_matcher = make_alert_label_matcher("cluster", "EXACT", cluster_name+"_"+deployment_env)
     live_node_count_changed_label_matcher = make_alert_label_matcher("Description", "EXACT", "The count of live nodes has decreased")
-    changefeed_stoppped_label_matcher = make_alert_label_matcher("Description", "EXACT", "Changefeed is Stopped")    
+    changefeed_stopped_label_matcher = make_alert_label_matcher("Description", "EXACT", "Changefeed is Stopped")
     underreplicated_range_label_matcher = make_alert_label_matcher("Description", "EXACT", "Underreplicated Range Detected")
     backup_failed_label_matcher = make_alert_label_matcher("Description", "EXACT", "Incremental or full backup failed.")
     slug_list = []
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, live_node_count_changed_label_matcher]))
-    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, changefeed_stoppped_label_matcher]))
+    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, changefeed_stopped_label_matcher]))
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher]))
     slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher]))
     output_file = open("/tmp/slugs.json", "w")
@@ -98,10 +98,10 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
-    all_new_instance_ids=[]
+    all_new_instance_ids = []
     current_capacity = initial_capacity
     while current_capacity < 2*initial_capacity:
-        current_capacity+=3
+        current_capacity += 3
         new_instance_ids = add_ec2_instances(asg.name, current_capacity)
         all_new_instance_ids.append(new_instance_ids)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
@@ -177,9 +177,14 @@ def exit_new_instances_from_standby(deployment_env, region, cluster_name):
 
 
 @app.command()
-def detach_old_instances_from_asg(asg_name, cluster_name):
-    old_instance_ids = MetadataDBOperations.get_old_instance_ids(cluster_name)
-    AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids[0], asg_name)
+def detach_old_instances_from_asg(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+    logger.info(f"Autoscaling group name is {asg.name}")
+    # get instance ids of old nodes
+    metadata_db_operations = MetadataDBOperations()
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids, asg.name)
     return
 
 @app.command()
@@ -205,9 +210,9 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
     cluster = Cluster()
-    cluster.decommission_nodes(nodes)
+    cluster.decommission_nodes(old_nodes)
 
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
