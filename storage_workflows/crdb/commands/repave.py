@@ -47,15 +47,19 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
     if not load_balancers:
         logger.warning("Mode not enabled. ETL load balancer doesn't exist.")
         return
-    old_instances = load_balancers[0].instances
-    logger.info("Old instances: {}".format(old_instances))
-    new_instances = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances
-    new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id}, new_instances))
+    old_lb_instances = load_balancers[0].instances
+    old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
+    metadata_db_operations = MetadataDBOperations()
+    old_instance_id_set.update(metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env))
+    logger.info("Old instances: {}".format(old_instance_id_set))
+    new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id},
+                             filter(lambda instance: instance.instance_id not in old_instance_id_set, 
+                                    AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances)))
     logger.info("New instances: {}".format(new_instances))
     if new_instances:
         ElasticLoadBalancerGateway.register_instances_with_load_balancer(etl_load_balancer_name, new_instances)
-    if old_instances:
-        ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(etl_load_balancer_name, old_instances)
+    if old_lb_instances:
+        ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(etl_load_balancer_name, old_lb_instances)
 
 @app.command()
 def mute_alerts(deployment_env, cluster_name):
