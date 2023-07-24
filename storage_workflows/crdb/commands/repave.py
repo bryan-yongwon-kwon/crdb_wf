@@ -206,6 +206,18 @@ def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
         Node.stop_crdb(ip)
 
 @app.command()
+def drain_old_nodes(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    metadata_db_operations = MetadataDBOperations()
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+    for node in old_nodes:
+        logger.info("Draining node {} ...".format(node.id))
+        node.drain()
+        logger.info("Draining complete for node {}".format(node.id))
+    logger.info("Nodes drain complete!")
+
+@app.command()
 def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
@@ -213,6 +225,7 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
     old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
     cluster = Cluster()
     cluster.decommission_nodes(old_nodes)
+    logger.info("Decommission completed!")
 
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
