@@ -34,7 +34,7 @@ class ElasticLoadBalancer:
     
     def reload(self):
         self.api_response = list(filter(lambda load_balancer: load_balancer['LoadBalancerName'] == self.load_balancer_name, 
-                                        ElasticLoadBalancerGateway.describe_load_balancers([self.load_balancer_name])))
+                                        ElasticLoadBalancerGateway.describe_load_balancers([self.load_balancer_name])))[0]
         
     def register_instances(self, instances:list):
         ElasticLoadBalancerGateway.register_instances_with_load_balancer(self.load_balancer_name, instances)
