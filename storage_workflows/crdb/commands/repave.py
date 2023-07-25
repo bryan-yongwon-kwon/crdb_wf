@@ -98,9 +98,11 @@ def copy_crontab(deployment_env, region, cluster_name):
     logger.info("Copying crontab jobs to new node: {}".format(new_node.id))
     for ip in old_instance_ips:
         ssh_client = SSH(ip)
+        ssh_client.connect_to_node()
         stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
         lines = stdout.readlines()
         errors = stderr.readlines()
+        ssh_client.close_connection()
         logger.info("Listing cron jobs for {}: {}".format(ip, lines))
         if errors:
             continue
