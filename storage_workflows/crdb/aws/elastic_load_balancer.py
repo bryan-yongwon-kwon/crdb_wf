@@ -29,9 +29,8 @@ class ElasticLoadBalancer:
         return self.api_response['LoadBalancerName']
     
     @property
-    def instance_ids(self) -> list[str]:
-        instances = self.api_response['Instances']
-        return list(map(lambda instance: instance['InstanceId'], instances))
+    def instances(self) -> list:
+        return self.api_response['Instances']
     
     def reload(self):
         self.api_response = list(filter(lambda load_balancer: load_balancer['LoadBalancerName'] == self.load_balancer_name, 

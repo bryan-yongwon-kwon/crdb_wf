@@ -58,7 +58,8 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
     if old_lb_instances:
         load_balancer.deregister_instances(old_lb_instances)
     new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
-    if set(new_instance_list) == set(load_balancer.instance_ids):
+    lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
+    if set(new_instance_list) == set(lb_instance_list):
         logger.info("ETL load balancer refresh completed!")
     else:
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
