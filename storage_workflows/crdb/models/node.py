@@ -2,9 +2,9 @@ import os
 import subprocess
 from functools import cached_property, reduce
 from storage_workflows.crdb.api_gateway.crdb_api_gateway import CrdbApiGateway
+from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.connect.ssh import SSH
 from storage_workflows.logging.logger import Logger
-from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
 logger = Logger()
 class Node:
