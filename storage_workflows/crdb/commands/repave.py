@@ -19,6 +19,7 @@ from storage_workflows.setup_env import setup_env
 from storage_workflows.logging.logger import Logger
 from storage_workflows.global_change_log.global_change_log_gateway import GlobalChangeLogGateway
 from storage_workflows.global_change_log.service_name import ServiceName
+from storage_workflows.crdb.connect.ssh import SSH
 
 app = typer.Typer()
 logger = Logger()
@@ -31,7 +32,6 @@ def pre_check(deployment_env, region, cluster_name):
         or cluster.restore_job_is_running()
         or cluster.schema_change_job_is_running()
         or cluster.row_level_ttl_job_is_running()
-        or cluster.unhealthy_ranges_exist()
         or cluster.instances_not_in_service_exist()):
         raise Exception("Pre run check failed")
     else:
@@ -43,20 +43,27 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
         logger.info("Staging clusters doesn't have ETL load balancers.")
         return
     setup_env(deployment_env, region, cluster_name)
-    etl_load_balancer_name = (cluster_name.replace("_", "-") + "-crdb-etl")[:32]
-    load_balancers = ElasticLoadBalancer.find_elastic_load_balancers([etl_load_balancer_name])
-    if not load_balancers:
-        logger.warning("Mode not enabled. ETL load balancer doesn't exist.")
-        return
-    old_instances = load_balancers[0].instances
-    logger.info("Old instances: {}".format(old_instances))
-    new_instances = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances
-    new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id}, new_instances))
+    load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
+    old_lb_instances = load_balancer.instances
+    old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
+    metadata_db_operations = MetadataDBOperations()
+    old_instance_id_set.update(metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env))
+    logger.info("Old instances: {}".format(old_instance_id_set))
+    new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id},
+                             filter(lambda instance: instance.instance_id not in old_instance_id_set, 
+                                    AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances)))
     logger.info("New instances: {}".format(new_instances))
-    if old_instances:
-        ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(etl_load_balancer_name, old_instances)
     if new_instances:
-        ElasticLoadBalancerGateway.register_instances_with_load_balancer(etl_load_balancer_name, new_instances)
+        load_balancer.register_instances(new_instances)
+    if old_lb_instances:
+        load_balancer.deregister_instances(old_lb_instances)
+    new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
+    lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
+    if set(new_instance_list) == set(lb_instance_list):
+        logger.info("ETL load balancer refresh completed!")
+    else:
+        raise Exception("Instances don't match. ETL load balancer refresh failed!")
+    
 
 @app.command()
 def mute_alerts(deployment_env, cluster_name):
@@ -83,6 +90,28 @@ def delete_mute_alerts(slugs:str):
     for slug in slug_list:
         ChronosphereApiGateway.delete_muting_rule(slug)
 
+@app.command()
+def copy_crontab(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    metadata_db_operations = MetadataDBOperations()
+    instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    old_instance_ips = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
+    nodes = Node.get_nodes()
+    new_node = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))[0]
+    logger.info("Copying crontab jobs to new node: {}".format(new_node.id))
+    for ip in old_instance_ips:
+        ssh_client = SSH(ip)
+        ssh_client.connect_to_node()
+        stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
+        lines = stdout.readlines()
+        errors = stderr.readlines()
+        ssh_client.close_connection()
+        logger.info("Listing cron jobs for {}: {}".format(ip, lines))
+        if errors:
+            continue
+        new_node.copy_cron_scripts_from_old_node(ssh_client)
+        new_node.schedule_cron_jobs(lines)
+    logger.info("Copied all the crontab jobs to new node successfully!")
 
 @app.command()
 def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
@@ -208,6 +237,18 @@ def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
         Node.stop_crdb(ip)
 
 @app.command()
+def drain_old_nodes(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    metadata_db_operations = MetadataDBOperations()
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+    for node in old_nodes:
+        logger.info("Draining node {} ...".format(node.id))
+        node.drain()
+        logger.info("Draining complete for node {}".format(node.id))
+    logger.info("Nodes drain complete!")
+
+@app.command()
 def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
@@ -215,6 +256,7 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
     old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
     cluster = Cluster()
     cluster.decommission_nodes(old_nodes)
+    logger.info("Decommission completed!")
 
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
