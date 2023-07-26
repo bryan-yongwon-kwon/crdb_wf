@@ -117,18 +117,15 @@ def copy_crontab(deployment_env, region, cluster_name):
 def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    initial_capacity = asg.capacity
-    logger.info("ASG capacity: " + str(initial_capacity))
-    instances=[]
-    for instance in asg.instances:
-        instances.append(instance.instance_id)
     metadata_db_operations = MetadataDBOperations()
-    metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instances)
-
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    initial_capacity = len(old_instance_ids)
+    
     if initial_capacity % 3 != 0:
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
+
     all_new_instance_ids = []
     current_capacity = initial_capacity
     while current_capacity < 2*initial_capacity:
