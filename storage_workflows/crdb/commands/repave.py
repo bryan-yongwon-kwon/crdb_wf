@@ -294,6 +294,16 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         logger.info("Coordinator node updated to {}".format(coordinator_node))
     logger.info("Resumed all changefeed jobs!")
 
+@app.command()
+def persist_instance_ids(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+    instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
+    logger.info("Instance IDs to be persist: {}".format(instance_ids))
+    metadata_db_operations = MetadataDBOperations()
+    metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
+    logger.info("Persist completed!")
+
 
 if __name__ == "__main__":
     app()
