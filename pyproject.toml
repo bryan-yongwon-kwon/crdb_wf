@@ -23,6 +23,7 @@ requests-mock = "^1.10.0"
 pytest = "^7.2.1"
 psycopg2-binary = "^2.9.5"
 paramiko = "^3.1.0"
+sqlalchemy = "^2.0.19"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.2"
@@ -42,6 +43,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 storage-workflows = "storage_workflows.main:app"
 crdb-repave = "storage_workflows.crdb.commands.repave:app"
+generate-traffic = "storage_workflows.crdb.commands.generate_traffic:app"
 
 [tool.pytest.ini_options]
 pythonpath = "storage_workflows"

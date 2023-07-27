@@ -39,6 +39,10 @@ class CrdbConnection:
         self._db_name = db_name
         self._client = os.getenv('CRDB_CLIENT')
 
+    @property
+    def connection(self):
+        return self._connection
+
     def connect(self):
         host_suffix = os.getenv('CRDB_PROD_HOST_SUFFIX') if os.getenv('DEPLOYMENT_ENV') == 'prod' else os.getenv('CRDB_STAGING_HOST_SUFFIX')
         try:
