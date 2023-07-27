@@ -13,9 +13,8 @@ app = typer.Typer()
 logger = Logger()
 
 @app.command()
-def generate_traffic(deployment_env, region, cluster_name, insert_threads_count, delete_threads_count,
-                     insert_group_count, inserts_per_group, sleep_between_insert_group,
-                     delete_group_count, deletes_per_group, sleep_between_delete_group):
+def generate_traffic(deployment_env, region, cluster_name, insert_threads_count, insert_group_count, inserts_per_group, sleep_between_insert_group,
+                     delete_threads_count, delete_group_count, deletes_per_group, sleep_between_delete_group):
     def getconn():
         return  CrdbConnection(cluster_name, "default").connection
     
