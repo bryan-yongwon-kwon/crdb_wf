@@ -15,6 +15,14 @@ logger = Logger()
 @app.command()
 def generate_traffic(deployment_env, region, cluster_name, insert_threads_count, insert_group_count, inserts_per_group, sleep_between_insert_group,
                      delete_threads_count, delete_group_count, deletes_per_group, sleep_between_delete_group):
+    insert_threads_count = int(insert_threads_count)
+    insert_group_count = int(insert_group_count)
+    inserts_per_group = int(inserts_per_group)
+    sleep_between_insert_group = int(sleep_between_insert_group)
+    delete_threads_count = int(delete_threads_count)
+    delete_group_count = int(delete_group_count)
+    deletes_per_group = int(deletes_per_group)
+    sleep_between_delete_group = int(sleep_between_delete_group)
     def getconn():
         return  CrdbConnection(cluster_name, "default").connection
     
