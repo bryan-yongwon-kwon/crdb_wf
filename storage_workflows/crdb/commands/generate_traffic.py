@@ -63,12 +63,11 @@ def delete_traffic(conn_pool: QueuePool, delete_group_count: int, deletes_per_gr
 def create_table(conn_pool: QueuePool):
     conn = conn_pool.connect()
     cursor = conn.cursor()
-    create_table_sql = """CREATE TABLE test (
+    create_table_sql = """CREATE TABLE IF NOT EXISTS test (
         id UUID NOT NULL DEFAULT gen_random_uuid(),
         name STRING NULL,
         CONSTRAINT "primary" PRIMARY KEY (id ASC),
-        Index(name),
-    ) IF NOT EXISTS;"""
+        Index(name));"""
     cursor.execute(create_table_sql)
     conn.commit()
     conn.close()
