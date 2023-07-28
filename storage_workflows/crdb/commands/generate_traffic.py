@@ -30,6 +30,7 @@ def generate_traffic(deployment_env, region, cluster_name, insert_threads_count,
     
     setup_env(deployment_env, region, cluster_name)
     conn_pool = pool.QueuePool(getconn, max_overflow=10, pool_size=10, timeout=5, recycle=5)
+    create_table(conn_pool)
     threads_list = []
     for t_count in range(insert_threads_count):
         thread = threading.Thread(target=insert_traffic, args=(conn_pool, insert_group_count, inserts_per_group, sleep_between_insert_group))
