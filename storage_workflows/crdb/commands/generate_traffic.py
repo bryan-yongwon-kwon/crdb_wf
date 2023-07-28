@@ -24,7 +24,9 @@ def generate_traffic(deployment_env, region, cluster_name, insert_threads_count,
     deletes_per_group = int(deletes_per_group)
     sleep_between_delete_group = int(sleep_between_delete_group)
     def getconn():
-        return  CrdbConnection(cluster_name, "default").connection
+        crdb_conn = CrdbConnection(cluster_name, "default")
+        crdb_conn.connect()
+        return  crdb_conn.connection
     
     setup_env(deployment_env, region, cluster_name)
     conn_pool = pool.QueuePool(getconn, max_overflow=10, pool_size=10, timeout=5, recycle=5)
