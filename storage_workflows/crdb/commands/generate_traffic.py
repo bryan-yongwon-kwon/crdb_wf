@@ -29,7 +29,9 @@ def generate_traffic(deployment_env, region, cluster_name, min_conn, max_conn,
     setup_env(deployment_env, region, cluster_name)
     crdb_conn = CrdbConnection.get_crdb_connection(cluster_name)
     conn_pool = crdb_conn.get_connection_pool(min_conn, max_conn)
+    logger.info("Connection pool created.")
     create_table(conn_pool)
+    logger.info("Table 'test' created.")
     threads_list = []
     for t_index in range(insert_threads_count):
         thread = threading.Thread(target=insert_traffic, args=(conn_pool, insert_group_count, inserts_per_group, sleep_between_insert_group))
@@ -45,6 +47,7 @@ def generate_traffic(deployment_env, region, cluster_name, min_conn, max_conn,
 
     for thread in threads_list:
         thread.join()
+    logger.info("Traffic completed.")
 
 def insert_traffic(conn_pool: ThreadedConnectionPool, insert_group_count: int, inserts_per_group: int, sleep_between_insert_group: int):
     for group in range(insert_group_count):
