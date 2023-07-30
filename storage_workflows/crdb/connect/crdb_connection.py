@@ -1,5 +1,6 @@
 import os
 import psycopg2
+import psycopg2.pool as pool
 from storage_workflows.crdb.connect.cred_type import CredType
 from storage_workflows.crdb.aws.secret import Secret
 from storage_workflows.crdb.aws.secret_value import SecretValue
@@ -42,6 +43,24 @@ class CrdbConnection:
     @property
     def connection(self):
         return self._connection
+    
+    def get_connection_pool(self, min_conn, max_conn):
+        host_suffix = os.getenv('CRDB_PROD_HOST_SUFFIX') if os.getenv('DEPLOYMENT_ENV') == 'prod' else os.getenv('CRDB_STAGING_HOST_SUFFIX')
+        try:
+            conn_pool = pool.ThreadedConnectionPool(min_conn,
+                                                    max_conn,
+                                                    dbname=self._db_name,
+                                                    port=os.getenv('CRDB_PORT'),
+                                                    user=self._client,
+                                                    host=self._cluster_name.replace('_', '-') + host_suffix,
+                                                    sslmode=os.getenv('CRDB_CONNECTION_SSL_MODE'),
+                                                    sslrootcert=self._credential_dir_path + os.getenv('CRDB_CA_CERT_FILE_NAME'),
+                                                    sslcert=self._credential_dir_path + os.getenv('CRDB_PUBLIC_CERT_FILE_NAME'),
+                                                    sslkey=self._credential_dir_path + os.getenv('CRDB_PRIVATE_KEY_FILE_NAME'))
+            return conn_pool
+        except Exception as error:
+            logger.error(error)
+            raise
 
     def connect(self):
         host_suffix = os.getenv('CRDB_PROD_HOST_SUFFIX') if os.getenv('DEPLOYMENT_ENV') == 'prod' else os.getenv('CRDB_STAGING_HOST_SUFFIX')
