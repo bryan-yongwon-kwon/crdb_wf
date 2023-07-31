@@ -107,9 +107,6 @@ class Node:
         def cron_job_already_exists(ssh_client: SSH, job: str) -> bool:
             command = 'sudo crontab -l'.format(job)
             stdin, stdout, stderr = ssh_client.execute_command(command)
-            error = stderr.readlines()
-            if error:
-                raise Exception(error)
             jobs = set(map(lambda job: str(job).rstrip(), stdout.readlines()))
             return job in jobs
         
