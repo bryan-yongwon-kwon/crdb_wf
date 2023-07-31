@@ -104,6 +104,15 @@ class Node:
         logger.info(result.stdout)
 
     def schedule_cron_jobs(self, crontab_file_lines:list):
+        def cron_job_already_exists(self, ssh_client: SSH, job: str) -> bool:
+            command = 'sudo crontab -l'.format(job)
+            stdin, stdout, stderr = ssh_client.execute_command(command)
+            error = stderr.readlines()
+            if error:
+                raise Exception(error)
+            jobs = set(map(lambda job: str(job).rstrip(), stdout.readlines()))
+            return job in jobs
+        
         new_node_ssh_client = self.ssh_client
         new_node_ssh_client.connect_to_node()
         new_node_ssh_client.execute_command('sudo mkdir /var/log/crdb/export_logs && \
@@ -111,7 +120,7 @@ class Node:
                                             sudo ln -s /var/log/crdb/export_logs /root/.cockroach-certs/export_logs')
         for line in crontab_file_lines:
             line = str(line).rstrip()
-            if line[0] == '#':
+            if line[0] == '#' or cron_job_already_exists(new_node_ssh_client, line):
                 continue
             logger.info("scheduling cron: {}".format(line))
             command = '(sudo crontab -l 2>/dev/null; echo "{}") | sudo crontab -'.format(line)
