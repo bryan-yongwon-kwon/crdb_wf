@@ -71,7 +71,7 @@ class AutoScalingGroupGateway:
         response = auto_scaling_group_aws_client.enter_standby(
             AutoScalingGroupName=asg_name,
             InstanceIds=instance_ids,
-            ShouldDecrementDesiredCapacity=False
+            ShouldDecrementDesiredCapacity=True
         )
 
         # Check the HTTP status code of the response

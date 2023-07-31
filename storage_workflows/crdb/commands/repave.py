@@ -128,11 +128,15 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     all_new_instance_ids = []
     current_capacity = initial_capacity
     while current_capacity < 2*initial_capacity:
+        #current_capacity determines number of nodes in standby + number of nodes in-service
+        #according to asg desired_capacity is the count of number of nodes in-service state only
+        #hence we only set intial_capacity+3 as desired capacity in each loop
         current_capacity += 3
-        new_instance_ids = AutoScalingGroup.add_ec2_instances(asg.name, current_capacity)
+        new_instance_ids = AutoScalingGroup.add_ec2_instances(asg.name, initial_capacity+3)
         all_new_instance_ids.append(new_instance_ids)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
-        AutoScalingGroup.wait_for_hydration(asg.name)
+        nodes = Cluster.get_nodes_from_asg_name(asg.name)
+        Cluster.wait_for_hydration(nodes)
     return
 
 @app.command()

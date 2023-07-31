@@ -4,9 +4,7 @@ from storage_workflows.crdb.aws.auto_scaling_group_instance import AutoScalingGr
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.logging.logger import Logger
-import math
 import os
-import statistics
 import time
 
 logger = Logger()
@@ -27,30 +25,6 @@ class AutoScalingGroup:
             ]
         }
         return AutoScalingGroup.find_all_auto_scaling_groups([filter])[0]
-
-    @staticmethod
-    def wait_for_hydration(asg_name):
-        asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
-        instance_ids = []
-        for instance in asg_instances:
-            instance_ids.append(instance["InstanceId"])
-        nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
-        logger.info("Checking nodes for hydration!")
-
-        while True:
-            nodes_replications_dict = {node: node.replicas for node in nodes}
-            replications_values = list(nodes_replications_dict.values())
-            avg_replications = statistics.mean(replications_values)
-            outliers = [node for node, replications in nodes_replications_dict.items() if
-                        abs(replications - avg_replications) / avg_replications > 0.1]
-            if not any(outliers):
-                logger.info("Hydration complete")
-                break
-            logger.info("Waiting for nodes to hydrate.")
-            for outlier in outliers:
-                logger.info(f"Node: {outlier.id} Replications: {nodes_replications_dict[outlier]}")
-            time.sleep(60)
-        return
 
     @staticmethod
     def add_ec2_instances(asg_name, desired_capacity):
