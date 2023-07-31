@@ -22,7 +22,7 @@ class Cluster:
     
     def backup_job_is_running(self) -> bool:
         running_backup_jobs = list(filter(lambda job: job.status == 'running',
-                                          BackupJob.find_all_backup_running_jobs(self.cluster_name)))
+                                          BackupJob.find_all_backup_jobs(self.cluster_name)))
         contains_running_backup_job = any(running_backup_jobs)
         if contains_running_backup_job:
             logger.warning("Running backup job(s) found!")
@@ -30,7 +30,7 @@ class Cluster:
     
     def restore_job_is_running(self) -> bool:
         running_restore_jobs = list(filter(lambda job: job.status == 'running',
-                                           RestorelJob.find_all_restore_running_jobs(self.cluster_name)))
+                                           RestorelJob.find_all_restore_jobs(self.cluster_name)))
         contains_running_restore_job = any(running_restore_jobs)
         if contains_running_restore_job:
             logger.warning("Running restore job(s) found!")
@@ -38,7 +38,7 @@ class Cluster:
     
     def schema_change_job_is_running(self) -> bool:
         running_schema_change_jobs = list(filter(lambda job: job.status == 'running',
-                                                 SchemaChangelJob.find_all_schema_change_running_jobs(self.cluster_name)))
+                                                 SchemaChangelJob.find_all_schema_change_jobs(self.cluster_name)))
         contains_schema_change_job = any(running_schema_change_jobs)
         if contains_schema_change_job:
             logger.warning("Running schema change job found!")
@@ -46,7 +46,7 @@ class Cluster:
     
     def row_level_ttl_job_is_running(self) -> bool:
         running_row_level_ttl_jobs = list(filter(lambda job: job.status == 'running',
-                                                 RowLevelTtlJob.find_all_row_level_ttl_running_jobs(self.cluster_name)))
+                                                 RowLevelTtlJob.find_all_row_level_ttl_jobs(self.cluster_name)))
         contains_row_level_ttl_job = any(running_row_level_ttl_jobs)
         if contains_row_level_ttl_job:
             logger.warning("Running row level ttl job(s) found!")
