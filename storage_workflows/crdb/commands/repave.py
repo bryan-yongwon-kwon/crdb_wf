@@ -1,5 +1,6 @@
 import json
 import math
+import os
 import statistics
 import sys
 import time
@@ -20,6 +21,8 @@ from storage_workflows.logging.logger import Logger
 from storage_workflows.global_change_log.global_change_log_gateway import GlobalChangeLogGateway
 from storage_workflows.global_change_log.service_name import ServiceName
 from storage_workflows.crdb.connect.ssh import SSH
+from storage_workflows.crdb.slack.content_templates import ContentTemplate
+from storage_workflows.slack.slack_notification import SlackNotification
 
 app = typer.Typer()
 logger = Logger()
@@ -342,6 +345,17 @@ def persist_instance_ids(deployment_env, region, cluster_name):
     metadata_db_operations = MetadataDBOperations()
     metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
     logger.info("Persist completed!")
+
+@app.command()
+def send_workflow_failure_notification(deployment_env, region, cluster_name, namespace, workflow_name):
+    webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
+    logger.info("Webhook URL: {}".format(webhook_url))
+    notification = SlackNotification(os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST'))
+    notification.send_notification(ContentTemplate.get_workflow_failure_content(namespace, 
+                                                                                workflow_name,
+                                                                                cluster_name,
+                                                                                deployment_env,
+                                                                                region))
 
 
 if __name__ == "__main__":
