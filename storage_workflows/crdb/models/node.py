@@ -104,7 +104,7 @@ class Node:
         logger.info(result.stdout)
 
     def schedule_cron_jobs(self, crontab_file_lines:list):
-        def cron_job_already_exists(self, ssh_client: SSH, job: str) -> bool:
+        def cron_job_already_exists(ssh_client: SSH, job: str) -> bool:
             command = 'sudo crontab -l'.format(job)
             stdin, stdout, stderr = ssh_client.execute_command(command)
             error = stderr.readlines()
