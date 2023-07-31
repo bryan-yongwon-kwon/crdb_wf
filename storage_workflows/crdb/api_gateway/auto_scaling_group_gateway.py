@@ -43,7 +43,7 @@ class AutoScalingGroupGateway:
         )
 
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            logger.info('Auto Scaling group capacity updated successfully.')
+            logger.info(f'Auto Scaling group capacity successfully updated to {desired_capacity}.')
         else:
             logger.error('Error message:', response['ResponseMetadata']['HTTPHeaders']['x-amzn-requestid'])
             raise Exception('Failed to update Auto Scaling group capacity.')
