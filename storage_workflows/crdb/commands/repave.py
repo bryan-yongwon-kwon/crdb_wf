@@ -349,7 +349,6 @@ def persist_instance_ids(deployment_env, region, cluster_name):
 @app.command()
 def send_workflow_failure_notification(deployment_env, region, cluster_name, namespace, workflow_name):
     webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
-    logger.info("Webhook URL: {}".format(webhook_url))
     notification = SlackNotification(os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST'))
     notification.send_notification(ContentTemplate.get_workflow_failure_content(namespace, 
                                                                                 workflow_name,
