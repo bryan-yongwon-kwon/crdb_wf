@@ -3,8 +3,13 @@ from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoSc
 from storage_workflows.crdb.aws.auto_scaling_group_instance import AutoScalingGroupInstance
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.models.node import Node
+from storage_workflows.logging.logger import Logger
+import math
 import os
+import statistics
+import time
 
+logger = Logger()
 
 class AutoScalingGroup:
 
