@@ -63,7 +63,6 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
         logger.info("ETL load balancer refresh completed!")
     else:
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
-    
 
 @app.command()
 def mute_alerts(deployment_env, cluster_name):
@@ -122,7 +121,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     initial_capacity = len(old_instance_ids)
-    
+    cluster = Cluster()
     if initial_capacity % 3 != 0:
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
@@ -131,63 +130,15 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     all_new_instance_ids = []
     current_capacity = initial_capacity
     while current_capacity < 2*initial_capacity:
+        #current_capacity determines number of nodes in standby + number of nodes in-service
+        #according to asg desired_capacity is the count of number of nodes in-service state only
+        #hence we only set intial_capacity+3 as desired capacity in each loop
         current_capacity += 3
-        new_instance_ids = add_ec2_instances(asg.name, current_capacity)
+        new_instance_ids = asg.add_ec2_instances(initial_capacity+3)
         all_new_instance_ids.append(new_instance_ids)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
-        wait_for_hydration(asg.name)
+        cluster.wait_for_hydration()
     return
-
-
-def add_ec2_instances(asg_name, desired_capacity):
-    asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
-    initial_capacity = len(asg_instances)
-    old_instance_ids = set()
-    # Retrieve the existing instance IDs
-    for instance in asg_instances:
-        old_instance_ids.add(instance["InstanceId"])
-
-    AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg_name, desired_capacity)
-    # Wait for the new instances to be added to the Auto Scaling group
-    while True:
-        asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
-        new_instance_ids = set()  # Store new instance IDs
-        # Retrieve the instance IDs of the newly added instances
-        for instance in asg_instances:
-            if instance["InstanceId"] not in old_instance_ids and instance["LifecycleState"] == "InService":
-                new_instance_ids.add(instance["InstanceId"])
-        # Check if all new instances are found
-        if len(new_instance_ids) == desired_capacity-initial_capacity:
-            logger.info("All new instances are ready.")
-            break
-        # Wait before checking again
-        time.sleep(10)
-
-    return list(new_instance_ids)
-
-
-def wait_for_hydration(asg_name):
-    asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
-    instance_ids=[]
-    for instance in asg_instances:
-        instance_ids.append(instance["InstanceId"])
-    nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
-
-    while True:
-        nodes_replications_dict = {node: node.replicas for node in nodes}
-        replications_values = list(nodes_replications_dict.values())
-        avg_replications = statistics.mean(replications_values)
-        outliers = [node for node, replications in nodes_replications_dict.items() if abs(replications - avg_replications) / avg_replications > 0.1]
-        if not any(outliers):
-            logger.info("Hydration complete")
-            break
-        logger.info("Waiting for nodes to hydrate.")
-        for outlier in outliers:
-            logger.info(f"Node: {outlier.id} Replications: {nodes_replications_dict[outlier]}")
-        time.sleep(60)
-
-    return
-
 
 @app.command()
 def exit_new_instances_from_standby(deployment_env, region, cluster_name):
@@ -204,7 +155,6 @@ def exit_new_instances_from_standby(deployment_env, region, cluster_name):
     for index in range(0, len(standby_instance_ids), 3):
         logger.info(f"Moving following instances {standby_instance_ids[index:index+3]} out of standby mode.")
         AutoScalingGroupGateway.exit_instances_from_standby(asg.name, standby_instance_ids[index:index+3])
-
 
 @app.command()
 def detach_old_instances_from_asg(deployment_env, region, cluster_name):
@@ -287,7 +237,6 @@ def start_repave_global_change_log(deployment_env, region, cluster_name):
     GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
                                       service_name=ServiceName.CRDB,
                                       message="Repave started for cluster {} in operator service.".format(cluster_name))
-
 
 @app.command()
 def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
