@@ -109,14 +109,13 @@ class Cluster:
     def get_nodes_from_asg_instances(asg_instances):
         instance_ids = []
         for instance in asg_instances:
-            instance_ids.append(instance["InstanceId"])
+            instance_ids.append(instance.instance_id)
         nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
         return nodes
 
     def wait_for_hydration(self):
         asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(self.cluster_name)
-        asg_instances = asg.instances
-        nodes = Cluster.get_nodes_from_asg_instances(asg_instances)
+        nodes = Cluster.get_nodes_from_asg_instances(asg.instances)
         logger.info("Checking nodes for hydration!")
         while True:
             nodes_replications_dict = {node: node.replicas for node in nodes}
