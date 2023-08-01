@@ -119,7 +119,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     initial_capacity = len(old_instance_ids)
-    cluster = Cluster(asg.name)
+    cluster = Cluster()
     if initial_capacity % 3 != 0:
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
