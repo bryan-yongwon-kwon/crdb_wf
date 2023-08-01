@@ -96,7 +96,8 @@ def copy_crontab(deployment_env, region, cluster_name):
     instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     old_instance_ips = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
     nodes = Node.get_nodes()
-    new_node = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))[0]
+    new_nodes = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes)).sort(key=lambda node: node.id)
+    new_node = new_nodes[0]
     logger.info("Copying crontab jobs to new node: {}".format(new_node.id))
     for ip in old_instance_ips:
         ssh_client = SSH(ip)
