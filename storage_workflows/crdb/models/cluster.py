@@ -18,8 +18,9 @@ from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 logger = Logger()
 class Cluster:
 
-    def __init__(self):
+    def __init__(self, asg_name=None):
         self.cluster_name = os.getenv('CLUSTER_NAME')
+        self.asg_name = asg_name
 
     @property
     def nodes(self):
@@ -105,17 +106,16 @@ class Cluster:
             logger.info(result.stdout)
             logger.info("Completed decommissioning nodes with major version {}.".format(major_version))
 
-    @staticmethod
-    def get_nodes_from_asg_name(asg_name):
-        asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
+    def get_nodes_from_asg_name(self):
+        asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(self.asg_name)[0]["Instances"]
         instance_ids = []
         for instance in asg_instances:
             instance_ids.append(instance["InstanceId"])
         nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
         return nodes
 
-    @staticmethod
-    def wait_for_hydration(nodes:list[Node]):
+    def wait_for_hydration(self):
+        nodes = self.get_nodes_from_asg_name()
         logger.info("Checking nodes for hydration!")
         while True:
             nodes_replications_dict = {node: node.replicas for node in nodes}

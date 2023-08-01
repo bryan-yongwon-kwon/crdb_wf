@@ -26,19 +26,18 @@ class AutoScalingGroup:
         }
         return AutoScalingGroup.find_all_auto_scaling_groups([filter])[0]
 
-    @staticmethod
-    def add_ec2_instances(asg_name, desired_capacity):
-        asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
+    def add_ec2_instances(self, desired_capacity):
+        asg_instances = self.instances
         initial_capacity = len(asg_instances)
         old_instance_ids = set()
         # Retrieve the existing instance IDs
         for instance in asg_instances:
             old_instance_ids.add(instance["InstanceId"])
 
-        AutoScalingGroupGateway.update_auto_scaling_group_capacity(asg_name, desired_capacity)
+        AutoScalingGroupGateway.update_auto_scaling_group_capacity(self.name, desired_capacity)
         # Wait for the new instances to be added to the Auto Scaling group
         while True:
-            asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
+            asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(self.name)[0]["Instances"]
             new_instance_ids = set()  # Store new instance IDs
             # Retrieve the instance IDs of the newly added instances
             for instance in asg_instances:
