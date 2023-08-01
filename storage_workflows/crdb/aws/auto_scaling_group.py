@@ -1,8 +1,13 @@
 from __future__ import annotations
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.crdb.aws.auto_scaling_group_instance import AutoScalingGroupInstance
+from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
+from storage_workflows.crdb.models.node import Node
+from storage_workflows.logging.logger import Logger
 import os
+import time
 
+logger = Logger()
 
 class AutoScalingGroup:
 
@@ -20,6 +25,32 @@ class AutoScalingGroup:
             ]
         }
         return AutoScalingGroup.find_all_auto_scaling_groups([filter])[0]
+
+    def add_ec2_instances(self, desired_capacity):
+        asg_instances = self.instances #AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
+        initial_capacity = len(asg_instances)
+        old_instance_ids = set()
+        # Retrieve the existing instance IDs
+        for instance in asg_instances:
+            old_instance_ids.add(instance.instance_id)
+
+        AutoScalingGroupGateway.update_auto_scaling_group_capacity(self.name, desired_capacity)
+        # Wait for the new instances to be added to the Auto Scaling group
+        while True:
+            asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(self.name)[0]["Instances"]
+            new_instance_ids = set()  # Store new instance IDs
+            # Retrieve the instance IDs of the newly added instances
+            for instance in asg_instances:
+                if instance["InstanceId"] not in old_instance_ids and instance["LifecycleState"] == "InService":
+                    new_instance_ids.add(instance["InstanceId"])
+            # Check if all new instances are found
+            if len(new_instance_ids) == desired_capacity - initial_capacity:
+                logger.info("All new instances are ready.")
+                break
+            # Wait before checking again
+            time.sleep(10)
+
+        return list(new_instance_ids)
 
     def __init__(self, api_response):
         self._api_response = api_response

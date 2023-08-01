@@ -1,5 +1,8 @@
+import math
 import os
+import statistics
 import subprocess
+import time
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.models.jobs.backup_job import BackupJob
@@ -9,6 +12,8 @@ from storage_workflows.crdb.models.jobs.schema_change_job import SchemaChangelJo
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
+from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
+
 
 logger = Logger()
 class Cluster:
@@ -99,3 +104,30 @@ class Cluster:
             result.check_returncode()
             logger.info(result.stdout)
             logger.info("Completed decommissioning nodes with major version {}.".format(major_version))
+
+    @staticmethod
+    def get_nodes_from_asg_instances(asg_instances):
+        instance_ids = []
+        for instance in asg_instances:
+            instance_ids.append(instance.instance_id)
+        nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
+        return nodes
+
+    def wait_for_hydration(self):
+        asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(self.cluster_name)
+        nodes = Cluster.get_nodes_from_asg_instances(asg.instances)
+        logger.info("Checking nodes for hydration!")
+        while True:
+            nodes_replications_dict = {node: node.replicas for node in nodes}
+            replications_values = list(nodes_replications_dict.values())
+            avg_replications = statistics.mean(replications_values)
+            outliers = [node for node, replications in nodes_replications_dict.items() if
+                        abs(replications - avg_replications) / avg_replications > 0.1]
+            if not any(outliers):
+                logger.info("Hydration complete")
+                break
+            logger.info("Waiting for nodes to hydrate.")
+            for outlier in outliers:
+                logger.info(f"Node: {outlier.id} Replications: {nodes_replications_dict[outlier]}")
+            time.sleep(60)
+        return
