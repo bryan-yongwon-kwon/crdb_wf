@@ -102,6 +102,15 @@ class Node:
         logger.error(result.stderr)
         result.check_returncode()
         logger.info(result.stdout)
+        logger.info("Restarting the service...")
+        self.ssh_client.connect_to_node()
+        stdin, stdout, stderr = self.ssh_client.execute_command("sudo systemctl restart crdb")
+        error = stderr.readline()
+        if error:
+            logger.error(error)
+        self.ssh_client.close_connection()
+        logger.info("Service restarted.")
+
 
     def schedule_cron_jobs(self, crontab_file_lines:list):
         def cron_job_already_exists(ssh_client: SSH, job: str) -> bool:
