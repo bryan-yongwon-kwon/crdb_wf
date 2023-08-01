@@ -102,6 +102,7 @@ class Node:
         logger.error(result.stderr)
         result.check_returncode()
         logger.info(result.stdout)
+        # need restart the service so that the node won't be marked as dead in crdb console
         logger.info("Restarting the service...")
         self.ssh_client.connect_to_node()
         stdin, stdout, stderr = self.ssh_client.execute_command("sudo systemctl restart crdb")
