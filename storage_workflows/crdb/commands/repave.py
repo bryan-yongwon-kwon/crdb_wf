@@ -1,25 +1,28 @@
 import json
 import math
+import os
 import statistics
 import sys
 import time
 import typer
 from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
-from storage_workflows.crdb.models.cluster import Cluster
+from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
+from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
-from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
-from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
-from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
+from storage_workflows.crdb.connect.ssh import SSH
 from storage_workflows.crdb.metadata_db.metadata_db_operations import MetadataDBOperations
+from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
-from storage_workflows.setup_env import setup_env
-from storage_workflows.logging.logger import Logger
+from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.global_change_log.global_change_log_gateway import GlobalChangeLogGateway
 from storage_workflows.global_change_log.service_name import ServiceName
-from storage_workflows.crdb.connect.ssh import SSH
+from storage_workflows.logging.logger import Logger
+from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
+from storage_workflows.setup_env import setup_env
+from storage_workflows.slack.slack_notification import SlackNotification
 
 app = typer.Typer()
 logger = Logger()
@@ -292,6 +295,16 @@ def persist_instance_ids(deployment_env, region, cluster_name):
     metadata_db_operations = MetadataDBOperations()
     metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
     logger.info("Persist completed!")
+
+@app.command()
+def send_workflow_failure_notification(deployment_env, region, cluster_name, namespace, workflow_name):
+    webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
+    notification = SlackNotification(webhook_url)
+    notification.send_notification(ContentTemplate.get_workflow_failure_content(namespace, 
+                                                                                workflow_name,
+                                                                                cluster_name,
+                                                                                deployment_env,
+                                                                                region))
 
 
 if __name__ == "__main__":
