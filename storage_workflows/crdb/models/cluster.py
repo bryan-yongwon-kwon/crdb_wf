@@ -116,7 +116,7 @@ class Cluster:
     def wait_for_hydration(self):
         asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(self.cluster_name)
         asg_instances = asg.instances
-        nodes = Cluster.get_nodes_from_asg_name(asg_instances)
+        nodes = Cluster.get_nodes_from_asg_instances(asg_instances)
         logger.info("Checking nodes for hydration!")
         while True:
             nodes_replications_dict = {node: node.replicas for node in nodes}
