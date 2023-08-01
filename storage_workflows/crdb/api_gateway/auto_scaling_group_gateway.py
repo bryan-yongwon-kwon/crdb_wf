@@ -43,29 +43,27 @@ class AutoScalingGroupGateway:
         )
 
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            logger.info('Auto Scaling group capacity updated successfully.')
+            logger.info(f'Auto Scaling group capacity successfully updated to {desired_capacity}.')
         else:
             logger.error('Error message:', response['ResponseMetadata']['HTTPHeaders']['x-amzn-requestid'])
             raise Exception('Failed to update Auto Scaling group capacity.')
 
-
     @staticmethod
     def detach_instance_from_autoscaling_group(instance_ids, autoscaling_group_name):
         auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
-        try:
-            # Detach the instance from the Auto Scaling group
-            auto_scaling_group_aws_client.detach_instances(
-                InstanceIds=instance_ids,
-                AutoScalingGroupName=autoscaling_group_name,
-                ShouldDecrementDesiredCapacity=True
-            )
+        # Detach the instance from the Auto Scaling group
+        response = auto_scaling_group_aws_client.detach_instances(
+            InstanceIds=instance_ids,
+            AutoScalingGroupName=autoscaling_group_name,
+            ShouldDecrementDesiredCapacity=True
+        )
 
-            print(f"Instances have been removed from Auto Scaling group {autoscaling_group_name}.")
-
-        except ClientError as e:
-            error_message = e.response['Error']['Message']
-            logger.error(
-                f"Failed to remove instances from Auto Scaling group {autoscaling_group_name}: {error_message}")
+        # Check the HTTP status code of the response
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            activities = response['Activities']
+            AutoScalingGroupGateway.wait_for_activity_completion(activities, auto_scaling_group_aws_client)
+        else:
+            raise Exception("Error: Failed to detach instances from autoscaling group.")
 
     @staticmethod
     def enter_instances_into_standby(asg_name, instance_ids):
@@ -82,7 +80,6 @@ class AutoScalingGroupGateway:
             AutoScalingGroupGateway.wait_for_activity_completion(activities, auto_scaling_group_aws_client)
         else:
             raise Exception("Error: Failed to put instances into standby mode.")
-
 
     @staticmethod
     def exit_instances_from_standby(asg_name, instance_ids):
