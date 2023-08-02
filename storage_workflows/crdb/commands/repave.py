@@ -145,23 +145,27 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     initial_capacity = len(old_instance_ids)
+    desired_capacity = 2*initial_capacity
+    current_capacity = len(asg.instances)
     cluster = Cluster()
-    if initial_capacity % 3 != 0:
+
+    if initial_capacity % 3 != 0 or current_capacity % 3 != 0:
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
 
     all_new_instance_ids = []
-    current_capacity = initial_capacity
-    while current_capacity < 2*initial_capacity:
+    # current_capacity = initial_capacity
+    while current_capacity < desired_capacity:
         #current_capacity determines number of nodes in standby + number of nodes in-service
         #according to asg desired_capacity is the count of number of nodes in-service state only
         #hence we only set intial_capacity+3 as desired capacity in each loop
-        current_capacity += 3
         new_instance_ids = asg.add_ec2_instances(initial_capacity+3)
         all_new_instance_ids.append(new_instance_ids)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
         cluster.wait_for_hydration()
+        asg.reload()
+        current_capacity = len(asg.instances)
     return
 
 @app.command()
