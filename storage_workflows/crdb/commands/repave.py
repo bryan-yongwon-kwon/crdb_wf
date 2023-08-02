@@ -1,3 +1,4 @@
+import datetime
 import json
 import math
 import os
@@ -91,6 +92,23 @@ def delete_mute_alerts(slugs:str):
     slug_list = json.loads(slugs)
     for slug in slug_list:
         ChronosphereApiGateway.delete_muting_rule(slug)
+
+@app.command()
+def extend_muting_rules(slugs:str):
+    slug_list = json.loads(slugs)
+    rules = list(map(lambda slug: ChronosphereApiGateway.read_muting_rule(slug), slug_list))
+    ends_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+    ends_at = ends_at.strftime('%Y-%m-%dT%H:%M:%SZ')
+    for rule in rules:
+        comment = rule["comment"] if "comment" in rule else ""
+        ChronosphereApiGateway.update_muting_rule(create_if_missing=False,
+                                                  slug=rule["slug"],
+                                                  name=rule["name"],
+                                                  label_matchers=rule["label_matchers"],
+                                                  starts_at=rule["starts_at"],
+                                                  ends_at=ends_at,
+                                                  comment=comment)
+    logger.info("Extended ending time for following alerts to {}: {}".format(ends_at, slug_list))
 
 @app.command()
 def copy_crontab(deployment_env, region, cluster_name):

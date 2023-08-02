@@ -47,4 +47,46 @@ class ChronosphereApiGateway():
         if response.status != http.client.OK:
             raise Exception("Muting rule deletion failed: {}".format(response_content))
         logger.info("Muting rule deleted: {}".format(slug))
-        
+
+    @staticmethod
+    def update_muting_rule(create_if_missing:bool,
+                           slug: str,
+                           name: str,
+                           label_matchers: dict,
+                           starts_at: str,
+                           ends_at: str,
+                           comment: str = ""):
+        conn = http.client.HTTPSConnection(ChronosphereApiGateway.CHRONOSPHERE_URL)
+        headers = {'Content-type': 'application/json', 'Api-token': ChronosphereApiGateway.CHRONOSPHERE_API_TOKEN}
+        data = {
+                    "create_if_missing": create_if_missing,
+                    "muting_rule": {
+                        "comment": comment,
+                        "ends_at": ends_at,
+                        "label_matchers": label_matchers,
+                        "name": name,
+                        "slug": slug,
+                        "starts_at": starts_at
+                    }
+                }
+        muting_rule_json = json.dumps(data)
+        conn.request("PUT", "/api/v1/config/muting-rules/{}".format(slug), 
+                     headers=headers,
+                     body=muting_rule_json)
+        response = conn.getresponse()
+        response_content = str(response.read().decode())
+        if response.status != http.client.OK:
+            raise Exception("Muting rule updating failed: {}".format(response_content))
+        logger.info("Muting rule updated: {}".format(slug))
+        return json.loads(response_content)['muting_rule']
+    
+    @staticmethod
+    def read_muting_rule(slug: str):
+        conn = http.client.HTTPSConnection(ChronosphereApiGateway.CHRONOSPHERE_URL)
+        headers = {'Content-type': 'application/json', 'Api-token': ChronosphereApiGateway.CHRONOSPHERE_API_TOKEN}
+        conn.request("GET", "/api/v1/config/muting-rules/{}".format(slug), headers=headers)
+        response = conn.getresponse()
+        response_content = str(response.read().decode())
+        if response.status != http.client.OK:
+            raise Exception("Muting rule reading failed: {}".format(response_content))
+        return json.loads(response_content)['muting_rule']
