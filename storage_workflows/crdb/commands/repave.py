@@ -57,8 +57,10 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
                              filter(lambda instance: instance.instance_id not in old_instance_id_set, 
                                     AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances)))
     logger.info("New instances: {}".format(new_instances))
-    if new_instances:
-        load_balancer.register_instances(new_instances)
+    if not new_instances:
+        logger.warning("No new instances, no need to refresh. Step complete.")
+        return
+    load_balancer.register_instances(new_instances)
     if old_lb_instances:
         load_balancer.deregister_instances(old_lb_instances)
     new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
@@ -249,12 +251,18 @@ def pause_all_changefeeds(deployment_env, region, cluster_name):
     
 @app.command()
 def complete_repave_global_change_log(deployment_env, region, cluster_name):
+    if deployment_env == "staging":
+        logger.info("GCL skipped for staging.")
+        return
     GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
                                       service_name=ServiceName.CRDB,
                                       message="Repave completed for cluster {} in operator service.".format(cluster_name))
 
 @app.command()
 def start_repave_global_change_log(deployment_env, region, cluster_name):
+    if deployment_env == "staging":
+        logger.info("GCL skipped for staging.")
+        return
     GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
                                       service_name=ServiceName.CRDB,
                                       message="Repave started for cluster {} in operator service.".format(cluster_name))
