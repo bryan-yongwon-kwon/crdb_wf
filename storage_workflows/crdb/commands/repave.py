@@ -100,13 +100,14 @@ def extend_muting_rules(slugs:str):
     ends_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
     ends_at = ends_at.strftime('%Y-%m-%dT%H:%M:%SZ')
     for rule in rules:
+        comment = rule["comment"] if "comment" in rule else ""
         ChronosphereApiGateway.update_muting_rule(create_if_missing=False,
                                                   slug=rule["slug"],
                                                   name=rule["name"],
                                                   label_matchers=rule["label_matchers"],
                                                   starts_at=rule["starts_at"],
                                                   ends_at=ends_at,
-                                                  comment=rule["comment"])
+                                                  comment=comment)
     logger.info("Extended ending time for following alerts to {}: {}".format(ends_at, slug_list))
 
 @app.command()

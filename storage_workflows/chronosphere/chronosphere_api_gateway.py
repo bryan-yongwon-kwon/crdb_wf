@@ -55,7 +55,7 @@ class ChronosphereApiGateway():
                            label_matchers: dict,
                            starts_at: str,
                            ends_at: str,
-                           comment: str):
+                           comment: str = ""):
         conn = http.client.HTTPSConnection(ChronosphereApiGateway.CHRONOSPHERE_URL)
         headers = {'Content-type': 'application/json', 'Api-token': ChronosphereApiGateway.CHRONOSPHERE_API_TOKEN}
         data = {
