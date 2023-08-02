@@ -296,9 +296,6 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
 
     for job in changefeed_jobs:
         logger.info("Resuming changefeed job {}".format(job.id))
-        while job.status != "paused":
-            logger.info("Job status is" + job.status)
-            time.sleep(5)
         job.resume()
         time.sleep(10)
         coordinator_node = None
