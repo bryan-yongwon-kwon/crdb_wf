@@ -44,6 +44,6 @@ class ChangefeedJob(BaseJob):
         connection.connect()
         response = connection.execute_sql(BaseJob.GET_JOB_BY_ID_SQL.format(job_id), need_fetchone=True)
         connection.close()
-        logger.info("response received: "+ response)
+        logger.info("response received: "+ str(response))
         job = ChangefeedJob(response, cluster_name)
         return job.status
