@@ -38,6 +38,9 @@ class ChangefeedJob(BaseJob):
 
     @staticmethod
     def get_latest_job_status(job_id, cluster_name):
-        response = self.connection.execute_sql(self.GET_JOB_BY_ID_SQL.format(job_id), need_fetchone=True)
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
+        response = connection.execute_sql(self.GET_JOB_BY_ID_SQL.format(job_id), need_fetchone=True)
+        connection.close()
         job = ChangefeedJob(response[0], cluster_name)
         return job.status
