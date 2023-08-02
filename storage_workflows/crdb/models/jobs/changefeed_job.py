@@ -35,3 +35,9 @@ class ChangefeedJob(BaseJob):
     def get_coordinator_node(self):
         return self.connection.execute_sql(self.GET_COORDINATOR_BY_JOB_ID_SQL.format(self.id),
                                     need_commit=True, need_fetchone=True)[0]
+
+    @staticmethod
+    def get_latest_job_status(id, cluster_name):
+        response = self.connection.execute_sql(self.GET_JOB_BY_ID_SQL.format(id), need_fetchone=True)
+        job = ChangefeedJob(response[0], cluster_name)
+        return job.status

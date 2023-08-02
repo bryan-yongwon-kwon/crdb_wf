@@ -275,9 +275,13 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     for job in changefeed_jobs:
         logger.info("Pausing changefeed job {}".format(job.id))
         job.pause()
-    time.sleep(30)
-    logger.info("Paused all changefeed jobs!")
 
+    #wait for all jobs to pause
+    for job in changefeed_jobs:
+        while get_latest_job_status(job.id, cluster_name) != "paused":
+            logger.info("Waiting for job {} to pause.".format(job.id))
+
+    logger.info("Paused all changefeed jobs!")
     for job in changefeed_jobs:
         logger.info("Removing coordinator node for job {}".format(job.id))
         job.remove_coordinator_node()
@@ -288,11 +292,13 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
     old_node_ids = set(map(lambda node: node.id, old_nodes))
-    for node_id in old_node_ids:
-        logger.info(node_id)
+    logger.info("Node ids of old nodes" + str(old_node_ids))
 
     for job in changefeed_jobs:
         logger.info("Resuming changefeed job {}".format(job.id))
+        while job.status != "paused":
+            logger.info("Job status is" + job.status)
+            time.sleep(5)
         job.resume()
         time.sleep(10)
         coordinator_node = None
