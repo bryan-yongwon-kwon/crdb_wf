@@ -36,7 +36,8 @@ def pre_check(deployment_env, region, cluster_name):
         or cluster.restore_job_is_running()
         or cluster.schema_change_job_is_running()
         or cluster.row_level_ttl_job_is_running()
-        or cluster.instances_not_in_service_exist()):
+        or cluster.instances_not_in_service_exist()
+        or cluster.paused_changefeed_jobs_exist()):
         raise Exception("Pre run check failed")
     else:
         logger.info("Check passed")

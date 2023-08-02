@@ -6,6 +6,7 @@ import time
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.models.jobs.backup_job import BackupJob
+from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
 from storage_workflows.crdb.models.jobs.restore_job import RestorelJob
 from storage_workflows.crdb.models.jobs.row_level_ttl_job import RowLevelTtlJob
 from storage_workflows.crdb.models.jobs.schema_change_job import SchemaChangelJob
@@ -56,6 +57,14 @@ class Cluster:
         if contains_row_level_ttl_job:
             logger.warning("Running row level ttl job(s) found!")
         return contains_row_level_ttl_job
+    
+    def paused_changefeed_jobs_exist(self) -> bool:
+        paused_changefeed_jobs = list(filter(lambda job: job.status == 'paused',
+                                             ChangefeedJob.find_all_changefeed_jobs(self.cluster_name)))
+        contains_paused_changefeed_jobs = any(paused_changefeed_jobs)
+        if contains_paused_changefeed_jobs:
+            logger.warning("Paused changefeed job(s) found!")
+        return contains_paused_changefeed_jobs
     
     def unhealthy_ranges_exist(self) -> bool:
         UNAVAILABLE_RANGES_COUNT_INDEX = 0
