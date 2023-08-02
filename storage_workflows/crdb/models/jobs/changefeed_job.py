@@ -37,7 +37,7 @@ class ChangefeedJob(BaseJob):
                                     need_commit=True, need_fetchone=True)[0]
 
     @staticmethod
-    def get_latest_job_status(id, cluster_name):
-        response = self.connection.execute_sql(self.GET_JOB_BY_ID_SQL.format(id), need_fetchone=True)
+    def get_latest_job_status(job_id, cluster_name):
+        response = self.connection.execute_sql(self.GET_JOB_BY_ID_SQL.format(job_id), need_fetchone=True)
         job = ChangefeedJob(response[0], cluster_name)
         return job.status
