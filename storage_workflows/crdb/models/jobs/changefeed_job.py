@@ -1,7 +1,9 @@
 from __future__ import annotations
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.models.jobs.base_job import BaseJob
+from storage_workflows.logging.logger import Logger
 
+logger = Logger()
 class ChangefeedJob(BaseJob):
 
     REMOVE_COORDINATOR_BY_JOB_ID_SQL = "UPDATE system.jobs SET claim_session_id = NULL WHERE id = '{}';"
@@ -42,5 +44,6 @@ class ChangefeedJob(BaseJob):
         connection.connect()
         response = connection.execute_sql(BaseJob.GET_JOB_BY_ID_SQL.format(job_id), need_fetchone=True)
         connection.close()
-        job = ChangefeedJob(response[0], cluster_name)
+        logger.info("response received: "+ response)
+        job = ChangefeedJob(response, cluster_name)
         return job.status
