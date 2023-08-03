@@ -278,9 +278,11 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
 
     #wait for all jobs to pause
     for job in changefeed_jobs:
-        while ChangefeedJob.get_latest_job_status(job.id, cluster_name) != "paused":
+        job_status = ChangefeedJob.get_latest_job_status(job.id, cluster_name)
+        while job_status != "paused":
             logger.info("Waiting for job {} to pause.".format(job.id))
-            logger.info("Current job status: {} ".format(ChangefeedJob.get_latest_job_status(job.id, cluster_name)))
+            logger.info("Current job status for job_id {} : {} ".format(job_status))
+            job_status = ChangefeedJob.get_latest_job_status(job.id, cluster_name)
             time.sleep(2)
 
     logger.info("Paused all changefeed jobs!")
@@ -299,7 +301,9 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     for job in changefeed_jobs:
         logger.info("Resuming changefeed job {}".format(job.id))
         job.resume()
-        time.sleep(10)
+        # wait for job to resume
+        while ChangefeedJob.get_latest_job_status(job.id, cluster_name) != "running":
+            time.sleep(2)
         coordinator_node = None
         while coordinator_node is None:
             logger.info("Checking coordinator node.")
@@ -313,9 +317,13 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
                 job.remove_coordinator_node()
                 logger.info("Pausing job {}".format(job.id))
                 job.pause()
-                time.sleep(10)
+                # wait for job to pause
+                while ChangefeedJob.get_latest_job_status(job.id, cluster_name) != "paused":
+                    time.sleep(2)
                 job.resume()
-                time.sleep(10)
+                # wait for job to resume
+                while ChangefeedJob.get_latest_job_status(job.id, cluster_name) != "running":
+                    time.sleep(2)
         logger.info("Coordinator node updated to {}".format(coordinator_node))
     logger.info("Resumed all changefeed jobs!")
 
