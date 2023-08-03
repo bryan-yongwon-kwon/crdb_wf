@@ -39,7 +39,7 @@ class ChangefeedJob(BaseJob):
                                     need_commit=True, need_fetchone=True)[0]
 
     def wait_for_job_to_pause(self):
-        job_status = get_latest_job_status(self.id, self._cluster_name)
+        job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
         while job_status == "paused-requested" or job_status == "running":
             logger.info("Waiting for job {} to pause.".format(self.id))
             logger.info("Current job status for job_id {} : {} ".format(self.id, job_status))
