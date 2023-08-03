@@ -2,6 +2,7 @@ import datetime
 import http.client
 import json
 import os
+from datetime import datetime as dt
 from storage_workflows.logging.logger import Logger
 
 logger = Logger()
@@ -14,7 +15,7 @@ class ChronosphereApiGateway():
     @staticmethod
     def create_muting_rule(label_matchers, 
                            name="Muting rule created from operator service.", 
-                           starts_at=datetime.datetime.now(datetime.timezone.utc),
+                           starts_at=dt.utcnow(),
                            duration_hours=1) -> str:
         ends_at = starts_at + datetime.timedelta(hours=duration_hours)
         data = {
@@ -90,3 +91,11 @@ class ChronosphereApiGateway():
         if response.status != http.client.OK:
             raise Exception("Muting rule reading failed: {}".format(response_content))
         return json.loads(response_content)['muting_rule']
+    
+    @staticmethod
+    def muting_rule_expired(slug: str):
+        response = ChronosphereApiGateway.read_muting_rule(slug)
+        ends_at = response["ends_at"]
+        format = "%Y-%m-%dT%H:%M:%SZ"
+        ends_at_time = dt.strftime(ends_at, format)
+        return ends_at_time < dt.utcnow()
