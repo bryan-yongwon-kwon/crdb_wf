@@ -147,6 +147,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     initial_capacity = len(old_instance_ids)
     desired_capacity = 2*len(old_instance_ids)
     current_capacity = len(asg.instances)
+    logger.info("Current Capacity at the beginning is:" + str(current_capacity))
     logger.info("Initial Capacity is:" + str(initial_capacity))
     logger.info("Desired Capacity is:" + str(desired_capacity))
     cluster = Cluster()
