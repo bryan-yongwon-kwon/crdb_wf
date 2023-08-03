@@ -124,9 +124,9 @@ def extend_muting_rules(slugs:str):
     logger.info("Extended ending time for following alerts to {}: {}".format(ends_at, slug_list))
     logger.info("Wait for 50 mins...")
     for count in range(5):
-        expired = all(list(map(lambda slug: ChronosphereApiGateway.muting_rule_expired(slug), slug_list)))
-        if expired:
-            logger.info("Muting rules deleted, complete step.")
+        rules_valid = any(list(map(lambda slug: ChronosphereApiGateway.muting_rule_exist(slug), slug_list)))
+        if not rules_valid:
+            logger.info("Muting rules deleted, step completed.")
             return
         time.sleep(600)
         
