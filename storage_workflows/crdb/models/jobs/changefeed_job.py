@@ -40,18 +40,18 @@ class ChangefeedJob(BaseJob):
 
     def wait_for_job_to_pause(self):
         job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
-        while job_status == "paused-requested" or job_status == "running":
+        while job_status == "pause-requested" or job_status == "running":
             logger.info("Waiting for job {} to pause.".format(self.id))
             logger.info("Current job status for job_id {} : {} ".format(self.id, job_status))
             job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
             time.sleep(2)
-        if job_status == "failed" or job_status == "cancelled":
+        if job_status == "failed" or job_status == "canceled":
             logger.warning("Job status for job_id {} : {} ".format(self.id, job_status))
 
     def wait_for_job_to_resume(self):
         job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
         while job_status != "running":
-            if job_status == "failed" or job_status == "cancelled":
+            if job_status == "failed" or job_status == "canceled":
                 logger.error("Changefeed job with id {} has status {}".format(self.id, job_status))
                 raise Exception("Changefeed job failed or cancelled.")
             time.sleep(2)
