@@ -147,6 +147,8 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     initial_capacity = len(old_instance_ids)
     desired_capacity = 2*initial_capacity
     current_capacity = len(asg.instances)
+    logger.info("Current Capacity is:" + str(current_capacity))
+    logger.info("Desired Capacity is:" + str(desired_capacity))
     cluster = Cluster()
 
     if initial_capacity % 3 != 0 or current_capacity % 3 != 0:
@@ -166,6 +168,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         cluster.wait_for_hydration()
         asg.reload()
         current_capacity = len(asg.instances)
+        logger.info("Current Capacity is:" + str(current_capacity))
     return
 
 @app.command()
