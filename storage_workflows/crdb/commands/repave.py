@@ -305,7 +305,11 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     for job in changefeed_jobs:
         logger.info("Pausing changefeed job {}".format(job.id))
         job.pause()
-    time.sleep(30)
+
+    #wait for all jobs to pause
+    for job in changefeed_jobs:
+        job.wait_for_job_to_pause()
+
     logger.info("Paused all changefeed jobs!")
 
     for job in changefeed_jobs:
@@ -318,29 +322,30 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
     old_node_ids = set(map(lambda node: node.id, old_nodes))
-    for node_id in old_node_ids:
-        logger.info(node_id)
+    logger.info("Node ids of old nodes" + str(old_node_ids))
 
     for job in changefeed_jobs:
         logger.info("Resuming changefeed job {}".format(job.id))
         job.resume()
-        time.sleep(10)
+        # wait for job to resume
+        job.wait_for_job_to_resume()
+
         coordinator_node = None
         while coordinator_node is None:
             logger.info("Checking coordinator node.")
-            # expected value in int, if this returns anything else exception would be thrown
-            coordinator_node = int(job.get_coordinator_node())
+            time.sleep(10)
+            coordinator_node = job.get_coordinator_node()
             logger.info("Coordinator node is {}".format(coordinator_node))
 
-            if coordinator_node in old_node_ids:
+            if coordinator_node is not None and coordinator_node in old_node_ids:
                 coordinator_node = None
                 logger.info("Removing coordinator node for job {}".format(job.id))
                 job.remove_coordinator_node()
                 logger.info("Pausing job {}".format(job.id))
                 job.pause()
-                time.sleep(10)
+                job.wait_for_job_to_pause()
                 job.resume()
-                time.sleep(10)
+                job.wait_for_job_to_resume()
         logger.info("Coordinator node updated to {}".format(coordinator_node))
     logger.info("Resumed all changefeed jobs!")
 
