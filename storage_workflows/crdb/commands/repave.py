@@ -166,7 +166,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         all_new_instance_ids.append(new_instance_ids)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
         cluster.wait_for_hydration()
-        asg.reload()
+        asg.reload(cluster_name)
         current_capacity = len(asg.instances)
         logger.info("Current Capacity is:" + str(current_capacity))
     return
