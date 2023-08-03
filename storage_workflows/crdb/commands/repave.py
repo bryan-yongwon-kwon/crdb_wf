@@ -92,13 +92,26 @@ def mute_alerts(deployment_env, cluster_name):
 @app.command()
 def delete_mute_alerts(slugs:str):
     logger.info("Unmuting following rules: {}".format(slugs))
-    slug_list = json.loads(slugs)
+    try:
+        slug_list = json.loads(slugs)
+    except json.decoder.JSONDecodeError:
+        logger.error("Invalid input!")
+        return
     for slug in slug_list:
         ChronosphereApiGateway.delete_muting_rule(slug)
 
 @app.command()
 def extend_muting_rules(slugs:str):
-    slug_list = json.loads(slugs)
+    try:
+        slug_list = json.loads(slugs)
+    except json.decoder.JSONDecodeError:
+        logger.error("Invalid input!")
+        logger.info("Will retry after sleeping 300s...")
+        time.sleep(300)
+        return
+    slug_list = list(filter(lambda slug: ChronosphereApiGateway.muting_rule_exist(slug), slug_list))
+    if not slug_list:
+        logger.info("Rules don't exist, skip step.")
     rules = list(map(lambda slug: ChronosphereApiGateway.read_muting_rule(slug), slug_list))
     ends_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
     ends_at = ends_at.strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -112,6 +125,15 @@ def extend_muting_rules(slugs:str):
                                                   ends_at=ends_at,
                                                   comment=comment)
     logger.info("Extended ending time for following alerts to {}: {}".format(ends_at, slug_list))
+    logger.info("Wait for 50 mins...")
+    for count in range(5):
+        rules_valid = any(list(map(lambda slug: ChronosphereApiGateway.muting_rule_exist(slug), slug_list)))
+        if not rules_valid:
+            logger.info("Muting rules deleted, step completed.")
+            return
+        time.sleep(600)
+        
+
 
 @app.command()
 def copy_crontab(deployment_env, region, cluster_name):
