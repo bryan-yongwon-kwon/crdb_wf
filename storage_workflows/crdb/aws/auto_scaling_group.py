@@ -52,8 +52,13 @@ class AutoScalingGroup:
         return any(map(lambda instance: not instance.in_service(), self.instances))
     
     def add_ec2_instances(self, desired_capacity):
-        asg_instances = self.instances #AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
-        initial_capacity = len(asg_instances)
+        asg_instances = self.instances
+
+        if desired_capacity == self.capacity:
+            logger.warning("Expected Desired capacity same as existing desired capacity.")
+            return
+
+        initial_actual_capacity = len(asg_instances)  # sum of all instances irrespective of their state
         old_instance_ids = set()
         # Retrieve the existing instance IDs
         for instance in asg_instances:
@@ -63,13 +68,14 @@ class AutoScalingGroup:
         # Wait for the new instances to be added to the Auto Scaling group
         while True:
             asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(self.name)[0]["Instances"]
+            actual_capacity = len(asg_instances)
             new_instance_ids = set()  # Store new instance IDs
             # Retrieve the instance IDs of the newly added instances
             for instance in asg_instances:
                 if instance["InstanceId"] not in old_instance_ids and instance["LifecycleState"] == "InService":
                     new_instance_ids.add(instance["InstanceId"])
             # Check if all new instances are found
-            if len(new_instance_ids) == desired_capacity - initial_capacity:
+            if len(new_instance_ids) == actual_capacity - initial_actual_capacity and actual_capacity != initial_actual_capacity:
                 logger.info("All new instances are ready.")
                 break
             # Wait before checking again
