@@ -102,6 +102,7 @@ def delete_mute_alerts(slugs:str):
 
 @app.command()
 def extend_muting_rules(slugs:str):
+    logger.info("slugs: {}".format(slugs))
     try:
         slug_list = json.loads(slugs)
     except json.decoder.JSONDecodeError:
