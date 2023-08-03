@@ -53,7 +53,7 @@ class ChangefeedJob(BaseJob):
         while job_status != "running":
             if job_status == "failed" or job_status == "canceled":
                 logger.error("Changefeed job with id {} has status {}".format(self.id, job_status))
-                raise Exception("Changefeed job failed or cancelled.")
+                raise Exception("Changefeed job failed or canceled.")
             time.sleep(2)
             job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
 
