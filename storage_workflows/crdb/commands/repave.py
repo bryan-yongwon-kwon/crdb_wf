@@ -92,13 +92,21 @@ def mute_alerts(deployment_env, cluster_name):
 @app.command()
 def delete_mute_alerts(slugs:str):
     logger.info("Unmuting following rules: {}".format(slugs))
-    slug_list = json.loads(slugs)
+    try:
+        slug_list = json.loads(slugs)
+    except json.decoder.JSONDecodeError:
+        logger.error("Invalid input!")
+        return
     for slug in slug_list:
         ChronosphereApiGateway.delete_muting_rule(slug)
 
 @app.command()
 def extend_muting_rules(slugs:str):
-    slug_list = json.loads(slugs)
+    try:
+        slug_list = json.loads(slugs)
+    except json.decoder.JSONDecodeError:
+        logger.error("Invalid input!")
+        return
     rules = list(map(lambda slug: ChronosphereApiGateway.read_muting_rule(slug), slug_list))
     ends_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
     ends_at = ends_at.strftime('%Y-%m-%dT%H:%M:%SZ')
