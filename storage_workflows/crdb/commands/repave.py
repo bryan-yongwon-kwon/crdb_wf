@@ -144,10 +144,10 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    initial_capacity = len(old_instance_ids)
-    desired_capacity = 2*initial_capacity
-    current_capacity = len(asg.instances)
-    logger.info("Current Capacity is:" + str(current_capacity))
+    initial_capacity = len(asg.instances)
+    desired_capacity = 2*len(old_instance_ids)
+    current_capacity = initial_capacity
+    logger.info("Initial Capacity is:" + str(initial_capacity))
     logger.info("Desired Capacity is:" + str(desired_capacity))
     cluster = Cluster()
 
