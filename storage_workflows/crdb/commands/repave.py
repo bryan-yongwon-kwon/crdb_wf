@@ -92,13 +92,26 @@ def mute_alerts(deployment_env, cluster_name):
 @app.command()
 def delete_mute_alerts(slugs:str):
     logger.info("Unmuting following rules: {}".format(slugs))
-    slug_list = json.loads(slugs)
+    try:
+        slug_list = json.loads(slugs)
+    except json.decoder.JSONDecodeError:
+        logger.error("Invalid input!")
+        return
     for slug in slug_list:
         ChronosphereApiGateway.delete_muting_rule(slug)
 
 @app.command()
 def extend_muting_rules(slugs:str):
-    slug_list = json.loads(slugs)
+    try:
+        slug_list = json.loads(slugs)
+    except json.decoder.JSONDecodeError:
+        logger.error("Invalid input!")
+        logger.info("Will retry after sleeping 300s...")
+        time.sleep(300)
+        return
+    slug_list = list(filter(lambda slug: ChronosphereApiGateway.muting_rule_exist(slug), slug_list))
+    if not slug_list:
+        logger.info("Rules don't exist, skip step.")
     rules = list(map(lambda slug: ChronosphereApiGateway.read_muting_rule(slug), slug_list))
     ends_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
     ends_at = ends_at.strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -112,6 +125,15 @@ def extend_muting_rules(slugs:str):
                                                   ends_at=ends_at,
                                                   comment=comment)
     logger.info("Extended ending time for following alerts to {}: {}".format(ends_at, slug_list))
+    logger.info("Wait for 50 mins...")
+    for count in range(5):
+        rules_valid = any(list(map(lambda slug: ChronosphereApiGateway.muting_rule_exist(slug), slug_list)))
+        if not rules_valid:
+            logger.info("Muting rules deleted, step completed.")
+            return
+        time.sleep(600)
+        
+
 
 @app.command()
 def copy_crontab(deployment_env, region, cluster_name):
@@ -145,23 +167,31 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     initial_capacity = len(old_instance_ids)
+    desired_capacity = 2*len(old_instance_ids)
+    current_capacity = len(asg.instances)
+    logger.info("Current Capacity at the beginning is:" + str(current_capacity))
+    logger.info("Initial Capacity is:" + str(initial_capacity))
+    logger.info("Desired Capacity is:" + str(desired_capacity))
     cluster = Cluster()
-    if initial_capacity % 3 != 0:
+
+    if initial_capacity % 3 != 0 or current_capacity % 3 != 0:
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
 
     all_new_instance_ids = []
-    current_capacity = initial_capacity
-    while current_capacity < 2*initial_capacity:
+    # current_capacity = initial_capacity
+    while current_capacity < desired_capacity:
         #current_capacity determines number of nodes in standby + number of nodes in-service
         #according to asg desired_capacity is the count of number of nodes in-service state only
         #hence we only set intial_capacity+3 as desired capacity in each loop
-        current_capacity += 3
         new_instance_ids = asg.add_ec2_instances(initial_capacity+3)
         all_new_instance_ids.append(new_instance_ids)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
         cluster.wait_for_hydration()
+        asg.reload(cluster_name)
+        current_capacity = len(asg.instances)
+        logger.info("Current Capacity is:" + str(current_capacity))
     return
 
 @app.command()
