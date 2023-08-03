@@ -281,7 +281,7 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         job_status = ChangefeedJob.get_latest_job_status(job.id, cluster_name)
         while job_status != "paused":
             logger.info("Waiting for job {} to pause.".format(job.id))
-            logger.info("Current job status for job_id {} : {} ".format(job_status))
+            logger.info("Current job status for job_id {} : {} ".format(job.id, job_status))
             job_status = ChangefeedJob.get_latest_job_status(job.id, cluster_name)
             time.sleep(2)
 
@@ -307,6 +307,7 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         coordinator_node = None
         while coordinator_node is None:
             logger.info("Checking coordinator node.")
+            time.sleep(10)
             # expected value in int, if this returns anything else exception would be thrown
             coordinator_node = int(job.get_coordinator_node())
             logger.info("Coordinator node is {}".format(coordinator_node))
