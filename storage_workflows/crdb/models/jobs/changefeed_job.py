@@ -38,6 +38,26 @@ class ChangefeedJob(BaseJob):
         return self.connection.execute_sql(self.GET_COORDINATOR_BY_JOB_ID_SQL.format(self.id),
                                     need_commit=True, need_fetchone=True)[0]
 
+    def wait_for_job_to_pause(self):
+        job_status = get_latest_job_status(self.id, self._cluster_name)
+        while job_status == "paused-requested" or job_status == "running":
+            logger.info("Waiting for job {} to pause.".format(self.id))
+            logger.info("Current job status for job_id {} : {} ".format(self.id, job_status))
+            job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
+            time.sleep(2)
+        if job_status == "failed" or job_status == "cancelled":
+            logger.warning("Job status for job_id {} : {} ".format(self.id, job_status))
+
+    def wait_for_job_to_resume(self):
+        job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
+        while job_status != "running":
+            if job_status == "failed" or job_status == "cancelled":
+                logger.error("Changefeed job with id {} has status {}".format(self.id, job_status))
+                raise Exception("Changefeed job failed or cancelled.")
+            time.sleep(2)
+            job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
+
+    # todo: https://doordash.atlassian.net/browse/STORAGE-7195
     @staticmethod
     def get_latest_job_status(job_id, cluster_name):
         connection = CrdbConnection.get_crdb_connection(cluster_name)
