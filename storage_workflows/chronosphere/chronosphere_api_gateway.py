@@ -97,7 +97,7 @@ class ChronosphereApiGateway():
         response_content = str(response.read().decode())
         if response.status != http.client.OK:
             NOT_FOUND_ERR_MSG = "category=INVALID_REQUEST_ERROR code=NOT_FOUND"
-            if NOT_FOUND_ERR_MSG in response_content["message"]:
+            if NOT_FOUND_ERR_MSG in response_content:
                 raise MutingRuleNotFoundException
             raise Exception("Muting rule reading failed: {}".format(response_content))
         return json.loads(response_content)['muting_rule']
