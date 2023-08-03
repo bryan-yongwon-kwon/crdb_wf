@@ -6,7 +6,7 @@ class BaseJob:
     FIND_ALL_JOBS_BY_TYPE_SQL = "SELECT job_id,job_type,status FROM [SHOW JOBS] WHERE job_type='{}';"
     PAUSE_JOB_BY_ID_SQL = "PAUSE JOB {};"
     RESUME_JOB_BY_ID_SQL = "RESUME JOB {};"
-    GET_JOB_BY_ID_SQL = "SHOW JOB {};"
+    GET_JOB_BY_ID_SQL = "SELECT job_id,job_type,status FROM [SHOW JOBS] WHERE job_id='{}';"
 
     def __init__(self, job_id, job_type, status, cluster_name):
         self._job_id = job_id
