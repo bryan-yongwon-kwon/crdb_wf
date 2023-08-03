@@ -109,6 +109,9 @@ def extend_muting_rules(slugs:str):
         logger.info("Will retry after sleeping 300s...")
         time.sleep(300)
         return
+    slug_list = list(filter(lambda slug: ChronosphereApiGateway.muting_rule_exist(slug), slug_list))
+    if not slug_list:
+        logger.info("Rules don't exist, skip step.")
     rules = list(map(lambda slug: ChronosphereApiGateway.read_muting_rule(slug), slug_list))
     ends_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
     ends_at = ends_at.strftime('%Y-%m-%dT%H:%M:%SZ')

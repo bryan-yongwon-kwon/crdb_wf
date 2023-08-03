@@ -61,6 +61,9 @@ class ChronosphereApiGateway():
                            starts_at: str,
                            ends_at: str,
                            comment: str = ""):
+        if not ChronosphereApiGateway.muting_rule_exist(slug):
+            logger.info("Muting rule does not exist. Skip updating.")
+            return
         conn = http.client.HTTPSConnection(ChronosphereApiGateway.CHRONOSPHERE_URL)
         headers = {'Content-type': 'application/json', 'Api-token': ChronosphereApiGateway.CHRONOSPHERE_API_TOKEN}
         data = {
