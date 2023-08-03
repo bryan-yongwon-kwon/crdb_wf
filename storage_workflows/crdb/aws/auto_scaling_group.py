@@ -18,14 +18,39 @@ class AutoScalingGroup:
     
     @staticmethod
     def find_auto_scaling_group_by_cluster_name(cluster_name) -> AutoScalingGroup:
-        filter = {
-            'Name': 'tag:crdb_cluster_name',
-            'Values': [
-                cluster_name + "_" + os.getenv('DEPLOYMENT_ENV'),
-            ]
-        }
+        filter = AutoScalingGroup.build_filter_by_cluster_name(cluster_name)
         return AutoScalingGroup.find_all_auto_scaling_groups([filter])[0]
+    
+    @staticmethod
+    def build_filter_by_cluster_name(cluster_name: str):
+        return {
+                    'Name': 'tag:crdb_cluster_name',
+                    'Values': [
+                        cluster_name + "_" + os.getenv('DEPLOYMENT_ENV'),
+                    ]
+                }
 
+    def __init__(self, api_response):
+        self._api_response = api_response
+
+    @property
+    def instances(self) -> list[AutoScalingGroupInstance]:
+        return list(map(lambda instance: AutoScalingGroupInstance(instance), self._api_response['Instances']))
+
+    @property
+    def capacity(self):
+        return self._api_response['DesiredCapacity']
+
+    @property
+    def name(self):
+        return self._api_response['AutoScalingGroupName']
+    
+    def reload(self, cluster_name:str):
+        self._api_response = AutoScalingGroupGateway.describe_auto_scaling_groups([AutoScalingGroup.build_filter_by_cluster_name(cluster_name)])[0]
+
+    def instances_not_in_service_exist(self):
+        return any(map(lambda instance: not instance.in_service(), self.instances))
+    
     def add_ec2_instances(self, desired_capacity):
         asg_instances = self.instances #AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg_name)[0]["Instances"]
         initial_capacity = len(asg_instances)
@@ -51,21 +76,3 @@ class AutoScalingGroup:
             time.sleep(10)
 
         return list(new_instance_ids)
-
-    def __init__(self, api_response):
-        self._api_response = api_response
-
-    @property
-    def instances(self) -> list[AutoScalingGroupInstance]:
-        return list(map(lambda instance: AutoScalingGroupInstance(instance), self._api_response['Instances']))
-
-    @property
-    def capacity(self):
-        return self._api_response['DesiredCapacity']
-
-    @property
-    def name(self):
-        return self._api_response['AutoScalingGroupName']
-
-    def instances_not_in_service_exist(self):
-        return any(map(lambda instance: not instance.in_service(), self.instances))
