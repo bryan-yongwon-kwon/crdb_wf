@@ -148,14 +148,14 @@ class Cluster:
         logger.info("Waiting for connections drain...")
         for count in range(6):
             logger.info("Checking for connections...")
+            for node in old_nodes:
+                node.reload()
             nodes_not_drained = list(filter(lambda node: node.sql_conns > 1, old_nodes))
             if nodes_not_drained:
                 ids = list(map(lambda node: node.id, nodes_not_drained))
                 logger.info("Waiting for connections on following nodes to drain: {}".format(ids))
                 logger.info("Sleep for 10 mins...")
                 time.sleep(600)
-                for node in nodes_not_drained:
-                    node.reload()
             else:
                 logger.info("All the connections on old nodes are disconnected.")
                 return
