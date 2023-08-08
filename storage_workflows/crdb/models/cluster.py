@@ -154,6 +154,8 @@ class Cluster:
                 logger.info("Waiting for connections on following nodes to drain: {}".format(ids))
                 logger.info("Sleep for 10 mins...")
                 time.sleep(600)
+                for node in nodes_not_drained:
+                    node.reload()
             else:
                 logger.info("All the connections on old nodes are disconnected.")
                 return
