@@ -38,7 +38,7 @@ class Ec2Instance:
         return self._api_response['PrivateIpAddress']
     
     @cached_property
-    def crdb_node(self):
+    def crdb_node(self) -> Node:
         return list(filter(lambda node: node.ip_address == self.private_ip_address, Node.get_nodes()))[0]
     
     def reload(self):

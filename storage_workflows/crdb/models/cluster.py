@@ -5,6 +5,7 @@ import subprocess
 import time
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
+from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.models.jobs.backup_job import BackupJob
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
 from storage_workflows.crdb.models.jobs.restore_job import RestorelJob
@@ -12,8 +13,7 @@ from storage_workflows.crdb.models.jobs.row_level_ttl_job import RowLevelTtlJob
 from storage_workflows.crdb.models.jobs.schema_change_job import SchemaChangelJob
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.logging.logger import Logger
-from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
-from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
+from storage_workflows.crdb.metadata_db.metadata_db_operations import MetadataDBOperations
 
 
 logger = Logger()
@@ -140,3 +140,21 @@ class Cluster:
                 logger.info(f"Node: {outlier.id} Replications: {nodes_replications_dict[outlier]}")
             time.sleep(60)
         return
+    
+    def wait_for_connections_drain_on_old_nodes(self):
+        metadata_db_operations = MetadataDBOperations()
+        old_instance_ids = metadata_db_operations.get_old_instance_ids(self.cluster_name, os.getenv('DEPLOYMENT_ENV'))
+        old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+        logger.info("Waiting for connections drain...")
+        for count in range(6):
+            logger.info("Checking for connections...")
+            nodes_not_drained = list(filter(lambda node: node.sql_conns > 1, old_nodes))
+            if nodes_not_drained:
+                ids = list(map(lambda node: node.id, nodes_not_drained))
+                logger.info("Waiting for connections on following nodes to drain: {}".format(ids))
+                logger.info("Sleep for 10 mins...")
+                time.sleep(600)
+            else:
+                logger.info("All the connections on old nodes are disconnected.")
+                return
+        logger.info("Timeout, proceed with decommission.")
