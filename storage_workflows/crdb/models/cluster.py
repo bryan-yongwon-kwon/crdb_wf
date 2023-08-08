@@ -6,6 +6,7 @@ import time
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
+from storage_workflows.crdb.metadata_db.metadata_db_operations import MetadataDBOperations
 from storage_workflows.crdb.models.jobs.backup_job import BackupJob
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
 from storage_workflows.crdb.models.jobs.restore_job import RestorelJob
@@ -13,7 +14,6 @@ from storage_workflows.crdb.models.jobs.row_level_ttl_job import RowLevelTtlJob
 from storage_workflows.crdb.models.jobs.schema_change_job import SchemaChangelJob
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.logging.logger import Logger
-from storage_workflows.crdb.metadata_db.metadata_db_operations import MetadataDBOperations
 
 
 logger = Logger()
