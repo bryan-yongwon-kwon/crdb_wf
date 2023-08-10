@@ -2,10 +2,6 @@ import os
 from storage_workflows.crdb.aws.sts_role import StsRole
 
 def setup_env(deployment_env, region, cluster_name):
-
-    if deployment_env == "prod" and cluster_name not in allowedlist_prod_clusters:
-        raise Exception("Access to production clusters is blocked.")
-
     os.environ['CLUSTER_NAME'] = cluster_name
     os.environ['REGION'] = region
     os.environ['DEPLOYMENT_ENV'] = deployment_env
