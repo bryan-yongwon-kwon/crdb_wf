@@ -211,7 +211,7 @@ def exit_new_instances_from_standby(deployment_env, region, cluster_name):
         AutoScalingGroupGateway.exit_instances_from_standby(asg.name, standby_instance_ids[index:index+3])
 
 @app.command()
-def detach_old_instances_from_asg(deployment_env, region, cluster_name):
+def detach_old_instances_from_asg(deployment_env, region, cluster_name, timeout_minus):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     logger.info(f"Autoscaling group name is {asg.name}")
@@ -220,7 +220,7 @@ def detach_old_instances_from_asg(deployment_env, region, cluster_name):
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids, asg.name)
     cluster = Cluster()
-    cluster.wait_for_connections_drain_on_old_nodes()
+    cluster.wait_for_connections_drain_on_old_nodes(int(timeout_minus))
     return
 
 @app.command()

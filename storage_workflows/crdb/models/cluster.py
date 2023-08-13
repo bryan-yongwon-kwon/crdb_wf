@@ -141,12 +141,12 @@ class Cluster:
             time.sleep(60)
         return
     
-    def wait_for_connections_drain_on_old_nodes(self):
+    def wait_for_connections_drain_on_old_nodes(self, timeout_mins:int):
         metadata_db_operations = MetadataDBOperations()
         old_instance_ids = metadata_db_operations.get_old_instance_ids(self.cluster_name, os.getenv('DEPLOYMENT_ENV'))
         old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
         logger.info("Waiting for connections drain...")
-        for count in range(6):
+        for count in range(timeout_mins):
             logger.info("Checking for connections...")
             for node in old_nodes:
                 node.reload()
@@ -154,8 +154,8 @@ class Cluster:
             if nodes_not_drained:
                 ids = list(map(lambda node: node.id, nodes_not_drained))
                 logger.info("Waiting for connections on following nodes to drain: {}".format(ids))
-                logger.info("Sleep for 10 mins...")
-                time.sleep(600)
+                logger.info("Sleep for 1 mins...")
+                time.sleep(60)
             else:
                 logger.info("All the connections on old nodes are disconnected.")
                 return
