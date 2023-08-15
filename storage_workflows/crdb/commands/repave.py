@@ -161,7 +161,7 @@ def copy_crontab(deployment_env, region, cluster_name):
     logger.info("Copied all the crontab jobs to new node successfully!")
 
 @app.command()
-def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
+def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydration_timeout_mins):
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     metadata_db_operations = MetadataDBOperations()
@@ -188,7 +188,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name):
         new_instance_ids = asg.add_ec2_instances(initial_capacity+3)
         all_new_instance_ids.append(new_instance_ids)
         AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
-        cluster.wait_for_hydration()
+        cluster.wait_for_hydration(hydration_timeout_mins)
         asg.reload(cluster_name)
         current_capacity = len(asg.instances)
         logger.info("Current Capacity is:" + str(current_capacity))

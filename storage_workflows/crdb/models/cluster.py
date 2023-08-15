@@ -122,24 +122,29 @@ class Cluster:
         nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, instance_ids))
         return nodes
 
-    def wait_for_hydration(self):
+    def wait_for_hydration(self, timeout_mins:int):
+        def is_node_hydrated(old_applied_initial_snapshots, new_applied_initial_snapshots):
+            return (new_applied_initial_snapshots - old_applied_initial_snapshots)/60 < 0.75
         asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(self.cluster_name)
-        nodes = Cluster.get_nodes_from_asg_instances(asg.instances)
-        logger.info("Checking nodes for hydration!")
-        while True:
-            nodes_replications_dict = {node: node.replicas for node in nodes}
-            replications_values = list(nodes_replications_dict.values())
-            avg_replications = statistics.mean(replications_values)
-            outliers = [node for node, replications in nodes_replications_dict.items() if
-                        abs(replications - avg_replications) / avg_replications > 0.1]
-            if not any(outliers):
-                logger.info("Hydration complete")
-                break
-            logger.info("Waiting for nodes to hydrate.")
-            for outlier in outliers:
-                logger.info(f"Node: {outlier.id} Replications: {nodes_replications_dict[outlier]}")
+        metadata_db_operations = MetadataDBOperations()
+        old_instance_ids = metadata_db_operations.get_old_instance_ids(self.cluster_name, os.getenv('DEPLOYMENT_ENV'))
+        new_instances = list(filter(lambda instance: instance.instance_id not in old_instance_ids, asg.instances))
+        new_nodes = list(map(lambda instance: Ec2Instance.find_ec2_instance(instance.instance_id).crdb_node, new_instances))
+        applied_initial_snapshots_dict = {}
+        for node in new_nodes:
+            applied_initial_snapshots_dict[node.id] = 0
+        logger.info("Checking nodes for hydration with {} mins timeout.".format(timeout_mins))
+        for minute in range(timeout_mins):
+            new_nodes = list(filter(lambda node: not is_node_hydrated(applied_initial_snapshots_dict[node.id], node.applied_initial_snapshots), new_nodes))
+            if not new_nodes:
+                logger.info("Hydration complete.")
+                return
+            node_ids = list(map(lambda node: node.id, new_nodes))
+            logger.info("Following nodes not hydrated: {}.".format(node_ids))
+            for node in new_nodes:
+                applied_initial_snapshots_dict[node.id] = node.applied_initial_snapshots
             time.sleep(60)
-        return
+        logger.info("Hydration timeout!")
     
     def wait_for_connections_drain_on_old_nodes(self, timeout_mins:int):
         metadata_db_operations = MetadataDBOperations()
