@@ -44,7 +44,7 @@ class AutoScalingGroup:
     @property
     def name(self):
         return self._api_response['AutoScalingGroupName']
-    
+
     def reload(self, cluster_name:str):
         self._api_response = AutoScalingGroupGateway.describe_auto_scaling_groups([AutoScalingGroup.build_filter_by_cluster_name(cluster_name)])[0]
 
@@ -82,3 +82,24 @@ class AutoScalingGroup:
             time.sleep(10)
 
         return list(new_instance_ids)
+
+    def check_equal_az_distribution_in_asg(self):
+        az_count = {}
+        for instance in self.instances:
+            az = instance._api_response['AvailabilityZone']
+            if az in az_count:
+                az_count[az] += 1
+            else:
+                az_count[az] = 1
+
+        max_instance_count = max(az_count.values())
+        min_instance_count = min(az_count.values())
+
+        if max_instance_count - min_instance_count <= 1:
+            logger.info("Instances are evenly spread across AZs.")
+            return True
+        else:
+            logger.info("Instances are not evenly spread across AZs.")
+            logger.info("AZ Distribution Details:")
+            for az, count in az_count.items():
+                logger.info("{}: {} instances".format(az, count))
