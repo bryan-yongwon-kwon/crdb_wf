@@ -137,22 +137,22 @@ class Cluster:
         for node in new_nodes:
             applied_initial_snapshots_dict[node.id] = 0
         logger.info("Checking nodes for hydration with {} mins timeout.".format(timeout_mins))
-        below_snapshots_change_rate_threshold = False
+        is_snapshots_change_rate_below_threshold_for_last_check = False
         for minute in range(timeout_mins):
             nodes_pending_hydration = list(filter(lambda node: not is_node_hydrated(applied_initial_snapshots_dict[node.id], node.applied_initial_snapshots), new_nodes))
             if not nodes_pending_hydration:
-                if below_snapshots_change_rate_threshold:
+                if is_snapshots_change_rate_below_threshold_for_last_check:
                     logger.info("Hydration complete.")
                     return
                 else:
-                    below_snapshots_change_rate_threshold = True
+                    is_snapshots_change_rate_below_threshold_for_last_check = True
                     refresh_snapshots_dict(new_nodes, applied_initial_snapshots_dict)
                     time.sleep(60)
                     continue
             node_ids = list(map(lambda node: node.id, nodes_pending_hydration))
             logger.info("Following nodes not hydrated: {}.".format(node_ids))
             refresh_snapshots_dict(new_nodes, applied_initial_snapshots_dict)
-            below_snapshots_change_rate_threshold = False
+            is_snapshots_change_rate_below_threshold_for_last_check = False
             time.sleep(60)
         logger.info("Hydration timeout!")
     
