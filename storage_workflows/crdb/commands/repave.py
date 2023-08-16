@@ -174,6 +174,9 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
     logger.info("Desired Capacity is:" + str(desired_capacity))
     cluster = Cluster()
 
+    if len(cluster.nodes) != len(asg.instances):
+        raise Exception("Instances count in ASG doesn't match nodes count in cluster.")
+
     if initial_capacity % 3 != 0 or current_capacity % 3 != 0:
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")

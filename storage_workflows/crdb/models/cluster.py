@@ -125,6 +125,9 @@ class Cluster:
     def wait_for_hydration(self, timeout_mins:int):
         def is_node_hydrated(old_applied_initial_snapshots, new_applied_initial_snapshots):
             return (new_applied_initial_snapshots - old_applied_initial_snapshots)/60 < 0.75
+        def refresh_snapshots_dict(nodes:list[Node], applied_initial_snapshots_dict:dict):
+            for node in nodes:
+                applied_initial_snapshots_dict[node.id] = node.applied_initial_snapshots
         asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(self.cluster_name)
         metadata_db_operations = MetadataDBOperations()
         old_instance_ids = metadata_db_operations.get_old_instance_ids(self.cluster_name, os.getenv('DEPLOYMENT_ENV'))
@@ -134,15 +137,22 @@ class Cluster:
         for node in new_nodes:
             applied_initial_snapshots_dict[node.id] = 0
         logger.info("Checking nodes for hydration with {} mins timeout.".format(timeout_mins))
+        below_snapshots_change_rate_threshold = False
         for minute in range(timeout_mins):
-            new_nodes = list(filter(lambda node: not is_node_hydrated(applied_initial_snapshots_dict[node.id], node.applied_initial_snapshots), new_nodes))
-            if not new_nodes:
-                logger.info("Hydration complete.")
-                return
-            node_ids = list(map(lambda node: node.id, new_nodes))
+            nodes_pending_hydration = list(filter(lambda node: not is_node_hydrated(applied_initial_snapshots_dict[node.id], node.applied_initial_snapshots), new_nodes))
+            if not nodes_pending_hydration:
+                if below_snapshots_change_rate_threshold:
+                    logger.info("Hydration complete.")
+                    return
+                else:
+                    below_snapshots_change_rate_threshold = True
+                    refresh_snapshots_dict(new_nodes, applied_initial_snapshots_dict)
+                    time.sleep(60)
+                    continue
+            node_ids = list(map(lambda node: node.id, nodes_pending_hydration))
             logger.info("Following nodes not hydrated: {}.".format(node_ids))
-            for node in new_nodes:
-                applied_initial_snapshots_dict[node.id] = node.applied_initial_snapshots
+            refresh_snapshots_dict(new_nodes, applied_initial_snapshots_dict)
+            below_snapshots_change_rate_threshold = False
             time.sleep(60)
         logger.info("Hydration timeout!")
     
