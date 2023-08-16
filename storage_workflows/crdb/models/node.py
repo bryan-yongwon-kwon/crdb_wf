@@ -82,6 +82,24 @@ class Node:
         replicas_list = map(lambda store: int(store['metrics']['replicas']), stores)
         return reduce(lambda replica_count_1, replica_count_2: replica_count_1+replica_count_2, replicas_list)
     
+    @property
+    def unavailable_ranges(self):
+        stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
+        ranges_list = map(lambda store: int(store['metrics']['ranges.unavailable']), stores)
+        return reduce(lambda range_count_1, range_count_2: range_count_1+range_count_2, ranges_list)
+    
+    @property
+    def underreplicated_ranges(self):
+        stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
+        ranges_list = map(lambda store: int(store['metrics']['ranges.underreplicated']), stores)
+        return reduce(lambda range_count_1, range_count_2: range_count_1+range_count_2, ranges_list)
+    
+    @property
+    def applied_initial_snapshots(self):
+        stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
+        snapshots_list = map(lambda store: int(store['metrics']['range.snapshots.applied-initial']), stores)
+        return reduce(lambda range_count_1, range_count_2: range_count_1+range_count_2, snapshots_list)
+    
     @cached_property
     def ssh_client(self):
         return SSH(self.ip_address)
