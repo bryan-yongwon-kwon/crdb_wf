@@ -132,8 +132,6 @@ def extend_muting_rules(slugs:str):
             logger.info("Muting rules deleted, step completed.")
             return
         time.sleep(600)
-        
-
 
 @app.command()
 def copy_crontab(deployment_env, region, cluster_name):
@@ -178,7 +176,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
     if len(cluster.nodes) != len(asg.instances):
         raise Exception("Instances count in ASG doesn't match nodes count in cluster.")
 
-    if initial_capacity % 3 != 0 or current_capacity % 3 != 0:
+    if initial_capacity % 3 != 0 or current_capacity % 3 != 0 or not asg.check_equal_az_distribution_in_asg():
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
@@ -196,6 +194,8 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
         asg.reload(cluster_name)
         current_capacity = len(asg.instances)
         logger.info("Current Capacity is:" + str(current_capacity))
+        if not asg.check_equal_az_distribution_in_asg():
+            raise Exception("Imbalanced nodes added.")
     return
 
 @app.command()
