@@ -95,7 +95,7 @@ class AutoScalingGroup:
         max_instance_count = max(az_count.values())
         min_instance_count = min(az_count.values())
 
-        if max_instance_count - min_instance_count <= 1:
+        if max_instance_count == min_instance_count and len(az_count) == 3:
             logger.info("Instances are evenly spread across AZs.")
             return True
         else:
