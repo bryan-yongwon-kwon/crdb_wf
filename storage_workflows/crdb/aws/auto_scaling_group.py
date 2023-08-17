@@ -95,11 +95,4 @@ class AutoScalingGroup:
         max_instance_count = max(az_count.values())
         min_instance_count = min(az_count.values())
 
-        if max_instance_count == min_instance_count and len(az_count) == 3:
-            logger.info("Instances are evenly spread across AZs.")
-            return True
-        else:
-            logger.info("Instances are not evenly spread across AZs.")
-            logger.info("AZ Distribution Details:")
-            for az, count in az_count.items():
-                logger.info("{}: {} instances".format(az, count))
+        return max_instance_count == min_instance_count and len(az_count) == 3
