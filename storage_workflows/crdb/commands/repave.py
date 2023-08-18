@@ -37,7 +37,8 @@ def pre_check(deployment_env, region, cluster_name):
         or cluster.schema_change_job_is_running()
         or cluster.row_level_ttl_job_is_running()
         or cluster.instances_not_in_service_exist()
-        or cluster.paused_changefeed_jobs_exist()):
+        or cluster.paused_changefeed_jobs_exist()
+        or cluster.unhealthy_ranges_exist()):
         raise Exception("Pre run check failed")
     else:
         logger.info("Check passed")
@@ -264,6 +265,8 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
     cluster = Cluster()
+    if cluster.unhealthy_ranges_exist():
+        raise Exception("Abort decommission, unhealthy ranges exist!")
     cluster.decommission_nodes(old_nodes)
     logger.info("Decommission completed!")
 

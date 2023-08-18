@@ -83,6 +83,12 @@ class Node:
         return reduce(lambda replica_count_1, replica_count_2: replica_count_1+replica_count_2, replicas_list)
     
     @property
+    def overreplicated_ranges(self):
+        stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
+        ranges_list = map(lambda store: int(store['metrics']['ranges.overreplicated']), stores)
+        return reduce(lambda range_count_1, range_count_2: range_count_1+range_count_2, ranges_list)
+    
+    @property
     def unavailable_ranges(self):
         stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
         ranges_list = map(lambda store: int(store['metrics']['ranges.unavailable']), stores)
