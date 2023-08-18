@@ -3,6 +3,7 @@ import os
 import statistics
 import subprocess
 import time
+from functools import reduce
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
@@ -67,23 +68,10 @@ class Cluster:
         return contains_paused_changefeed_jobs
     
     def unhealthy_ranges_exist(self) -> bool:
-        UNAVAILABLE_RANGES_COUNT_INDEX = 0
-        UNDER_REPLICATED_RANGES_COUNT_INDEX = 1
-        OVER_REPLICATED_RANGES_COUNT_INDEX = 2
-
-        CHECK_UNHEALTHY_RANGES_SQL = "SELECT sum(unavailable_ranges), sum(under_replicated_ranges), sum(over_replicated_ranges) FROM system.replication_stats;"
-
-        connection = CrdbConnection.get_crdb_connection(self.cluster_name)
-        connection.connect()
-        unhealthy_ranges = connection.execute_sql(CHECK_UNHEALTHY_RANGES_SQL, False)[0]
-        connection.close()
-        unhealthy_ranges_sum = (unhealthy_ranges[UNAVAILABLE_RANGES_COUNT_INDEX] 
-                                + unhealthy_ranges[UNDER_REPLICATED_RANGES_COUNT_INDEX] 
-                                + unhealthy_ranges[OVER_REPLICATED_RANGES_COUNT_INDEX])
-        contains_unhealthy_ranges = unhealthy_ranges_sum > 0
-        if contains_unhealthy_ranges:
-            logger.warning("Unhealthy ranges found!")
-        return contains_unhealthy_ranges
+        nodes = self.nodes
+        unhealthy_ranges_list = map(lambda node: node.overreplicated_ranges+node.unavailable_ranges+node.underreplicated_ranges, nodes)
+        total_unhealthy_ranges = reduce(lambda range_count_1, range_count_2: range_count_1+range_count_2, unhealthy_ranges_list)
+        return total_unhealthy_ranges > 0
     
     def instances_not_in_service_exist(self) -> bool:
         return AutoScalingGroup.find_auto_scaling_group_by_cluster_name(self.cluster_name).instances_not_in_service_exist()
