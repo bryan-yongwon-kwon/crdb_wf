@@ -15,7 +15,7 @@ logger = Logger()
 def get_cluster_names(deployment_env, region):
     setup_env(deployment_env, region)
     asgs = AutoScalingGroup.find_all_auto_scaling_groups([AutoScalingGroup.build_filter_by_crdb_tag()])
-    names = list(map(lambda asg: asg.name.split("{}-".format(deployment_env))[0], asgs))
+    names = list(map(lambda asg: asg.name.split("_{}-".format(deployment_env))[0], asgs))
     names.sort()
     logger.info("Found {} clusters.".format(len(names)))
     logger.info(names)
