@@ -52,7 +52,7 @@ def changefeed_health_check(deployment_env, region, cluster_name):
 
 
 @app.command()
-def send_slack_notoficcation(deployment_env):
+def send_slack_notification(deployment_env):
     #TODO: Read healthy check result from metadata DB
     results = ["text1", "text2"] # this is a place holder
     webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
