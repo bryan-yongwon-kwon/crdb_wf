@@ -29,6 +29,13 @@ class AutoScalingGroup:
                         cluster_name + "_" + os.getenv('DEPLOYMENT_ENV'),
                     ]
                 }
+    
+    @staticmethod
+    def build_filter_by_crdb_tag():
+        return {
+                    'Name': 'tag-key',
+                    'Values': ['crdb_cluster_name',]
+                }
 
     def __init__(self, api_response):
         self._api_response = api_response

@@ -1,5 +1,6 @@
-import typer
+import json
 import os
+import typer
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
@@ -8,6 +9,19 @@ from storage_workflows.slack.slack_notification import SlackNotification
 
 app = typer.Typer()
 logger = Logger()
+
+
+@app.command
+def get_cluster_names(deployment_env, region):
+    setup_env(deployment_env, region)
+    asgs = AutoScalingGroup.find_all_auto_scaling_groups(AutoScalingGroup.build_filter_by_crdb_tag())
+    names = list(map(lambda asg: asg.name.split("{}-".format(deployment_env))[0], asgs))
+    names.sort()
+    logger.info("Found {} clusters.".format(len(names)))
+    logger.info(names)
+    output_file = open("/tmp/cluster_names.json", "w")
+    output_file.write(json.dumps(names))
+    output_file.close()
 
 # the deployment_env is either staging or prod
 # the region is us-west-2 in most cases
