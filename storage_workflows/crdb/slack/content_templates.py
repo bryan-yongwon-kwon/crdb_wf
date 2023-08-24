@@ -1,3 +1,5 @@
+import json
+
 class ContentTemplate:
 
     @staticmethod
@@ -46,3 +48,18 @@ class ContentTemplate:
                             }
                         ]
                     }
+    
+    @staticmethod
+    def get_health_check_template(results):
+        def build_block(result):
+            return {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": result
+                        }
+                    }
+        results = list(map(lambda result: build_block(result), results))
+        return {
+                    "blocks": results
+                }
