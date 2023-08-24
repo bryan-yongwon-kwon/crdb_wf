@@ -11,7 +11,7 @@ app = typer.Typer()
 logger = Logger()
 
 
-@app.command
+@app.command()
 def get_cluster_names(deployment_env, region):
     setup_env(deployment_env, region)
     asgs = AutoScalingGroup.find_all_auto_scaling_groups(AutoScalingGroup.build_filter_by_crdb_tag())
