@@ -4,6 +4,7 @@ import typer
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
+from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
 from storage_workflows.slack.slack_notification import SlackNotification
 
@@ -57,4 +58,4 @@ def send_slack_notification(deployment_env):
     results = ["text1", "text2"] # this is a place holder
     webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
     notification = SlackNotification(webhook_url)
-    notification.send_notification()
+    notification.send_notification(ContentTemplate.get_health_check_template(results))
