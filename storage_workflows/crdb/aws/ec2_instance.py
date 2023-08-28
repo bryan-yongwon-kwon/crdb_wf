@@ -1,7 +1,9 @@
 from __future__ import annotations
 import time
+import os
 from functools import cached_property
 from storage_workflows.crdb.api_gateway.ec2_gateway import Ec2Gateway
+from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.logging.logger import Logger
 
@@ -57,4 +59,14 @@ class Ec2Instance:
             time.sleep(30)
             self.reload()
         logger.info("Instance {} terminated.".format(self.instance_id))
+
+    @staticmethod
+    def find_ec2_instances_by_cluster_tag(cluster_name:str) -> list[Ec2Instance]:
+        filters = [{
+            'Name': 'tag:crdb_cluster_name',
+            'Values': [
+                cluster_name + "_" + os.getenv('DEPLOYMENT_ENV'),
+            ]
+        }]
+        return list(map(lambda response: Ec2Instance(response), Ec2Gateway.describe_ec2_instances(filters)))
 
