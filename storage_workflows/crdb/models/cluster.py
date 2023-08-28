@@ -27,6 +27,10 @@ class Cluster:
     def nodes(self):
         return Node.get_nodes()
     
+    @property
+    def changefeed_jobs(self) -> list[ChangefeedJob]:
+        return ChangefeedJob.find_all_changefeed_jobs(self.cluster_name)
+    
     def backup_job_is_running(self) -> bool:
         running_backup_jobs = list(filter(lambda job: job.status == 'running',
                                           BackupJob.find_all_backup_jobs(self.cluster_name)))
