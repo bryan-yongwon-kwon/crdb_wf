@@ -7,6 +7,7 @@ from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
 from storage_workflows.slack.slack_notification import SlackNotification
+from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
 app = typer.Typer()
 logger = Logger()
@@ -52,6 +53,23 @@ def changefeed_health_check(deployment_env, region, cluster_name):
     # TODO: Write result into metadata DB 
 
 
+
+@app.command()
+def ptr_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
+                    "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
+                    "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '2d';")
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    response = connection.execute_sql(FIND_PTR_SQL)
+    connection.close()
+    contains_ptr = any(response)
+    if contains_ptr:
+        logger.warning("Protected timestamp records found on {} cluster: " + response).format(cluster_name)
+    # TODO: Write result into metadata DB
+
+
 @app.command()
 def send_slack_notification(deployment_env):
     #TODO: Read healthy check result from metadata DB
@@ -59,3 +77,4 @@ def send_slack_notification(deployment_env):
     webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
     notification = SlackNotification(webhook_url)
     notification.send_notification(ContentTemplate.get_health_check_template(results))
+
