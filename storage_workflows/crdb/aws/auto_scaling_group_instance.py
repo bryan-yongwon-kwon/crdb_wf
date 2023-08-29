@@ -1,6 +1,4 @@
 from functools import cached_property
-from storage_workflows.crdb.api_gateway.ec2_gateway import Ec2Gateway
-from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 
 class AutoScalingGroupInstance:
 
