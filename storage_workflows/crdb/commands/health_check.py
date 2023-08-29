@@ -59,6 +59,7 @@ def orphan_health_check(deployment_env, region, cluster_name):
 
     # Get the IP count of AWS instances
     instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
+    print(f"EC2 Instances with tag 'crdb_cluster_name:{cluster_name}_{deployment_env}': {instances_with_cluster_tag}")
     aws_cluster_instance_count = len(instances_with_cluster_tag)
     # Get the IP count of CRDB nodes
     crdb_node_ips = list(map(lambda node: node.ip_address, cluster.nodes))
