@@ -18,6 +18,16 @@ class Ec2Instance:
             'Values': [instance_id]
         }]
         return Ec2Instance(Ec2Gateway.describe_ec2_instances(filters)[0])
+    
+    @staticmethod
+    def find_ec2_instances_by_cluster_tag(cluster_name:str) -> list[Ec2Instance]:
+        filters = [{
+            'Name': 'tag:crdb_cluster_name',
+            'Values': [
+                cluster_name + "_" + os.getenv('DEPLOYMENT_ENV'),
+            ]
+        }]
+        return list(map(lambda response: Ec2Instance(response), Ec2Gateway.describe_ec2_instances(filters)))
 
     def __init__(self, api_response):
         self._api_response = api_response
@@ -60,13 +70,5 @@ class Ec2Instance:
             self.reload()
         logger.info("Instance {} terminated.".format(self.instance_id))
 
-    @staticmethod
-    def find_ec2_instances_by_cluster_tag(cluster_name:str) -> list[Ec2Instance]:
-        filters = [{
-            'Name': 'tag:crdb_cluster_name',
-            'Values': [
-                cluster_name + "_" + os.getenv('DEPLOYMENT_ENV'),
-            ]
-        }]
-        return list(map(lambda response: Ec2Instance(response), Ec2Gateway.describe_ec2_instances(filters)))
+    
 

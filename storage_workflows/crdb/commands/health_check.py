@@ -58,16 +58,15 @@ def orphan_health_check(deployment_env, region, cluster_name):
     cluster = Cluster()
 
     # Get the IP count of AWS instances
-    aws_cluster_instance_count = len(Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name))
-
+    instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
+    aws_cluster_instance_count = len(instances_with_cluster_tag)
     # Get the IP count of CRDB nodes
-    crdb_cluster_instance_count = len(list(map(lambda response: response['Node.ipaddress'], cluster.nodes)))
-    
+    crdb_node_ips = list(map(lambda node: node.ip_address, cluster.nodes))
+    crdb_cluster_instance_count = len(crdb_node_ips)
     # Compare the IP count of AWS instances and CRDB nodes
     if aws_cluster_instance_count != crdb_cluster_instance_count:
-        crdb_cluster_instance_ips = list(map(lambda response: response['Node.ipaddress'], cluster.nodes))
         orphan_instances = list(map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
-                                    filter(lambda instance: instance.private_ip_address not in crdb_cluster_instance_ips, Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name))))
+                                    filter(lambda instance: instance.private_ip_address not in crdb_node_ips, instances_with_cluster_tag)))
         logger.warning("Orphan instances found.")
         logger.warning("AWS instance count is {} and CRDB instance count is {}.".format(aws_cluster_instance_count, crdb_cluster_instance_count))
         logger.warning("Orphan instances are:".format(orphan_instances))
