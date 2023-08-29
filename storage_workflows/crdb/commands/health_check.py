@@ -7,6 +7,7 @@ from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
 from storage_workflows.slack.slack_notification import SlackNotification
+from storage_workflows.crdb.commands.repave import refresh_etl_load_balancer
 
 app = typer.Typer()
 logger = Logger()
@@ -59,3 +60,11 @@ def send_slack_notification(deployment_env):
     webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
     notification = SlackNotification(webhook_url)
     notification.send_notification(ContentTemplate.get_health_check_template(results))
+
+
+@app.command()
+def etl_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    # re-use repave workflow's etl load balancer refresh
+    refresh_etl_load_balancer(deployment_env, region, cluster_name)
+    # TODO: Write result into metadata DB
