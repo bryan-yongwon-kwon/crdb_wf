@@ -27,6 +27,8 @@ class Ec2Instance:
                 cluster_name + "_" + os.getenv('DEPLOYMENT_ENV'),
             ]
         }]
+        logger.info("filters: {}".format(filters))
+        logger.info("Describe Ec2instances: {}".format(Ec2Gateway.describe_ec2_instances(filters)))
         return list(map(lambda response: Ec2Instance(response), Ec2Gateway.describe_ec2_instances(filters)))
 
     def __init__(self, api_response):
