@@ -61,12 +61,4 @@ def send_slack_notification(deployment_env):
     webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
     notification = SlackNotification(webhook_url)
     notification.send_notification(ContentTemplate.get_health_check_template(results))
-
-@app.command()
-def test_get_instance_ids(deployment_env, region, cluster_name):
-    setup_env(deployment_env, region, cluster_name)
-    crdb_workflows = CrdbWorkflows()
-    ids = crdb_workflows.get_cluster_instance_ids(cluster_name, deployment_env)
-    logger.info("IDs: {}".format(ids))
-    new_list = ['i-0041fbf287b0978c1', 'i-03f21d75aacdc0332', 'i-05e229ae4fff466bc']
-    crdb_workflows.upsert_cluster_instance_ids('asdttt', 'staging', new_list)
+    
