@@ -20,7 +20,6 @@ class Ec2Gateway:
                                                          DryRun=False,
                                                          NextToken=next_token)
         instances = list(map(lambda reservation: reservation['Instances'][0], response['Reservations']))
-        logger.info("Describe instances response: {}".format(instances))
         if 'NextToken' in response:
             instances.extend(Ec2Gateway.describe_ec2_instances(filters, response['NextToken']))
         return instances

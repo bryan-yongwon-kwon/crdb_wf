@@ -56,10 +56,8 @@ def changefeed_health_check(deployment_env, region, cluster_name):
 def orphan_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     cluster = Cluster()
-
-    # Get the IP count of AWS instances
+    # Get the count of AWS instances
     instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
-    logger.info("EC2 Instances with tag:" .format(instances_with_cluster_tag))
     aws_cluster_instance_count = len(instances_with_cluster_tag)
     # Get the IP count of CRDB nodes
     crdb_node_ips = list(map(lambda node: node.ip_address, cluster.nodes))
@@ -71,6 +69,8 @@ def orphan_health_check(deployment_env, region, cluster_name):
         logger.warning("Orphan instances found.")
         logger.warning("AWS instance count is {} and CRDB instance count is {}.".format(aws_cluster_instance_count, crdb_cluster_instance_count))
         logger.warning("Orphan instances are:".format(orphan_instances))
+    else:
+        logger.info("No orphan instances found.")
     # TODO: Write result into metadata DB 
 
 
