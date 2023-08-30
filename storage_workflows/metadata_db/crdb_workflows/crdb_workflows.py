@@ -13,7 +13,7 @@ class CrdbWorkflows:
         Arguments:
             conn_string {String} -- CRDB connection string.
         """
-        self.engine = create_engine("postgresql+psycopg2://", 
+        self.engine = create_engine("cockroachdb://", 
                                     connect_args=MetadataDBConnection.get_connection_args("crdb_workflows", "storage_metadata_app_20230509"))
         self.max_records = max_records
         self.sessionfactory = sessionmaker(bind=self.engine)
