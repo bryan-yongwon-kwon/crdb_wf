@@ -68,7 +68,7 @@ def orphan_health_check(deployment_env, region, cluster_name):
                                     filter(lambda instance: instance.private_ip_address not in crdb_node_ips, instances_with_cluster_tag)))
         logger.warning("Orphan instances found.")
         logger.warning("AWS instance count is {} and CRDB instance count is {}.".format(aws_cluster_instance_count, crdb_cluster_instance_count))
-        logger.warning("Orphan instances are:".format(orphan_instances))
+        logger.warning("Orphan instances are: {}".format(orphan_instances))
     else:
         logger.info("No orphan instances found.")
     # TODO: Write result into metadata DB 
