@@ -1,6 +1,7 @@
 import json
 import os
 import typer
+import time
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
@@ -67,3 +68,6 @@ def test_get_instance_ids(deployment_env, region, cluster_name):
     crdb_workflows = CrdbWorkflows()
     ids = crdb_workflows.get_cluster_instance_ids(cluster_name, deployment_env)
     logger.info("IDs: {}".format(ids))
+    crdb_workflows.upsert_cluster_instance_ids('asdttt', 'staging', ids)
+    time.sleep(120)
+    crdb_workflows.upsert_cluster_instance_ids('asdttt', 'staging', ids[0, 2])

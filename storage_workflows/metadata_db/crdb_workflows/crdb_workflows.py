@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, select
 from sqlalchemy_cockroachdb import run_transaction
 from sqlalchemy.orm import sessionmaker
-from storage_workflows.metadata_db.crdb_workflows.transactions import get_instance_ids_txn
+from storage_workflows.metadata_db.crdb_workflows.transactions import get_instance_ids_txn, upsert_instancer_ids_txn
 from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
 
 class CrdbWorkflows:
@@ -21,3 +21,7 @@ class CrdbWorkflows:
         return run_transaction(
             self.sessionfactory,
             lambda session: get_instance_ids_txn(session, cluster_name, deployment_env))
+    
+    def upsert_cluster_instance_ids(self, cluster_name, deployment_env, instance_ids):
+        return run_transaction(self.sessionfactory,
+                               lambda session: upsert_instancer_ids_txn(session, cluster_name, deployment_env, instance_ids))
