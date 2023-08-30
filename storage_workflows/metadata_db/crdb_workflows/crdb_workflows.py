@@ -1,5 +1,4 @@
-import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy_cockroachdb import run_transaction
 from sqlalchemy.orm import sessionmaker
 from storage_workflows.metadata_db.crdb_workflows.transactions import get_instance_ids_txn
