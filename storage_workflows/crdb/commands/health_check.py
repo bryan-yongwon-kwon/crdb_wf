@@ -9,6 +9,7 @@ from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
 from storage_workflows.slack.slack_notification import SlackNotification
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
+from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.metadata_db.crdb_workflows.crdb_workflows import CrdbWorkflows
 
@@ -106,3 +107,30 @@ def send_slack_notification(deployment_env):
     notification = SlackNotification(webhook_url)
     notification.send_notification(ContentTemplate.get_health_check_template(results))
 
+
+@app.command()
+def etl_health_check(deployment_env, region, cluster_name):
+    if deployment_env == 'staging':
+        logger.info("Staging clusters doesn't have ETL load balancers.")
+        return
+    setup_env(deployment_env, region, cluster_name)
+    load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
+    old_lb_instances = load_balancer.instances
+    old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
+    logger.info("Old instances: {}".format(old_instance_id_set))
+    new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id},
+                             filter(lambda instance: instance.instance_id not in old_instance_id_set,
+                                    AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances)))
+    logger.info("New instances: {}".format(new_instances))
+    if not new_instances:
+        logger.warning("No new instances, no need to refresh. Step complete.")
+        return
+    load_balancer.register_instances(new_instances)
+    if old_lb_instances:
+        load_balancer.deregister_instances(old_lb_instances)
+    new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
+    lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
+    if set(new_instance_list) == set(lb_instance_list):
+        logger.info("ETL load balancer refresh completed!")
+    else:
+        raise Exception("Instances don't match. ETL load balancer refresh failed!")
