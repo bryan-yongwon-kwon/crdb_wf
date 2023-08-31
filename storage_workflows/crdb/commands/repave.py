@@ -21,7 +21,6 @@ from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.global_change_log.global_change_log_gateway import GlobalChangeLogGateway
 from storage_workflows.global_change_log.service_name import ServiceName
 from storage_workflows.logging.logger import Logger
-from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
 from storage_workflows.setup_env import setup_env
 from storage_workflows.slack.slack_notification import SlackNotification
 

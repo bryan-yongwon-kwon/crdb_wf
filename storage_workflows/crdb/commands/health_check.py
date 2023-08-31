@@ -1,6 +1,7 @@
 import json
 import os
 import typer
+import time
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
@@ -8,6 +9,8 @@ from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
 from storage_workflows.slack.slack_notification import SlackNotification
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
+from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
+from storage_workflows.metadata_db.crdb_workflows.crdb_workflows import CrdbWorkflows
 
 app = typer.Typer()
 logger = Logger()
@@ -50,6 +53,28 @@ def changefeed_health_check(deployment_env, region, cluster_name):
         logger.warning("Changefeeds Not Running:")
         for job in unhealthy_changefeed_jobs:
             logger.warning("Job id is {}. Status is {}.".format(job.id, job.status))
+    # TODO: Write result into metadata DB 
+
+@app.command()
+def orphan_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    cluster = Cluster()
+    # Get the count of AWS instances
+    instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
+    aws_cluster_instances = list(filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down", instances_with_cluster_tag))
+    aws_cluster_instance_count = len(aws_cluster_instances)
+    # Get the IP count of CRDB nodes
+    crdb_node_ips = list(map(lambda node: node.ip_address, cluster.nodes))
+    crdb_cluster_instance_count = len(crdb_node_ips)
+    # Compare the IP count of AWS instances and CRDB nodes
+    if aws_cluster_instance_count != crdb_cluster_instance_count:
+        orphan_instances = list(map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
+                                    filter(lambda instance: instance.private_ip_address not in crdb_node_ips, aws_cluster_instances)))
+        logger.warning("Orphan instances found.")
+        logger.warning("AWS instance count is {} and CRDB instance count is {}.".format(aws_cluster_instance_count, crdb_cluster_instance_count))
+        logger.warning("Orphan instances are: {}".format(orphan_instances))
+    else:
+        logger.info("No orphan instances found.")
     # TODO: Write result into metadata DB 
 
 

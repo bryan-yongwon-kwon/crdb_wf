@@ -1,4 +1,7 @@
 from storage_workflows.crdb.factory.aws_session_factory import AwsSessionFactory
+from storage_workflows.logging.logger import Logger
+
+logger = Logger()
 
 class Ec2Gateway:
 
@@ -16,7 +19,7 @@ class Ec2Gateway:
                                                          MaxResults=Ec2Gateway.PAGINATOR_MAX_RESULT_PER_PAGE, 
                                                          DryRun=False,
                                                          NextToken=next_token)
-        instances = response['Reservations'][0]['Instances']
+        instances = list(map(lambda reservation: reservation['Instances'][0], response['Reservations']))
         if 'NextToken' in response:
             instances.extend(Ec2Gateway.describe_ec2_instances(filters, response['NextToken']))
         return instances
