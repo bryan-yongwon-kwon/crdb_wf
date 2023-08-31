@@ -15,13 +15,12 @@ class CrdbWorkflows:
         self.engine = create_engine("cockroachdb://", 
                                     connect_args=MetadataDBConnection.get_connection_args("crdb_workflows", "storage_metadata_app_20230509"))
         self.max_records = max_records
-        self.sessionfactory = sessionmaker(bind=self.engine)
+        self.session_factory = sessionmaker(bind=self.engine)
 
     def get_cluster_instance_ids(self, cluster_name, deployment_env):
-        return run_transaction(
-            self.sessionfactory,
-            lambda session: get_instance_ids_txn(session, cluster_name, deployment_env))
+        return run_transaction(self.session_factory,
+                               lambda session: get_instance_ids_txn(session, cluster_name, deployment_env))
     
     def upsert_cluster_instance_ids(self, cluster_name, deployment_env, instance_ids):
-        return run_transaction(self.sessionfactory,
+        return run_transaction(self.session_factory,
                                lambda session: upsert_instancer_ids_txn(session, cluster_name, deployment_env, instance_ids))
