@@ -154,3 +154,5 @@ cython_debug/
 
 # from running locally
 kubeconfigs/
+
+.idea/

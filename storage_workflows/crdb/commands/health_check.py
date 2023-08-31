@@ -82,6 +82,7 @@ def orphan_health_check(deployment_env, region, cluster_name):
 @app.command()
 def ptr_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    logger.info("Running protected timestamp record check...")
     FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
                     "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '2d';")
@@ -92,6 +93,8 @@ def ptr_health_check(deployment_env, region, cluster_name):
     contains_ptr = any(response)
     if contains_ptr:
         logger.warning("Protected timestamp records found on {} cluster: " + response).format(cluster_name)
+    else:
+        logger.info("Protected timestamp record not found")
     # TODO: Write result into metadata DB
 
 
