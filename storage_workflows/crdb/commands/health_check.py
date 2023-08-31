@@ -8,6 +8,7 @@ from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
 from storage_workflows.slack.slack_notification import SlackNotification
+from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.metadata_db.crdb_workflows.crdb_workflows import CrdbWorkflows
@@ -78,6 +79,26 @@ def orphan_health_check(deployment_env, region, cluster_name):
     # TODO: Write result into metadata DB 
 
 
+
+@app.command()
+def ptr_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    logger.info("Running protected timestamp record check...")
+    FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
+                    "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
+                    "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '2d';")
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    response = connection.execute_sql(FIND_PTR_SQL)
+    connection.close()
+    contains_ptr = any(response)
+    if contains_ptr:
+        logger.warning("Protected timestamp records found on {} cluster: " + response).format(cluster_name)
+    else:
+        logger.info("Protected timestamp record not found")
+    # TODO: Write result into metadata DB
+
+
 @app.command()
 def send_slack_notification(deployment_env):
     #TODO: Read healthy check result from metadata DB
@@ -86,7 +107,7 @@ def send_slack_notification(deployment_env):
     notification = SlackNotification(webhook_url)
     notification.send_notification(ContentTemplate.get_health_check_template(results))
 
-    
+
 @app.command()
 def etl_health_check(deployment_env, region, cluster_name):
     if deployment_env == 'staging':
@@ -113,4 +134,3 @@ def etl_health_check(deployment_env, region, cluster_name):
         logger.info("ETL load balancer refresh completed!")
     else:
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
-
