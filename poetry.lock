@@ -1823,6 +1823,21 @@ pymysql = ["pymysql"]
 sqlcipher = ["sqlcipher3-binary"]
 
 [[package]]
+name = "sqlalchemy-cockroachdb"
+version = "2.0.1"
+description = "CockroachDB dialect for SQLAlchemy"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "sqlalchemy-cockroachdb-2.0.1.tar.gz", hash = "sha256:ddb46e2da53d812bf7b8ef21c3cafb918004747f815a283f374796bf57a9497a"},
+    {file = "sqlalchemy_cockroachdb-2.0.1-py3-none-any.whl", hash = "sha256:b7b9de727cb662d63c654be04202e3b55c4e4cf18a642d16a783dc151a7152f8"},
+]
+
+[package.dependencies]
+SQLAlchemy = "*"
+
+[[package]]
 name = "tabulate"
 version = "0.8.10"
 description = "Pretty-print tabular data"
@@ -2043,4 +2058,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "f6f26b512e96b9048c38a0159bf2cac0333c605574342e517dfeffa872fdff15"
+content-hash = "6e2435507a89d4dc52bdd9cf089fd2afa430381eb013efcce3b16e8f8a83b698"

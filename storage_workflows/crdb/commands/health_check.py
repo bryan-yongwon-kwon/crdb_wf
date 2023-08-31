@@ -1,6 +1,7 @@
 import json
 import os
 import typer
+import time
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
@@ -8,6 +9,7 @@ from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
 from storage_workflows.slack.slack_notification import SlackNotification
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
+from storage_workflows.metadata_db.crdb_workflows.crdb_workflows import CrdbWorkflows
 
 app = typer.Typer()
 logger = Logger()
@@ -82,3 +84,4 @@ def send_slack_notification(deployment_env):
     webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
     notification = SlackNotification(webhook_url)
     notification.send_notification(ContentTemplate.get_health_check_template(results))
+    
