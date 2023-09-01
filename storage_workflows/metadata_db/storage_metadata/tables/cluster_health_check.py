@@ -30,3 +30,4 @@ class ClusterHealthCheck(Base):
                 f"region='{self.region}', aws_account_name='{self.aws_account_name}', workf"
                 f"low_id='{self.workflow_id}', exec_time='{self.exec_time}', check_type='{self.check_type}', "
                 f"check_result='{self.check_result}', check_output='{self.check_output}')>")
+
