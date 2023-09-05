@@ -1,12 +1,10 @@
-from sqlalchemy.orm import Session
 from storage_workflows.metadata_db.storage_metadata.tables.cluster_health_check import ClusterHealthCheck
 from storage_workflows.logging.logger import Logger
 
 logger = Logger()
 
 
-def insert_health_check_txn(session: Session, cluster_name: str, deployment_env: str, region: str, aws_account_name: str,
-                            workflow_id: str, check_type: str, check_result: str, check_output: str):
+def add_cluster_health_check_txn(session, **kwargs):
     """
     Inserts a new row into the cluster_health_check table in the database.
 
@@ -23,26 +21,8 @@ def insert_health_check_txn(session: Session, cluster_name: str, deployment_env:
     Returns:
     True
     """
-
-    session = Session()
-    try:
-        new_entry = ClusterHealthCheck(
-            cluster_name=cluster_name,
-            deployment_env=deployment_env,
-            region=region,
-            aws_account_name=aws_account_name,
-            workflow_id=workflow_id,
-            check_type=check_type,
-            check_result=check_result,
-            check_output=check_output
-        )
-        session.add(new_entry)
-        session.commit()
-        print("Row inserted successfully!")
-    except Exception as e:
-        session.rollback()
-        print(f"Error inserting row: {e}")
-    finally:
-        session.close()
+    entry = ClusterHealthCheck(**kwargs)
+    session.add(entry)
+    session.commit()
 
     return True

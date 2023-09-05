@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, TIMESTAMP, PrimaryKeyConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
+from sqlalchemy.orm import mapped_column
 
 Base = declarative_base()
 
@@ -9,15 +10,15 @@ Base = declarative_base()
 class ClusterHealthCheck(Base):
     __tablename__ = 'cluster_health_check'
 
-    cluster_name = Column(String, nullable=False)
-    deployment_env = Column(String, nullable=False)
-    region = Column(String, nullable=False)
-    aws_account_name = Column(String, nullable=False)
-    workflow_id = Column(String, nullable=False)
-    exec_time = Column(TIMESTAMP, default=func.now())
-    check_type = Column(String)
-    check_result = Column(String)
-    check_output = Column(JSONB)
+    cluster_name = mapped_column(String, primary_key=True)
+    deployment_env = mapped_column(String, primary_key=True)
+    region = mapped_column(String, primary_key=True)
+    aws_account_name = mapped_column(String, primary_key=True)
+    check_type = mapped_column(String, primary_key=True)
+    workflow_id = mapped_column(String, primary_key=True)
+    exec_time = mapped_column(TIMESTAMP, default=func.now())
+    check_result = mapped_column(String)
+    check_output = mapped_column(JSONB)
 
     # Setting primary key constraint
     __table_args__ = (

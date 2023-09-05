@@ -1,8 +1,8 @@
-from sqlalchemy import create_engine, select
-from sqlalchemy_cockroachdb import run_transaction
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from storage_workflows.metadata_db.storage_metadata.hc_transactions import insert_health_check_txn
+from storage_workflows.metadata_db.storage_metadata.hc_transactions import add_cluster_health_check_txn
 from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
+from sqlalchemy_cockroachdb import run_transaction
 
 
 class StorageMetadata:
@@ -19,10 +19,8 @@ class StorageMetadata:
         self.max_records = max_records
         self.session_factory = sessionmaker(bind=self.engine)
 
-    def insert_health_check(self, cluster_name, deployment_env, region, aws_account_name,
-                            workflow_id, check_type, check_result, check_output):
-        return run_transaction(self.session_factory,
-                               lambda session: insert_health_check_txn(session, cluster_name, deployment_env, region,
-                                                                       aws_account_name,
-                                                                       workflow_id, check_type, check_result,
-                                                                       check_output))
+    def insert_health_check(self):
+        def callback(**kwargs):
+            add_cluster_health_check_txn(self.session_factory, **kwargs)
+
+        return run_transaction(self.session_factory, callback)
