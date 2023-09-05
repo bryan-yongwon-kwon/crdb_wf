@@ -1,10 +1,11 @@
 from storage_workflows.metadata_db.storage_metadata.tables.cluster_health_check import ClusterHealthCheck
 from storage_workflows.logging.logger import Logger
+from sqlalchemy.orm import Session
 
 logger = Logger()
 
 
-def add_cluster_health_check_txn(session, **kwargs):
+def add_cluster_health_check_txn(session: Session, **kwargs):
     """
     Inserts a new row into the cluster_health_check table in the database.
 
@@ -23,6 +24,5 @@ def add_cluster_health_check_txn(session, **kwargs):
     """
     entry = ClusterHealthCheck(**kwargs)
     session.add(entry)
-    session.commit()
 
     return True
