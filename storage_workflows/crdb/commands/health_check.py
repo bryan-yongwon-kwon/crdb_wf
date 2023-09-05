@@ -121,6 +121,7 @@ def etl_health_check(deployment_env, region, cluster_name):
     aws_client = AwsSessionFactory.sts()
     identity = aws_client.get_caller_identity()
     aws_account_id = identity['Account']
+    save_hc_result = StorageMetadata
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
@@ -138,6 +139,11 @@ def etl_health_check(deployment_env, region, cluster_name):
     logger.info("New instances: {}".format(new_instances))
     if not new_instances:
         logger.warning("No new instances, no need to refresh. Step complete.")
+        check_result = "no_action"
+        logger.info("writing to db...")
+        save_hc_result.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                           aws_account_name=aws_account_id, workflow_id=workflow_id,
+                                           check_type=check_type, check_result=check_result, check_output=check_output)
         return
     load_balancer.register_instances(new_instances)
     if old_lb_instances:
@@ -150,8 +156,6 @@ def etl_health_check(deployment_env, region, cluster_name):
     else:
         check_result = "failed"
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
-
-    save_hc_result = StorageMetadata
 
     save_hc_result.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                        aws_account_name=aws_account_id, workflow_id=workflow_id,
