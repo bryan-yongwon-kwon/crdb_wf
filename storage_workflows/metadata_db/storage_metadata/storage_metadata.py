@@ -3,7 +3,9 @@ from sqlalchemy.orm import sessionmaker
 from storage_workflows.metadata_db.storage_metadata.hc_transactions import add_cluster_health_check_txn
 from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
 from sqlalchemy_cockroachdb import run_transaction
+from storage_workflows.logging.logger import Logger
 
+logger = Logger()
 
 class StorageMetadata:
 
@@ -20,5 +22,6 @@ class StorageMetadata:
         self.session_factory = sessionmaker(bind=self.engine)
 
     def insert_health_check(self, **kwargs):
+        logger.info(**kwargs)
         return run_transaction(self.session_factory,
                                lambda session: add_cluster_health_check_txn(session, **kwargs))

@@ -10,12 +10,12 @@ Base = declarative_base()
 class ClusterHealthCheck(Base):
     __tablename__ = 'cluster_health_check'
 
-    cluster_name = mapped_column(String, primary_key=True)
-    deployment_env = mapped_column(String, primary_key=True)
-    region = mapped_column(String, primary_key=True)
-    aws_account_name = mapped_column(String, primary_key=True)
-    check_type = mapped_column(String, primary_key=True)
-    workflow_id = mapped_column(String, primary_key=True)
+    cluster_name = mapped_column(String, primary_key=True, autoincrement=False)
+    deployment_env = mapped_column(String, primary_key=True, autoincrement=False)
+    region = mapped_column(String, primary_key=True, autoincrement=False)
+    aws_account_name = mapped_column(String, primary_key=True, autoincrement=False)
+    check_type = mapped_column(String, primary_key=True, autoincrement=False)
+    workflow_id = mapped_column(String, primary_key=True, autoincrement=False)
     exec_time = mapped_column(TIMESTAMP, default=func.now())
     check_result = mapped_column(String)
     check_output = mapped_column(JSONB)
