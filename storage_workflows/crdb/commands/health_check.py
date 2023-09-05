@@ -11,8 +11,7 @@ from storage_workflows.slack.slack_notification import SlackNotification
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
-from storage_workflows.metadata_db.storage_metadata.tables.cluster_health_check import ClusterHealthCheck
-from storage_workflows.crdb.api_gateway.sts_gateway import StsGateway
+from storage_workflows.crdb.factory.aws_session_factory import AwsSessionFactory
 from storage_workflows.metadata_db.storage_metadata.storage_metadata import StorageMetadata
 
 app = typer.Typer()
@@ -119,8 +118,8 @@ def send_slack_notification(deployment_env):
 
 @app.command()
 def etl_health_check(deployment_env, region, cluster_name):
-    aws_account = StsGateway
-    aws_account_id = aws_account.get_aws_account_id()
+    aws_client = AwsSessionFactory.sts()
+    aws_account_id = aws_client['Account']
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
@@ -155,4 +154,4 @@ def etl_health_check(deployment_env, region, cluster_name):
 
     save_hc_result.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                        aws_account_name=aws_account_id, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result)
+                                       check_type=check_type, check_result=check_result, check_output=check_output)

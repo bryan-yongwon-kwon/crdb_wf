@@ -10,8 +10,3 @@ class StsGateway:
         role_arn = os.getenv('PROD_IAM_ROLE') if deployment_env == "prod" else os.getenv('STAGING_IAM_ROLE')
         sts_aws_client = AwsSessionFactory.sts()
         return sts_aws_client.assume_role(RoleArn=role_arn, RoleSessionName=deployment_env)
-
-    @staticmethod
-    def get_aws_account_id():
-        sts_aws_client = AwsSessionFactory.sts()
-        return sts_aws_client.get_caller_identity()["Account"]
