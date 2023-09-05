@@ -11,7 +11,7 @@ from storage_workflows.slack.slack_notification import SlackNotification
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
-from storage_workflows.metadata_db.storage_metadata.storage_metadata import StorageMetadata
+from storage_workflows.metadata_db.storage_metadata.storage_metadata import insert_health_check
 from storage_workflows.crdb.api_gateway.sts_gateway import StsGateway
 
 app = typer.Typer()
@@ -119,7 +119,6 @@ def send_slack_notification(deployment_env):
 @app.command()
 def etl_health_check(deployment_env, region, cluster_name):
     aws_account_id = StsGateway.get_account_id()
-    save_hc_result = StorageMetadata
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
@@ -139,7 +138,7 @@ def etl_health_check(deployment_env, region, cluster_name):
         logger.warning("No new instances, no need to refresh. Step complete.")
         check_result = "no_action"
         logger.info("writing to db...")
-        save_hc_result.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+        insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                            aws_account_name=aws_account_id, workflow_id=workflow_id,
                                            check_type=check_type, check_result=check_result, check_output=check_output)
         return
@@ -155,6 +154,6 @@ def etl_health_check(deployment_env, region, cluster_name):
         check_result = "failed"
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
 
-    save_hc_result.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+    insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                        aws_account_name=aws_account_id, workflow_id=workflow_id,
                                        check_type=check_type, check_result=check_result, check_output=check_output)
