@@ -119,7 +119,8 @@ def send_slack_notification(deployment_env):
 @app.command()
 def etl_health_check(deployment_env, region, cluster_name):
     aws_client = AwsSessionFactory.sts()
-    aws_account_id = aws_client['Account']
+    identity = aws_client.get_caller_identity()
+    aws_account_id = identity['Account']
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
