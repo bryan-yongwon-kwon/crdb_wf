@@ -117,7 +117,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
         check_output = "{}"
         check_result = "ptr_health_check_passed"
 
-    # TODO: Write result into metadata DB
+    # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                        aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                        check_type=check_type, check_result=check_result, check_output=check_output)
@@ -156,7 +156,7 @@ def etl_health_check(deployment_env, region, cluster_name):
     if not new_instances:
         logger.warning("No new instances, no need to refresh. Step complete.")
         check_result = "etl_health_check_no_action_needed"
-        logger.info("writing to db...")
+        # write results to storage_metadata
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                            aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                            check_type=check_type, check_result=check_result, check_output=check_output)
@@ -173,6 +173,7 @@ def etl_health_check(deployment_env, region, cluster_name):
         check_result = "etl_health_check_failed"
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
 
+    # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_id, workflow_id=workflow_id,
+                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                        check_type=check_type, check_result=check_result, check_output=check_output)

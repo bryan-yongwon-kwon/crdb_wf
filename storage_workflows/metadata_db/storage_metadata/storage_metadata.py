@@ -22,6 +22,5 @@ class StorageMetadata:
         self.session_factory = sessionmaker(bind=self.engine)
 
     def insert_health_check(self, **kwargs):
-        logger.info(**kwargs)
         return run_transaction(self.session_factory,
                                lambda session: add_cluster_health_check_txn(session, **kwargs))
