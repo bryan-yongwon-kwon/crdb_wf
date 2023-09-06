@@ -88,6 +88,7 @@ def orphan_health_check(deployment_env, region, cluster_name):
 
 @app.command()
 def ptr_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
     storage_metadata = StorageMetadata()
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
@@ -97,7 +98,6 @@ def ptr_health_check(deployment_env, region, cluster_name):
     if deployment_env == 'staging':
         logger.info("Staging clusters doesn't have ETL load balancers.")
         return
-    setup_env(deployment_env, region, cluster_name)
     logger.info("Running protected timestamp record check...")
     FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
@@ -133,6 +133,7 @@ def send_slack_notification(deployment_env):
 
 @app.command()
 def etl_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
     storage_metadata = StorageMetadata()
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
@@ -143,7 +144,6 @@ def etl_health_check(deployment_env, region, cluster_name):
     if deployment_env == 'staging':
         logger.info("Staging clusters doesn't have ETL load balancers.")
         return
-    setup_env(deployment_env, region, cluster_name)
     load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
     old_lb_instances = load_balancer.instances
     old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
