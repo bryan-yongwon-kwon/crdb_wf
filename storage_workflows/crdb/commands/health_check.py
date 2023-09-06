@@ -119,7 +119,9 @@ def send_slack_notification(deployment_env):
 @app.command()
 def etl_health_check(deployment_env, region, cluster_name):
     storage_metadata = StorageMetadata()
-    aws_account_id = StsGateway.get_account_id()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = StsGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
@@ -140,7 +142,7 @@ def etl_health_check(deployment_env, region, cluster_name):
         check_result = "no_action"
         logger.info("writing to db...")
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                           aws_account_name=aws_account_id, workflow_id=workflow_id,
+                                           aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                            check_type=check_type, check_result=check_result, check_output=check_output)
         return
     load_balancer.register_instances(new_instances)
