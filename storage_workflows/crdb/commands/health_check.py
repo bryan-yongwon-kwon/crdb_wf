@@ -11,7 +11,8 @@ from storage_workflows.slack.slack_notification import SlackNotification
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
-from storage_workflows.metadata_db.crdb_workflows.crdb_workflows import CrdbWorkflows
+from storage_workflows.metadata_db.storage_metadata.storage_metadata import StorageMetadata
+from storage_workflows.crdb.api_gateway.sts_gateway import StsGateway
 
 app = typer.Typer()
 logger = Logger()
@@ -28,6 +29,7 @@ def get_cluster_names(deployment_env, region):
     output_file = open("/tmp/cluster_names.json", "w")
     output_file.write(json.dumps(names))
     output_file.close()
+
 
 # the deployment_env is either staging or prod
 # the region is us-west-2 in most cases
@@ -49,12 +51,14 @@ def asg_health_check(deployment_env, region, cluster_name):
 def changefeed_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     cluster = Cluster()
-    unhealthy_changefeed_jobs = list(filter(lambda job: job.status != "running" and job.status != "canceled", cluster.changefeed_jobs))
+    unhealthy_changefeed_jobs = list(
+        filter(lambda job: job.status != "running" and job.status != "canceled", cluster.changefeed_jobs))
     if unhealthy_changefeed_jobs:
         logger.warning("Changefeeds Not Running:")
         for job in unhealthy_changefeed_jobs:
             logger.warning("Job id is {}. Status is {}.".format(job.id, job.status))
     # TODO: Write result into metadata DB 
+
 
 @app.command()
 def orphan_health_check(deployment_env, region, cluster_name):
@@ -62,22 +66,25 @@ def orphan_health_check(deployment_env, region, cluster_name):
     cluster = Cluster()
     # Get the count of AWS instances
     instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
-    aws_cluster_instances = list(filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down", instances_with_cluster_tag))
+    aws_cluster_instances = list(
+        filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down",
+               instances_with_cluster_tag))
     aws_cluster_instance_count = len(aws_cluster_instances)
     # Get the IP count of CRDB nodes
     crdb_node_ips = list(map(lambda node: node.ip_address, cluster.nodes))
     crdb_cluster_instance_count = len(crdb_node_ips)
     # Compare the IP count of AWS instances and CRDB nodes
     if aws_cluster_instance_count != crdb_cluster_instance_count:
-        orphan_instances = list(map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
-                                    filter(lambda instance: instance.private_ip_address not in crdb_node_ips, aws_cluster_instances)))
+        orphan_instances = list(
+            map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
+                filter(lambda instance: instance.private_ip_address not in crdb_node_ips, aws_cluster_instances)))
         logger.warning("Orphan instances found.")
-        logger.warning("AWS instance count is {} and CRDB instance count is {}.".format(aws_cluster_instance_count, crdb_cluster_instance_count))
+        logger.warning("AWS instance count is {} and CRDB instance count is {}.".format(aws_cluster_instance_count,
+                                                                                        crdb_cluster_instance_count))
         logger.warning("Orphan instances are: {}".format(orphan_instances))
     else:
         logger.info("No orphan instances found.")
     # TODO: Write result into metadata DB 
-
 
 
 @app.command()
@@ -101,15 +108,21 @@ def ptr_health_check(deployment_env, region, cluster_name):
 
 @app.command()
 def send_slack_notification(deployment_env):
-    #TODO: Read healthy check result from metadata DB
-    results = ["text1", "text2"] # this is a place holder
-    webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
+    # TODO: Read healthy check result from metadata DB
+    results = ["text1", "text2"]  # this is a place holder
+    webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv(
+        'SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
     notification = SlackNotification(webhook_url)
     notification.send_notification(ContentTemplate.get_health_check_template(results))
 
 
 @app.command()
 def etl_health_check(deployment_env, region, cluster_name):
+    storage_metadata = StorageMetadata()
+    aws_account_id = StsGateway.get_account_id()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "etl_health_check"
+    check_output = "{}"
     if deployment_env == 'staging':
         logger.info("Staging clusters doesn't have ETL load balancers.")
         return
@@ -124,6 +137,11 @@ def etl_health_check(deployment_env, region, cluster_name):
     logger.info("New instances: {}".format(new_instances))
     if not new_instances:
         logger.warning("No new instances, no need to refresh. Step complete.")
+        check_result = "no_action"
+        logger.info("writing to db...")
+        storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                           aws_account_name=aws_account_id, workflow_id=workflow_id,
+                                           check_type=check_type, check_result=check_result, check_output=check_output)
         return
     load_balancer.register_instances(new_instances)
     if old_lb_instances:
@@ -132,5 +150,11 @@ def etl_health_check(deployment_env, region, cluster_name):
     lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
     if set(new_instance_list) == set(lb_instance_list):
         logger.info("ETL load balancer refresh completed!")
+        check_result = "success"
     else:
+        check_result = "failed"
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
+
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                       aws_account_name=aws_account_id, workflow_id=workflow_id,
+                                       check_type=check_type, check_result=check_result, check_output=check_output)
