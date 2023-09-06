@@ -1,7 +1,6 @@
 import json
 import os
 import typer
-import time
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
@@ -12,7 +11,7 @@ from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.metadata_db.storage_metadata.storage_metadata import StorageMetadata
-from storage_workflows.crdb.api_gateway.sts_gateway import StsGateway
+from storage_workflows.crdb.api_gateway.iam_gateway import IamGateway
 
 app = typer.Typer()
 logger = Logger()
@@ -92,7 +91,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
     storage_metadata = StorageMetadata()
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
-    aws_account_alias = StsGateway.get_account_alias()
+    aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "ptr_health_check"
     if deployment_env == 'staging':
@@ -137,7 +136,7 @@ def etl_health_check(deployment_env, region, cluster_name):
     storage_metadata = StorageMetadata()
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
-    aws_account_alias = StsGateway.get_account_alias()
+    aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
