@@ -1,9 +1,9 @@
 import json
 import os
 import typer
-import time
+import logging
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
-from storage_workflows.logging.logger import Logger
+#from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
@@ -12,10 +12,10 @@ from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.metadata_db.storage_metadata.storage_metadata import StorageMetadata
-from storage_workflows.crdb.api_gateway.sts_gateway import StsGateway
+from storage_workflows.crdb.api_gateway.iam_gateway import IamGateway
 
 app = typer.Typer()
-logger = Logger()
+logger = logging.getLogger(__name__)
 
 
 @app.command()
@@ -90,6 +90,15 @@ def orphan_health_check(deployment_env, region, cluster_name):
 @app.command()
 def ptr_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "ptr_health_check"
+    if deployment_env == 'staging':
+        logger.info("Staging clusters doesn't have ETL load balancers.")
+        return
     logger.info("Running protected timestamp record check...")
     FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
@@ -101,10 +110,19 @@ def ptr_health_check(deployment_env, region, cluster_name):
     contains_ptr = any(response)
     if contains_ptr:
         logger.warning("Protected timestamp records found on {} cluster: " + response).format(cluster_name)
+        check_output = response
+        check_result = "ptr_health_check_failed"
     else:
         logger.info("Protected timestamp record not found")
-    # TODO: Write result into metadata DB
+        check_output = "{}"
+        check_result = "ptr_health_check_passed"
 
+    # write results to storage_metadata
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                       check_type=check_type, check_result=check_result, check_output=check_output)
+
+    logger.info("PTR Health Check Complete")
 
 @app.command()
 def send_slack_notification(deployment_env):
@@ -118,15 +136,18 @@ def send_slack_notification(deployment_env):
 
 @app.command()
 def etl_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
     storage_metadata = StorageMetadata()
-    aws_account_id = StsGateway.get_account_id()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    logger.info("account_alias: %s", aws_account_alias)
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
     if deployment_env == 'staging':
         logger.info("Staging clusters doesn't have ETL load balancers.")
         return
-    setup_env(deployment_env, region, cluster_name)
     load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
     old_lb_instances = load_balancer.instances
     old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
@@ -137,10 +158,10 @@ def etl_health_check(deployment_env, region, cluster_name):
     logger.info("New instances: {}".format(new_instances))
     if not new_instances:
         logger.warning("No new instances, no need to refresh. Step complete.")
-        check_result = "no_action"
-        logger.info("writing to db...")
+        check_result = "etl_health_check_no_action_needed"
+        # write results to storage_metadata
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                           aws_account_name=aws_account_id, workflow_id=workflow_id,
+                                           aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                            check_type=check_type, check_result=check_result, check_output=check_output)
         return
     load_balancer.register_instances(new_instances)
@@ -150,11 +171,19 @@ def etl_health_check(deployment_env, region, cluster_name):
     lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
     if set(new_instance_list) == set(lb_instance_list):
         logger.info("ETL load balancer refresh completed!")
-        check_result = "success"
+        check_result = "etl_health_check_passed"
     else:
-        check_result = "failed"
+        check_result = "etl_health_check_failed"
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
 
+    # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_id, workflow_id=workflow_id,
+                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                        check_type=check_type, check_result=check_result, check_output=check_output)
+
+    logger.info("ETL Health Check Complete")
+
+@app.command()
+def run_all_health_checks(deployment_env, region, cluster_name):
+    etl_health_check(deployment_env, region, cluster_name)
+    ptr_health_check(deployment_env, region, cluster_name)
