@@ -1,8 +1,9 @@
 import json
 import os
 import typer
+import logging
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
-from storage_workflows.logging.logger import Logger
+#from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
@@ -14,7 +15,7 @@ from storage_workflows.metadata_db.storage_metadata.storage_metadata import Stor
 from storage_workflows.crdb.api_gateway.iam_gateway import IamGateway
 
 app = typer.Typer()
-logger = Logger()
+logger = logging.getLogger(__name__)
 
 
 @app.command()
@@ -139,7 +140,7 @@ def etl_health_check(deployment_env, region, cluster_name):
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
     aws_account_alias = IamGateway.get_account_alias()
-    logger.info("account_alias: " + aws_account_alias)
+    logger.info("account_alias: %s", aws_account_alias)
     #aws_account_alias = "dummy_alias"
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
