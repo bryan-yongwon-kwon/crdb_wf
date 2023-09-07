@@ -1,6 +1,7 @@
 from storage_workflows.crdb.factory.aws_session_factory import AwsSessionFactory
 import logging
 import boto3
+import os
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
@@ -10,22 +11,26 @@ class IamGateway:
 
     @staticmethod
     def get_account_alias():
+        """
+        Get AWS account alias
+
+        """
         sts_aws_client = AwsSessionFactory.iam()
         aws_account_alias = sts_aws_client.list_account_aliases()
         return aws_account_alias['AccountAliases'][0] if aws_account_alias['AccountAliases'] else None
 
     @staticmethod
-    def list_policies(role_name):
+    def list_policies(deployment_env):
         """
         Lists inline policies for a role.
 
-        :param role_name: The name of the role to query.
+        :param deployment_env: name of env
         """
-        sts_aws_client = AwsSessionFactory.iam()
+        role_arn = os.getenv('PROD_IAM_ROLE') if deployment_env == "prod" else os.getenv('STAGING_IAM_ROLE')
         try:
-            role = iam.Role(role_name)
+            role = iam.Role(role_arn)
             for policy in role.policies.all():
                 logger.info("Got inline policy %s.", policy.name)
         except ClientError:
-            logger.exception("Couldn't list inline policies for %s.", role_name)
+            logger.exception("Couldn't list inline policies for %s.", role_arn)
             raise
