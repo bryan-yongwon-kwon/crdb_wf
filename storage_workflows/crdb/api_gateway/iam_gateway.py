@@ -26,11 +26,12 @@ class IamGateway:
 
         :param deployment_env: name of env
         """
-        role_arn = os.getenv('PROD_IAM_ROLE') if deployment_env == "prod" else os.getenv('STAGING_IAM_ROLE')
+        #role_arn = os.getenv('PROD_IAM_ROLE') if deployment_env == "prod" else os.getenv('STAGING_IAM_ROLE')
+        role_name = "storage-workflows"
         try:
-            role = iam.Role(role_arn)
+            role = iam.Role(role_name)
             for policy in role.policies.all():
                 logger.info("Got inline policy %s.", policy.name)
         except ClientError:
-            logger.exception("Couldn't list inline policies for %s.", role_arn)
+            logger.exception("Couldn't list inline policies for %s.", role_name)
             raise
