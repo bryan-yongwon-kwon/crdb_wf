@@ -145,10 +145,8 @@ def etl_health_check(deployment_env, region, cluster_name):
     print_commit_id()
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
-    #aws_account_alias = IamGateway.get_account_alias()
-    aws_account_policies = IamGateway.list_policies(deployment_env)
-    #logger.info("account_alias: %s", aws_account_alias)
-    logger.info("account_policies: %s", aws_account_policies)
+    aws_account_alias = IamGateway.get_account_alias()
+    logger.info("account_alias: %s", aws_account_alias)
     aws_account_alias = "dummy_alias"
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
