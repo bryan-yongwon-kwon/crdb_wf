@@ -9,6 +9,6 @@ class IamGateway:
         Get AWS account alias
 
         """
-        sts_aws_client = AwsSessionFactory.iam()
-        aws_account_alias = sts_aws_client.list_account_aliases()
+        iam_aws_client = AwsSessionFactory.iam()
+        aws_account_alias = iam_aws_client.list_account_aliases()
         return aws_account_alias['AccountAliases'][0] if aws_account_alias['AccountAliases'] else None
