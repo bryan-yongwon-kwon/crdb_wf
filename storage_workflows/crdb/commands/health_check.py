@@ -16,7 +16,12 @@ from storage_workflows.crdb.api_gateway.iam_gateway import IamGateway
 
 app = typer.Typer()
 logger = logging.getLogger(__name__)
+commit_id = os.getenv('WORKFLOW-ID')
 
+
+# Need to figure out which commit
+def print_commit_id():
+    logger.info("commit id: %s", commit_id)
 
 @app.command()
 def get_cluster_names(deployment_env, region):
@@ -137,6 +142,7 @@ def send_slack_notification(deployment_env):
 def etl_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     storage_metadata = StorageMetadata()
+    print_commit_id()
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
     #aws_account_alias = IamGateway.get_account_alias()
