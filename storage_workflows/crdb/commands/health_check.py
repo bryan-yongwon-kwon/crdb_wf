@@ -92,7 +92,8 @@ def ptr_health_check(deployment_env, region, cluster_name):
     storage_metadata = StorageMetadata()
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
-    aws_account_alias = IamGateway.get_account_alias()
+    #aws_account_alias = IamGateway.get_account_alias()
+    aws_account_alias = "dummy_alias"
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "ptr_health_check"
     if deployment_env == 'staging':
@@ -137,7 +138,8 @@ def etl_health_check(deployment_env, region, cluster_name):
     storage_metadata = StorageMetadata()
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
-    aws_account_alias = IamGateway.get_account_alias()
+    #aws_account_alias = IamGateway.get_account_alias()
+    aws_account_alias = "dummy_alias"
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
