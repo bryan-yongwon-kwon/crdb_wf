@@ -16,12 +16,7 @@ from storage_workflows.crdb.api_gateway.iam_gateway import IamGateway
 
 app = typer.Typer()
 logger = logging.getLogger(__name__)
-commit_id = os.getenv('WORKFLOW-ID')
 
-
-# Need to figure out which commit
-def print_commit_id():
-    logger.info("commit id: %s", commit_id)
 
 @app.command()
 def get_cluster_names(deployment_env, region):
@@ -98,8 +93,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
     storage_metadata = StorageMetadata()
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
-    #aws_account_alias = IamGateway.get_account_alias()
-    aws_account_alias = "dummy_alias"
+    aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "ptr_health_check"
     if deployment_env == 'staging':
@@ -128,6 +122,8 @@ def ptr_health_check(deployment_env, region, cluster_name):
                                        aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                        check_type=check_type, check_result=check_result, check_output=check_output)
 
+    logger.info("PTR Health Check Complete")
+
 @app.command()
 def send_slack_notification(deployment_env):
     # TODO: Read healthy check result from metadata DB
@@ -142,12 +138,10 @@ def send_slack_notification(deployment_env):
 def etl_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     storage_metadata = StorageMetadata()
-    print_commit_id()
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
     aws_account_alias = IamGateway.get_account_alias()
     logger.info("account_alias: %s", aws_account_alias)
-    aws_account_alias = "dummy_alias"
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
@@ -186,3 +180,10 @@ def etl_health_check(deployment_env, region, cluster_name):
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                        aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                        check_type=check_type, check_result=check_result, check_output=check_output)
+
+    logger.info("ETL Health Check Complete")
+
+@app.command()
+def run_all_health_checks(deployment_env, region, cluster_name):
+    etl_health_check(deployment_env, region, cluster_name)
+    ptr_health_check(deployment_env, region, cluster_name)
