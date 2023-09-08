@@ -96,9 +96,6 @@ def ptr_health_check(deployment_env, region, cluster_name):
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "ptr_health_check"
-    if deployment_env == 'staging':
-        logger.info("Staging clusters doesn't have ETL load balancers.")
-        return
     logger.info("Running protected timestamp record check...")
     FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
