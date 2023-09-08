@@ -204,7 +204,7 @@ def az_health_check(deployment_env, region, cluster_name):
         counts[az] = len(aws_cluster_instances)
     logger.info("Node counts in each availability zone:")
     for az, count in counts.items():
-        logger.info("{}: {} nodes").format(az, count)
+        logger.info("{}: {} nodes".format(az, count))
     unique_counts = set(counts.values())
     if len(unique_counts) == 1:
         logger.info("All availability zones have the same number of nodes!")
