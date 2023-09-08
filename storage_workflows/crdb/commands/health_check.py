@@ -168,9 +168,9 @@ def etl_health_check(deployment_env, region, cluster_name):
     lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
     if set(new_instance_list) == set(lb_instance_list):
         logger.info("ETL load balancer refresh completed!")
-        check_result = "etl_health_check_passed"
+        check_result = "pass"
     else:
-        check_result = "etl_health_check_failed"
+        check_result = "fail"
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
 
     # write results to storage_metadata
@@ -183,6 +183,13 @@ def etl_health_check(deployment_env, region, cluster_name):
 @app.command()
 def az_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    logger.info("account_alias: %s", aws_account_alias)
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "az_health_check"
     if region == 'us-west-2':
         availability_zones = ['us-west-2a', 'us-west-2b', 'us-west-2c']
     else:
@@ -195,15 +202,23 @@ def az_health_check(deployment_env, region, cluster_name):
             filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down",
                    instances_with_cluster_tag))
         counts[az] = len(aws_cluster_instances)
-    print("Node counts in each availability zone:")
+    logger.info("Node counts in each availability zone:")
     for az, count in counts.items():
-        print(f"{az}: {count} nodes")
+        logger.info("{}: {} nodes").format(az, count)
     unique_counts = set(counts.values())
     if len(unique_counts) == 1:
-        print("All availability zones have the same number of nodes!")
+        logger.info("All availability zones have the same number of nodes!")
+        check_result = "pass"
     else:
-        print("Mismatch in node counts across availability zones!")
+        logger.info("Mismatch in node counts across availability zones!")
+        check_result = "fail"
+    check_output = "{}"
+    # write results to storage_metadata
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                       check_type=check_type, check_result=check_result, check_output=check_output)
 
+    logger.info("AZ Health Check Complete")
 @app.command()
 def run_all_health_checks(deployment_env, region, cluster_name):
     az_health_check(deployment_env, region, cluster_name)
