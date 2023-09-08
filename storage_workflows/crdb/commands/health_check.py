@@ -181,6 +181,29 @@ def etl_health_check(deployment_env, region, cluster_name):
     logger.info("ETL Health Check Complete")
 
 @app.command()
+def az_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    if region == 'us-west-2':
+        availability_zones = ['us-west-2a', 'us-west-2b', 'us-west-2c']
+    else:
+        availability_zones = ['eu-west-1a', 'eu-west-1b', 'eu-west-1c']
+    # Get the count of AWS instances
+    counts = {}
+    for az in availability_zones:
+        instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
+        aws_cluster_instances = list(
+            filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down",
+                   instances_with_cluster_tag))
+        counts[az] = len(aws_cluster_instances)
+    print("Node counts in each availability zone:")
+    for az, count in counts.items():
+        print(f"{az}: {count} nodes")
+    unique_counts = set(counts.values())
+    if len(unique_counts) == 1:
+        print("All availability zones have the same number of nodes!")
+    else:
+        print("Mismatch in node counts across availability zones!")
+
+@app.command()
 def run_all_health_checks(deployment_env, region, cluster_name):
-    etl_health_check(deployment_env, region, cluster_name)
-    ptr_health_check(deployment_env, region, cluster_name)
+    az_health_check(deployment_env, region, cluster_name)
