@@ -221,4 +221,6 @@ def az_health_check(deployment_env, region, cluster_name):
     logger.info("AZ Health Check Complete")
 @app.command()
 def run_all_health_checks(deployment_env, region, cluster_name):
+    ptr_health_check(deployment_env, region, cluster_name)
+    etl_health_check(deployment_env, region, cluster_name)
     az_health_check(deployment_env, region, cluster_name)
