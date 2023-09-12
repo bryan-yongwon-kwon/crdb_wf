@@ -238,11 +238,11 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     connection.close()
 
     if 'num_replicas = 5' in response:
-        print("The default replication factor is correctly set to 5.")
+        logger.info("The default replication factor is correctly set to 5.")
         check_output = "{}"
         check_result = "zone_config_health_check_passed"
     else:
-        print(f"The default replication factor is not set to 5.")
+        logger.info("The default replication factor is not set to 5.")
         check_output = response
         check_result = "zone_config_health_check_failed"
 
