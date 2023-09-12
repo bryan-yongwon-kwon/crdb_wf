@@ -219,8 +219,44 @@ def az_health_check(deployment_env, region, cluster_name):
                                        check_type=check_type, check_result=check_result, check_output=check_output)
 
     logger.info("AZ Health Check Complete")
+
+@app.command()
+def zone_config_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "zone_config_health_check"
+    logger.info("Running replication factor check...")
+    # check that default replication factor is five
+    FIND_ZONE_CONFIG_SQL = "select raw_config_sql from [show zone configuration from range default]"
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    response = connection.execute_sql(FIND_ZONE_CONFIG_SQL)
+    connection.close()
+    logger.info(response)
+    statement = response[0][0]
+    if 'num_replicas = 5' in statement:
+        logger.info("The default replication factor is correctly set to 5.")
+        check_output = response
+        check_result = "zone_config_health_check_passed"
+    else:
+        logger.info("The default replication factor is not set to 5.")
+        check_output = response
+        check_result = "zone_config_health_check_failed"
+
+    # write results to storage_metadata
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                       check_type=check_type, check_result=check_result, check_output=check_output)
+
+    logger.info("Zone Config Health Check Complete")
+
 @app.command()
 def run_all_health_checks(deployment_env, region, cluster_name):
     ptr_health_check(deployment_env, region, cluster_name)
     etl_health_check(deployment_env, region, cluster_name)
     az_health_check(deployment_env, region, cluster_name)
+    zone_config_health_check(deployment_env, region, cluster_name)
