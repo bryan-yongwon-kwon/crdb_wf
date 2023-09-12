@@ -236,7 +236,7 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     connection.connect()
     response = connection.execute_sql(FIND_ZONE_CONFIG_SQL)
     connection.close()
-
+    logger.info(response)
     if 'num_replicas = 5' in response:
         logger.info("The default replication factor is correctly set to 5.")
         check_output = "{}"
