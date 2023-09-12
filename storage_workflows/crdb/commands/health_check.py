@@ -236,23 +236,13 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     connection.connect()
     response = connection.execute_sql(FIND_ZONE_CONFIG_SQL)
     connection.close()
-    config_sql = response.scalar() # get the first column of the first result row
-    if not config_sql:
-        print("Could not retrieve default zone configuration.")
-        return
 
-    # Extract the num_replicas value from the response
-    replication_factor = None
-    for line in config_sql.split(","):
-        if "num_replicas" in line:
-            replication_factor = int(line.split("=")[1].strip())
-
-    if replication_factor == 5:
+    if 'num_replicas = 5' in response:
         print("The default replication factor is correctly set to 5.")
         check_output = "{}"
         check_result = "zone_config_health_check_passed"
     else:
-        print(f"The default replication factor is set to {replication_factor}, not 5.")
+        print(f"The default replication factor is not set to 5.")
         check_output = response
         check_result = "zone_config_health_check_failed"
 
