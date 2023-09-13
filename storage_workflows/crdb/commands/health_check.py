@@ -255,8 +255,46 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     logger.info("Zone Config Health Check Complete")
 
 @app.command()
+def backup_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "backup_health_check"
+    logger.info("Running backup schedule check...")
+    # check that there are two backup schedules running
+    get_backup_schedule_count_sql = ("select count(*) from [show schedules] where label = 'backup_schedule' and  "
+                                     "schedule_status = 'ACTIVE'")
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    backup_count = connection.execute_sql(get_backup_schedule_count_sql)
+    connection.close()
+    count = backup_count[0][0]
+    if count is None:
+        logger.info("Failed to fetch the backup schedule count.")
+        check_output = count
+        check_result = "backup_health_check_failed"
+    elif count == 2:
+        logger.info("There are two backup jobs scheduled. All is good!")
+        check_output = count
+        check_result = "backup_health_check_passed"
+    else:
+        logger.info(f"Warning: Expected 2 backup jobs but found {count}.")
+        check_output = count
+        check_result = "backup_health_check_failed"
+    # write results to storage_metadata
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                       check_type=check_type, check_result=check_result, check_output=check_output)
+
+    logger.info("Backup Health Check Complete")
+
+@app.command()
 def run_all_health_checks(deployment_env, region, cluster_name):
     ptr_health_check(deployment_env, region, cluster_name)
     etl_health_check(deployment_env, region, cluster_name)
     az_health_check(deployment_env, region, cluster_name)
     zone_config_health_check(deployment_env, region, cluster_name)
+    backup_health_check(deployment_env, region, cluster_name)
