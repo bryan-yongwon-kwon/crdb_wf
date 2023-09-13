@@ -271,7 +271,7 @@ def backup_health_check(deployment_env, region, cluster_name):
     connection.connect()
     backup_count = connection.execute_sql(get_backup_schedule_count_sql)
     connection.close()
-    count = backup_count[0]
+    count = backup_count[0][0]
     if count is None:
         logger.info("Failed to fetch the backup schedule count.")
         check_output = count
@@ -289,7 +289,7 @@ def backup_health_check(deployment_env, region, cluster_name):
                                        aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                        check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info("Zone Config Health Check Complete")
+    logger.info("Backup Health Check Complete")
 
 @app.command()
 def run_all_health_checks(deployment_env, region, cluster_name):
