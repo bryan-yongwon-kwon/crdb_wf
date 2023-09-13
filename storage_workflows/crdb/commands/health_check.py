@@ -297,7 +297,7 @@ def run_all_health_checks(deployment_env, region):
     get_cluster_names(deployment_env, region)
 
     # Open and load the JSON file
-    with open('t/tmp/cluster_names.json', 'r') as file:
+    with open('/tmp/cluster_names.json', 'r') as file:
         items = json.load(file)
 
     # run healthcheck on each cluster
