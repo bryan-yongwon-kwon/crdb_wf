@@ -292,7 +292,7 @@ def backup_health_check(deployment_env, region, cluster_name):
     logger.info("Backup Health Check Complete")
 
 @app.command()
-def run_all_health_checks(deployment_env, region, cluster_name):
+def run_all_health_checks(deployment_env, region):
     # cluster names saved to /tmp/cluster_names.json
     get_cluster_names(deployment_env, region)
 
