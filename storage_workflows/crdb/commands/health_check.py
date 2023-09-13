@@ -295,8 +295,16 @@ def backup_health_check(deployment_env, region, cluster_name):
 def run_all_health_checks(deployment_env, region, cluster_name):
     # cluster names saved to /tmp/cluster_names.json
     get_cluster_names(deployment_env, region)
-    #ptr_health_check(deployment_env, region, cluster_name)
-    #etl_health_check(deployment_env, region, cluster_name)
-    #az_health_check(deployment_env, region, cluster_name)
-    #zone_config_health_check(deployment_env, region, cluster_name)
+
+    # Open and load the JSON file
+    with open('t/tmp/cluster_names.json', 'r') as file:
+        items = json.load(file)
+
+    # run healthcheck on each cluster
+    for cluster_name in items:
+        ptr_health_check(deployment_env, region, cluster_name)
+        etl_health_check(deployment_env, region, cluster_name)
+        az_health_check(deployment_env, region, cluster_name)
+        zone_config_health_check(deployment_env, region, cluster_name)
+        backup_health_check(deployment_env, region, cluster_name)
 
