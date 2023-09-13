@@ -256,7 +256,9 @@ def zone_config_health_check(deployment_env, region, cluster_name):
 
 @app.command()
 def run_all_health_checks(deployment_env, region, cluster_name):
-    ptr_health_check(deployment_env, region, cluster_name)
-    etl_health_check(deployment_env, region, cluster_name)
-    az_health_check(deployment_env, region, cluster_name)
-    zone_config_health_check(deployment_env, region, cluster_name)
+    # cluster names saved to /tmp/cluster_names.json
+    get_cluster_names(deployment_env, region)
+    #ptr_health_check(deployment_env, region, cluster_name)
+    #etl_health_check(deployment_env, region, cluster_name)
+    #az_health_check(deployment_env, region, cluster_name)
+    #zone_config_health_check(deployment_env, region, cluster_name)
