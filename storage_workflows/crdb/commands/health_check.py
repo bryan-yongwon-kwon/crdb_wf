@@ -302,9 +302,11 @@ def run_all_health_checks(deployment_env, region):
 
     # run healthcheck on each cluster
     for cluster_name in items:
+        logger.info(f"Running healthchecks on {cluster_name}")
         ptr_health_check(deployment_env, region, cluster_name)
         etl_health_check(deployment_env, region, cluster_name)
         az_health_check(deployment_env, region, cluster_name)
         zone_config_health_check(deployment_env, region, cluster_name)
         backup_health_check(deployment_env, region, cluster_name)
+        logger.info(f"Healthcheck complete for {cluster_name}")
 
