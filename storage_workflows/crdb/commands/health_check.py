@@ -316,7 +316,7 @@ def run_health_check_single(deployment_env, region, cluster_name, workflow_id=No
         workflow_id = os.getenv('WORKFLOW-ID')
         storage_metadata.initiate_hc_workflow(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                               aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                              check_type=hc_methods[0], status='InProgress', retry_count=0)
+                                              check_type=str(hc_methods[0]), status='InProgress', retry_count=0)
 
     logger.info(f"Running healthchecks on {cluster_name}")
     for idx, method in enumerate(hc_methods):
