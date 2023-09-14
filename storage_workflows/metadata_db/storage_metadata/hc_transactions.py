@@ -85,7 +85,7 @@ def update_workflow_state_with_retry_txn(session: Session, **kwargs):
     ClusterHealthCheckWorkflowState
     """
 
-    MAX_RETRIES = os.getenv('MAX-RETRIES')
+    MAX_RETRIES = int(os.getenv('MAX-RETRIES'))
 
     wf_state = ClusterHealthCheckWorkflowState(**kwargs)
 
