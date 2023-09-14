@@ -63,6 +63,14 @@ class Node:
     @property
     def major_version(self):
         return self.api_response['ServerVersion']['major']
+    
+    @property
+    def minor_version(self):
+        return self.api_response['ServerVersion']['major']['minor']
+    
+    @property
+    def full_version(self):
+        return self.api_response['ServerVersion']['major']['minor']['patch']
 
     @property
     def ip_address(self):

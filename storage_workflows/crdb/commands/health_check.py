@@ -184,6 +184,47 @@ def etl_health_check(deployment_env, region, cluster_name):
     logger.info("ETL Health Check Complete")
 
 @app.command()
+def version_mismatch_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    # storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    # aws_account_alias = IamGateway.get_account_alias()
+    # workflow_id = os.getenv('WORKFLOW-ID')
+    # check_type = "version_mismatch_check"
+    logger.info("Running version mismatch check...")
+    crdb_sql_version = ("show cluster setting version;")
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    response = connection.execute_sql(crdb_sql_version)
+    connection.close()
+    crdb_node_version_full = list(map(lambda node: node.full_version, cluster.nodes))
+    crdb_node_version_minor = list(map(lambda node: node.minor_version, cluster.nodes))
+    if all(version == crdb_node_version_full[0] for version in crdb_node_version_full):
+        logger.info("All nodes are running the same version on {} cluster" + response).format(cluster_name)
+        # check_output = response
+        # check_result = "version_mismatch_check_passed"
+        if crdb_sql_version == crdb_node_version_minor[0]:
+            logger.info("The SQL version matches the Node version on {} cluster" + response).format(cluster_name)
+            # check_output = response
+            # check_result = "version_mismatch_check_passed"
+        else:
+            logger.warning("The SQL version does not match the Node version on {} cluster" + response).format(cluster_name)
+            # check_output = response
+            # check_result = "version_mismatch_check_failed"
+    else:
+        logger.warning("Nodes are running different versions on {} cluster: " + response).format(cluster_name)
+        # check_output = response
+        # check_result = "version_mismatch_check_failed"
+
+    # write results to storage_metadata
+    # storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+    #                                    aws_account_name=aws_account_alias, workflow_id=workflow_id,
+    #                                    check_type=check_type, check_result=check_result, check_output=check_output)
+
+    logger.info("Version Mismatch Check Complete")
+
+@app.command()
 def run_all_health_checks(deployment_env, region, cluster_name):
     etl_health_check(deployment_env, region, cluster_name)
     ptr_health_check(deployment_env, region, cluster_name)
