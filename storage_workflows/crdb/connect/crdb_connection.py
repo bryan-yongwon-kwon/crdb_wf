@@ -6,6 +6,7 @@ from storage_workflows.crdb.aws.secret import Secret
 from storage_workflows.crdb.aws.secret_value import SecretValue
 from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
 from storage_workflows.logging.logger import Logger
+from psycopg2 import OperationalError, InterfaceError, ProgrammingError
 
 logger = Logger()
 class CrdbConnection:
@@ -75,9 +76,19 @@ class CrdbConnection:
                 sslcert=self._credential_dir_path + os.getenv('CRDB_PUBLIC_CERT_FILE_NAME'),
                 sslkey=self._credential_dir_path + os.getenv('CRDB_PRIVATE_KEY_FILE_NAME')
             )
-        except Exception as error:
-            logger.error(error)
-            raise
+#        except Exception as error:
+#            logger.error(error)
+#            raise
+
+        except OperationalError as oe:
+            logger.error(f"Operational error: {oe}")
+        except ProgrammingError as pe:
+            logger.error(f"Programming error (e.g., table not found, syntax error): {pe}")
+        except InterfaceError as ie:
+            logger.error(f"Interface error (e.g., bad connection string): {ie}")
+        finally:
+            if self._connection:
+                self._connection.close()
 
     def close(self):
         if self._connection:
