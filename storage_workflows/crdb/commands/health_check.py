@@ -96,9 +96,6 @@ def ptr_health_check(deployment_env, region, cluster_name):
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "ptr_health_check"
-    if deployment_env == 'staging':
-        logger.info("Staging clusters doesn't have ETL load balancers.")
-        return
     logger.info("Running protected timestamp record check...")
     FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
@@ -171,9 +168,9 @@ def etl_health_check(deployment_env, region, cluster_name):
     lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
     if set(new_instance_list) == set(lb_instance_list):
         logger.info("ETL load balancer refresh completed!")
-        check_result = "etl_health_check_passed"
+        check_result = "pass"
     else:
-        check_result = "etl_health_check_failed"
+        check_result = "fail"
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
 
     # write results to storage_metadata
@@ -223,8 +220,120 @@ def version_mismatch_check(deployment_env, region, cluster_name):
     #                                    check_type=check_type, check_result=check_result, check_output=check_output)
 
     logger.info("Version Mismatch Check Complete")
+def az_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    logger.info("account_alias: %s", aws_account_alias)
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "az_health_check"
+    if region == 'us-west-2':
+        availability_zones = ['us-west-2a', 'us-west-2b', 'us-west-2c']
+    else:
+        availability_zones = ['eu-west-1a', 'eu-west-1b', 'eu-west-1c']
+    # Get the count of AWS instances
+    counts = {}
+    for az in availability_zones:
+        instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
+        aws_cluster_instances = list(
+            filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down",
+                   instances_with_cluster_tag))
+        counts[az] = len(aws_cluster_instances)
+    logger.info("Node counts in each availability zone:")
+    for az, count in counts.items():
+        logger.info("{}: {} nodes".format(az, count))
+    unique_counts = set(counts.values())
+    if len(unique_counts) == 1:
+        logger.info("All availability zones have the same number of nodes!")
+        check_result = "pass"
+    else:
+        logger.info("Mismatch in node counts across availability zones!")
+        check_result = "fail"
+    check_output = "{}"
+    # write results to storage_metadata
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                       check_type=check_type, check_result=check_result, check_output=check_output)
+
+    logger.info("AZ Health Check Complete")
+
+@app.command()
+def zone_config_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "zone_config_health_check"
+    logger.info("Running replication factor check...")
+    # check that default replication factor is five
+    FIND_ZONE_CONFIG_SQL = "select raw_config_sql from [show zone configuration from range default]"
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    response = connection.execute_sql(FIND_ZONE_CONFIG_SQL)
+    connection.close()
+    logger.info(response)
+    statement = response[0][0]
+    if 'num_replicas = 5' in statement:
+        logger.info("The default replication factor is correctly set to 5.")
+        check_output = response
+        check_result = "zone_config_health_check_passed"
+    else:
+        logger.info("The default replication factor is not set to 5.")
+        check_output = response
+        check_result = "zone_config_health_check_failed"
+
+    # write results to storage_metadata
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                       check_type=check_type, check_result=check_result, check_output=check_output)
+
+    logger.info("Zone Config Health Check Complete")
+
+@app.command()
+def backup_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "backup_health_check"
+    logger.info("Running backup schedule check...")
+    # check that there are two backup schedules running
+    get_backup_schedule_count_sql = ("select count(*) from [show schedules] where label = 'backup_schedule' and  "
+                                     "schedule_status = 'ACTIVE'")
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    backup_count = connection.execute_sql(get_backup_schedule_count_sql)
+    connection.close()
+    count = backup_count[0][0]
+    if count is None:
+        logger.info("Failed to fetch the backup schedule count.")
+        check_output = count
+        check_result = "backup_health_check_failed"
+    elif count == 2:
+        logger.info("There are two backup jobs scheduled. All is good!")
+        check_output = count
+        check_result = "backup_health_check_passed"
+    else:
+        logger.info(f"Warning: Expected 2 backup jobs but found {count}.")
+        check_output = count
+        check_result = "backup_health_check_failed"
+    # write results to storage_metadata
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                       check_type=check_type, check_result=check_result, check_output=check_output)
+
+    logger.info("Backup Health Check Complete")
 
 @app.command()
 def run_all_health_checks(deployment_env, region, cluster_name):
-    etl_health_check(deployment_env, region, cluster_name)
     ptr_health_check(deployment_env, region, cluster_name)
+    etl_health_check(deployment_env, region, cluster_name)
+    az_health_check(deployment_env, region, cluster_name)
+    zone_config_health_check(deployment_env, region, cluster_name)
+    backup_health_check(deployment_env, region, cluster_name)

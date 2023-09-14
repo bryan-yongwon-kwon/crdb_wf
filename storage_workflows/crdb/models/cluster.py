@@ -101,9 +101,9 @@ class Cluster:
                                                                                                                               formatted_cluster_name)
             logger.info("Decommissioning nodes with major version {}...".format(major_version))
             result = subprocess.run(node_decommission_command, capture_output=True, shell=True)
-            logger.error(result.stderr)
+            logger.error(result.stderr.decode('ascii'))
             result.check_returncode()
-            logger.info(result.stdout)
+            logger.info(result.stdout.decode('ascii'))
             logger.info("Completed decommissioning nodes with major version {}.".format(major_version))
 
     @staticmethod
@@ -161,7 +161,10 @@ class Cluster:
             if nodes_not_drained:
                 ids = list(map(lambda node: node.id, nodes_not_drained))
                 logger.info("Waiting for connections on following nodes to drain: {}".format(ids))
+                for node in nodes_not_drained:
+                    logger.info("Node {} still has {} active SQL connections.".format(node.id, node.sql_conns))
                 logger.info("Sleep for 1 mins...")
+                logger.info("{} mins left till timeout.".format(timeout_mins-count))
                 time.sleep(60)
             else:
                 logger.info("All the connections on old nodes are disconnected.")
