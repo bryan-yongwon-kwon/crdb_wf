@@ -3,7 +3,7 @@ import os
 import typer
 import logging
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
-#from storage_workflows.logging.logger import Logger
+# from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
@@ -116,10 +116,11 @@ def ptr_health_check(deployment_env, region, cluster_name):
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result, check_output=check_output)
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
 
     logger.info("PTR Health Check Complete")
+
 
 @app.command()
 def send_slack_notification(deployment_env):
@@ -158,8 +159,9 @@ def etl_health_check(deployment_env, region, cluster_name):
         check_result = "etl_health_check_no_action_needed"
         # write results to storage_metadata
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                           aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                           check_type=check_type, check_result=check_result, check_output=check_output)
+                                             aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                             check_type=check_type, check_result=check_result,
+                                             check_output=check_output)
         return
     load_balancer.register_instances(new_instances)
     if old_lb_instances:
@@ -175,10 +177,11 @@ def etl_health_check(deployment_env, region, cluster_name):
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result, check_output=check_output)
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
 
     logger.info("ETL Health Check Complete")
+
 
 @app.command()
 def az_health_check(deployment_env, region, cluster_name):
@@ -215,10 +218,11 @@ def az_health_check(deployment_env, region, cluster_name):
     check_output = "{}"
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result, check_output=check_output)
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
 
     logger.info("AZ Health Check Complete")
+
 
 @app.command()
 def zone_config_health_check(deployment_env, region, cluster_name):
@@ -249,10 +253,11 @@ def zone_config_health_check(deployment_env, region, cluster_name):
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result, check_output=check_output)
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
 
     logger.info("Zone Config Health Check Complete")
+
 
 @app.command()
 def backup_health_check(deployment_env, region, cluster_name):
@@ -286,13 +291,60 @@ def backup_health_check(deployment_env, region, cluster_name):
         check_result = "backup_health_check_failed"
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result, check_output=check_output)
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
 
     logger.info("Backup Health Check Complete")
 
+
 @app.command()
-def run_all_health_checks(deployment_env, region):
+def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
+    # List of methods in healthcheck workflow
+    hc_methods = [ptr_health_check, etl_health_check, az_health_check, zone_config_health_check, backup_health_check]
+
+    storage_metadata = StorageMetadata()
+    aws_account_alias = IamGateway.get_account_alias()
+
+    if workflow_id:
+        # If given a workflow_id, get the state from DB
+        state = storage_metadata.get_hc_workflow_id_state(workflow_id)
+        last_successful_step = hc_methods.index(state.check_type) if state.status == 'Success' else hc_methods.index(
+            state.check_type) - 1
+    else:
+        last_successful_step = -1
+        # set workflow_id if not provided
+        workflow_id = os.getenv('WORKFLOW-ID')
+        storage_metadata.initiate_hc_workflow(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                              aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                              check_type=hc_methods[0], status='InProgress', retry_count=0)
+
+    logger.info(f"Running healthchecks on {cluster_name}")
+    for idx, method in enumerate(hc_methods):
+        if idx > last_successful_step:
+            try:
+                method(deployment_env, region, cluster_name)
+                storage_metadata.update_workflow_state_with_retry(cluster_name=cluster_name,
+                                                                  deployment_env=deployment_env, region=region,
+                                                                  aws_account_name=aws_account_alias,
+                                                                  workflow_id=workflow_id,
+                                                                  check_type=method.__name__, status='Success',
+                                                                  retry_count=0)
+            except Exception as e:
+                storage_metadata.update_workflow_state_with_retry(cluster_name=cluster_name,
+                                                                  deployment_env=deployment_env, region=region,
+                                                                  aws_account_name=aws_account_alias,
+                                                                  workflow_id=workflow_id,
+                                                                  check_type=method.__name__, status='Failure')
+
+                # If failed and retry count exceeds max retries, break out of loop
+                state = storage_metadata.get_hc_workflow_id_state(workflow_id)
+                if state.status == 'Failed':
+                    break
+
+    logger.info(f"Healthcheck complete for {cluster_name}")
+
+@app.command()
+def run_health_check_all(deployment_env, region):
     # cluster names saved to /tmp/cluster_names.json
     get_cluster_names(deployment_env, region)
 
@@ -300,13 +352,8 @@ def run_all_health_checks(deployment_env, region):
     with open('/tmp/cluster_names.json', 'r') as file:
         items = json.load(file)
 
+    logger.info("Healthcheck for all all CRDB clusters started...")
     # run healthcheck on each cluster
     for cluster_name in items:
-        logger.info(f"Running healthchecks on {cluster_name}")
-        ptr_health_check(deployment_env, region, cluster_name)
-        etl_health_check(deployment_env, region, cluster_name)
-        az_health_check(deployment_env, region, cluster_name)
-        zone_config_health_check(deployment_env, region, cluster_name)
-        backup_health_check(deployment_env, region, cluster_name)
-        logger.info(f"Healthcheck complete for {cluster_name}")
-
+        run_health_check_single(deployment_env, region, cluster_name)
+    logger.info("Healthcheck for all all CRDB clusters complete...")
