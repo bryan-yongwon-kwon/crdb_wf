@@ -1,8 +1,9 @@
-from sqlalchemy import Column, String, TIMESTAMP, PrimaryKeyConstraint, Integer
+from sqlalchemy import Column, String, TIMESTAMP, PrimaryKeyConstraint, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import mapped_column
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -45,7 +46,7 @@ class ClusterHealthCheckWorkflowState(Base):
     aws_account_name = mapped_column(String, primary_key=True, autoincrement=False)
     check_type = mapped_column(String, primary_key=True, autoincrement=False)
     workflow_id = mapped_column(String, primary_key=True, autoincrement=False)
-    exec_time = mapped_column(TIMESTAMP, default=func.now())
+    exec_time = mapped_column(DateTime, default=datetime.now)
     status = Column(String, nullable=False)  # 'Success', 'Failure', 'Failed', 'InProgress'
     retry_count = Column(Integer, default=0)  # Count of retry attempts for the current step
 

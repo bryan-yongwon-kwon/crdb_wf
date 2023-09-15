@@ -85,7 +85,7 @@ class CrdbConnection:
                 sslrootcert=self._credential_dir_path + os.getenv('CRDB_CA_CERT_FILE_NAME'),
                 sslcert=self._credential_dir_path + os.getenv('CRDB_PUBLIC_CERT_FILE_NAME'),
                 sslkey=self._credential_dir_path + os.getenv('CRDB_PRIVATE_KEY_FILE_NAME'),
-                connect_timeout=15  # Set the connection timeout to 15 seconds
+                connect_timeout=2  # Set the connection timeout to 2 seconds
             )
             # check for connection error
             if self._connection is None:
