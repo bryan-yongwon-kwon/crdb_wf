@@ -108,7 +108,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
         contains_ptr = any(response)
         if contains_ptr:
             logger.warning(f"{cluster_name}: Protected timestamp records found")
-            check_output = response
+            check_output = str(response)
             check_result = "ptr_health_check_failed"
         else:
             logger.info(f"{cluster_name}: Protected timestamp record not found")
