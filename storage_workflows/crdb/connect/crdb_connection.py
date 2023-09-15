@@ -90,14 +90,6 @@ class CrdbConnection:
             if self._connection is None:
                 raise ValueError("Connection is not established.")
 
-        except OperationalError as oe:
-            logger.error(f"Operational error: {oe}")
-        except ProgrammingError as pe:
-            logger.error(f"Programming error (e.g., table not found, syntax error): {pe}")
-        except InterfaceError as ie:
-            logger.error(f"Interface error (e.g., bad connection string): {ie}")
-        except (psycopg2.DatabaseError, ValueError) as error:
-            logger.error(f"Error: {error}")
 
     def close(self):
         if self._connection:
@@ -119,10 +111,17 @@ class CrdbConnection:
             if need_fetchall:
                 result = cursor.fetchall()
                 return result
-        except psycopg2.ProgrammingError:
-            logger.info("No result returned for this SQL command.")
+        except OperationalError as oe:
+            logger.error(f"Operational error: {oe}")
+        except ProgrammingError as pe:
+            logger.error(f"Programming error (e.g., table not found, syntax error): {pe}")
+        except InterfaceError as ie:
+            logger.error(f"Interface error (e.g., bad connection string): {ie}")
+        except (psycopg2.DatabaseError, ValueError) as error:
+            logger.error(f"Error: {error}")
         finally:
-            cursor.close()
+            if self._connection:
+                self._connection.close()
 
 
 def transform_filters(filters):
