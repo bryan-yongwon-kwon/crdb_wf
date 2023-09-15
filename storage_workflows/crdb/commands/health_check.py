@@ -101,25 +101,23 @@ def ptr_health_check(deployment_env, region, cluster_name):
     FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
                     "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '2d';")
-    connection = CrdbConnection.get_crdb_connection(cluster_name)
     try:
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
         response = connection.execute_sql(FIND_PTR_SQL)
+        contains_ptr = any(response)
+        if contains_ptr:
+            logger.warning(f"{cluster_name}: Protected timestamp records found")
+            check_output = response
+            check_result = "ptr_health_check_failed"
+        else:
+            logger.info(f"{cluster_name}: Protected timestamp record not found")
+            check_output = "{}"
+            check_result = "ptr_health_check_passed"
+        connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
-        response = "error"
-    contains_ptr = any(response)
-    if contains_ptr == "error":
-        logger.warning(f"{cluster_name}: Error connecting to database")
         check_output = "error"
         check_result = "ptr_health_check_failed"
-    elif contains_ptr:
-        logger.warning(f"{cluster_name}: Protected timestamp records found")
-        check_output = response
-        check_result = "ptr_health_check_failed"
-    else:
-        logger.info(f"{cluster_name}: Protected timestamp record not found")
-        check_output = "{}"
-        check_result = "ptr_health_check_passed"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -243,20 +241,23 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name}: Running replication factor check...")
     # check that default replication factor is five
     FIND_ZONE_CONFIG_SQL = "select raw_config_sql from [show zone configuration from range default]"
-    connection = CrdbConnection.get_crdb_connection(cluster_name)
-    connection.connect()
-    response = connection.execute_sql(FIND_ZONE_CONFIG_SQL)
-    connection.close()
-    logger.info(response)
-    statement = response[0][0]
-    if 'num_replicas = 5' in statement:
-        logger.info(f"{cluster_name}: The default replication factor is correctly set to 5.")
-        check_output = response
-        check_result = "zone_config_health_check_passed"
-    else:
-        logger.info(f"{cluster_name}: The default replication factor is not set to 5.")
-        check_output = response
-        check_result = "zone_config_health_check_failed"
+    try:
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        response = connection.execute_sql(FIND_ZONE_CONFIG_SQL)
+        statement = response[0][0]
+        if 'num_replicas = 5' in statement:
+            logger.info(f"{cluster_name}: The default replication factor is correctly set to 5.")
+            check_output = response
+            check_result = "zone_config_health_check_passed"
+        else:
+            logger.info(f"{cluster_name}: The default replication factor is not set to 5.")
+            check_output = response
+            check_result = "zone_config_health_check_failed"
+        connection.close()
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "error"
+        check_result = "zone_config_check_failed"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -279,23 +280,27 @@ def backup_health_check(deployment_env, region, cluster_name):
     # check that there are two backup schedules running
     get_backup_schedule_count_sql = ("select count(*) from [show schedules] where label = 'backup_schedule' and  "
                                      "schedule_status = 'ACTIVE'")
-    connection = CrdbConnection.get_crdb_connection(cluster_name)
-    connection.connect()
-    backup_count = connection.execute_sql(get_backup_schedule_count_sql)
-    connection.close()
-    count = backup_count[0][0]
-    if count is None:
-        logger.info(f"{cluster_name}: Failed to fetch the backup schedule count.")
-        check_output = count
-        check_result = "backup_health_check_failed"
-    elif count == 2:
-        logger.info(f"{cluster_name}: There are two backup jobs scheduled. All is good!")
-        check_output = count
-        check_result = "backup_health_check_passed"
-    else:
-        logger.info(f"{cluster_name}: Warning: Expected 2 backup jobs but found {count}.")
-        check_output = count
-        check_result = "backup_health_check_failed"
+    try:
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        backup_count = connection.execute_sql(get_backup_schedule_count_sql)
+        count = backup_count[0][0]
+        if count is None:
+            logger.info(f"{cluster_name}: Failed to fetch the backup schedule count.")
+            check_output = count
+            check_result = "backup_health_check_failed"
+        elif count == 2:
+            logger.info(f"{cluster_name}: There are two backup jobs scheduled. All is good!")
+            check_output = count
+            check_result = "backup_health_check_passed"
+        else:
+            logger.info(f"{cluster_name}: Warning: Expected 2 backup jobs but found {count}.")
+            check_output = count
+            check_result = "backup_health_check_failed"
+        connection.close()
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "error"
+        check_result = "zone_config_check_failed"
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
