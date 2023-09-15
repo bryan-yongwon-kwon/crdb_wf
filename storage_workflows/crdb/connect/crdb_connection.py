@@ -87,9 +87,9 @@ class CrdbConnection:
             logger.error(f"Programming error (e.g., table not found, syntax error): {pe}")
         except InterfaceError as ie:
             logger.error(f"Interface error (e.g., bad connection string): {ie}")
-        finally:
-            if self._connection:
-                self._connection.close()
+#        finally:
+#            if self._connection:
+#                self._connection.close()
 
     def close(self):
         if self._connection:
