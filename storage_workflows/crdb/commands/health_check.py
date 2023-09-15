@@ -2,6 +2,7 @@ import json
 import os
 import typer
 import logging
+import psycopg2
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 # from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
@@ -101,12 +102,18 @@ def ptr_health_check(deployment_env, region, cluster_name):
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
                     "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '2d';")
     connection = CrdbConnection.get_crdb_connection(cluster_name)
-    connection.connect()
-    response = connection.execute_sql(FIND_PTR_SQL)
-    connection.close()
+    try:
+        response = connection.execute_sql(FIND_PTR_SQL)
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        response = "error"
     contains_ptr = any(response)
-    if contains_ptr:
-        logger.warning("Protected timestamp records found on {} cluster: " + response).format(cluster_name)
+    if contains_ptr == "error":
+        logger.warning(f"{cluster_name}: Error connecting to database")
+        check_output = "error"
+        check_result = "ptr_health_check_failed"
+    elif contains_ptr:
+        logger.warning(f"{cluster_name}: Protected timestamp records found")
         check_output = response
         check_result = "ptr_health_check_failed"
     else:
