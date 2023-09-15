@@ -2,7 +2,7 @@ from __future__ import annotations
 from functools import cached_property
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 from storage_workflows.logging.logger import Logger
-import botocore.exceptions
+from botocore.exceptions import ClientError
 
 logger = Logger()
 
@@ -22,7 +22,7 @@ class ElasticLoadBalancer:
             if not load_balancers:
                 logger.error("Mode not enabled. ETL load balancer doesn't exist.")
                 raise Exception('No ETL load balancer found!')
-        except botocore.exceptions.ClientError as e:
+        except ClientError as e:
             if e.response['Error']['Code'] == 'LoadBalancerNotFound':
                 return None
             else:
@@ -45,8 +45,18 @@ class ElasticLoadBalancer:
                                         ElasticLoadBalancerGateway.describe_load_balancers([self.load_balancer_name])))[0]
         
     def register_instances(self, instances:list):
-        ElasticLoadBalancerGateway.register_instances_with_load_balancer(self.load_balancer_name, instances)
-        self.reload()
+        try:
+            ElasticLoadBalancerGateway.register_instances_with_load_balancer(self.load_balancer_name, instances)
+            self.reload()
+            return True
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'InvalidInstanceID.NotFound':
+                logger.error("Instance does not exist or is not in a valid state.")
+                return False
+            else:
+                # Handle other possible exceptions or re-raise
+                logger.error("Unhandled client exception occurred.")
+                return False
 
     def deregister_instances(self, instances:list):
         ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(self.load_balancer_name, instances)

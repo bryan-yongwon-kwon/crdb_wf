@@ -145,7 +145,6 @@ def etl_health_check(deployment_env, region, cluster_name):
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
     aws_account_alias = IamGateway.get_account_alias()
-    #logger.info("account_alias: %s", aws_account_alias)
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
@@ -170,17 +169,21 @@ def etl_health_check(deployment_env, region, cluster_name):
                                                  check_type=check_type, check_result=check_result,
                                                  check_output=check_output)
             return
-        load_balancer.register_instances(new_instances)
-        if old_lb_instances:
-            load_balancer.deregister_instances(old_lb_instances)
-        new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
-        lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
-        if set(new_instance_list) == set(lb_instance_list):
-            logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
-            check_result = "pass"
+        if load_balancer.register_instances(new_instances):
+            if old_lb_instances:
+                load_balancer.deregister_instances(old_lb_instances)
+            new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
+            lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
+            if set(new_instance_list) == set(lb_instance_list):
+                logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
+                check_result = "pass"
+            else:
+                check_result = "fail"
+                raise Exception(f"{cluster_name}: Instances don't match. ETL load balancer refresh failed!")
         else:
-            check_result = "fail"
-            raise Exception(f"{cluster_name}: Instances don't match. ETL load balancer refresh failed!")
+            logger.info(f"{cluster_name}: Invalid instance found while registering instances on etl loadbalancer. Skipping...")
+            check_result = "skipped"
+            check_output = "etl_loadbalancer_registration_failed"
     else:
         logger.info(f"{cluster_name}: ETL load balancer not found. Skipping...")
         check_result = "skipped"
