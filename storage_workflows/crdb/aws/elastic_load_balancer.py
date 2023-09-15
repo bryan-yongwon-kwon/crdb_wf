@@ -2,8 +2,10 @@ from __future__ import annotations
 from functools import cached_property
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 from storage_workflows.logging.logger import Logger
+import botocore.exceptions
 
 logger = Logger()
+
 
 class ElasticLoadBalancer:
 
@@ -13,12 +15,18 @@ class ElasticLoadBalancer:
                         ElasticLoadBalancerGateway.describe_load_balancers(names)))
     
     @staticmethod
-    def find_elastic_load_balancer_by_cluster_name(cluster_name:str) -> ElasticLoadBalancer:
-        etl_load_balancer_name = (cluster_name.replace("_", "-") + "-crdb-etl")[:32]
-        load_balancers = ElasticLoadBalancer.find_elastic_load_balancers([etl_load_balancer_name])
-        if not load_balancers:
-            logger.error("Mode not enabled. ETL load balancer doesn't exist.")
-            raise Exception('No ETL load balancer found!')
+    def find_elastic_load_balancer_by_cluster_name(cluster_name:str) -> ElasticLoadBalancer | None:
+        try:
+            etl_load_balancer_name = (cluster_name.replace("_", "-") + "-crdb-etl")[:32]
+            load_balancers = ElasticLoadBalancer.find_elastic_load_balancers([etl_load_balancer_name])
+            if not load_balancers:
+                logger.error("Mode not enabled. ETL load balancer doesn't exist.")
+                raise Exception('No ETL load balancer found!')
+        except botocore.exceptions.ClientError as e:
+            if e.response['Error']['Code'] == 'LoadBalancerNotFound':
+                return None
+            else:
+                raise e
         return load_balancers[0]
     
     def __init__(self, api_response):

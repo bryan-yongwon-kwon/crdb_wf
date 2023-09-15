@@ -153,33 +153,38 @@ def etl_health_check(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name}: Staging clusters doesn't have ETL load balancers.")
         return
     load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
-    old_lb_instances = load_balancer.instances
-    old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
-    logger.info(f"{cluster_name}: Old instances: {old_instance_id_set}")
-    new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id},
-                             filter(lambda instance: instance.instance_id not in old_instance_id_set,
-                                    AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances)))
-    logger.info(f"{cluster_name}: New instances: {new_instances}")
-    if not new_instances:
-        logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
-        check_result = "etl_health_check_no_action_needed"
-        # write results to storage_metadata
-        storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                             aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                             check_type=check_type, check_result=check_result,
-                                             check_output=check_output)
-        return
-    load_balancer.register_instances(new_instances)
-    if old_lb_instances:
-        load_balancer.deregister_instances(old_lb_instances)
-    new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
-    lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
-    if set(new_instance_list) == set(lb_instance_list):
-        logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
-        check_result = "pass"
+    if load_balancer is not None:
+        old_lb_instances = load_balancer.instances
+        old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
+        logger.info(f"{cluster_name}: Old instances: {old_instance_id_set}")
+        new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id},
+                                 filter(lambda instance: instance.instance_id not in old_instance_id_set,
+                                        AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances)))
+        logger.info(f"{cluster_name}: New instances: {new_instances}")
+        if not new_instances:
+            logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
+            check_result = "etl_health_check_no_action_needed"
+            # write results to storage_metadata
+            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                                 check_type=check_type, check_result=check_result,
+                                                 check_output=check_output)
+            return
+        load_balancer.register_instances(new_instances)
+        if old_lb_instances:
+            load_balancer.deregister_instances(old_lb_instances)
+        new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
+        lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
+        if set(new_instance_list) == set(lb_instance_list):
+            logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
+            check_result = "pass"
+        else:
+            check_result = "fail"
+            raise Exception(f"{cluster_name}: Instances don't match. ETL load balancer refresh failed!")
     else:
-        check_result = "fail"
-        raise Exception(f"{cluster_name}: Instances don't match. ETL load balancer refresh failed!")
+        logger.info(f"{cluster_name}: ETL load balancer not found. Skipping...")
+        check_result = "skipped"
+        check_output = "etl_loadbalancer_not_found"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
