@@ -90,6 +90,8 @@ class CrdbConnection:
             if self._connection is None:
                 raise ValueError("Connection is not established.")
 
+        except (psycopg2.DatabaseError, ValueError) as error:
+            logger.error(f"Error: {error}")
 
     def close(self):
         if self._connection:
@@ -117,8 +119,6 @@ class CrdbConnection:
             logger.error(f"Programming error (e.g., table not found, syntax error): {pe}")
         except InterfaceError as ie:
             logger.error(f"Interface error (e.g., bad connection string): {ie}")
-        except (psycopg2.DatabaseError, ValueError) as error:
-            logger.error(f"Error: {error}")
         finally:
             if self._connection:
                 self._connection.close()
