@@ -36,6 +36,7 @@ class CrdbConnection:
         return CrdbConnection(cluster_name, db_name)
 
     def __init__(self, cluster_name: str, db_name:str):
+        self._connection = None
         self._cluster_name = cluster_name
         self._credential_dir_path = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + cluster_name + "/"
         self._db_name = db_name

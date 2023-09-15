@@ -32,6 +32,8 @@ class ClusterHealthCheck(Base):
                 f"low_id='{self.workflow_id}', exec_time='{self.exec_time}', check_type='{self.check_type}', "
                 f"check_result='{self.check_result}', check_output='{self.check_output}')>")
 
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
 
 
 class ClusterHealthCheckWorkflowState(Base):
