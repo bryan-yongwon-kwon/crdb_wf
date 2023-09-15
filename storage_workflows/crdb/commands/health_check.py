@@ -103,6 +103,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
                     "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '2d';")
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
         response = connection.execute_sql(FIND_PTR_SQL)
         contains_ptr = any(response)
         if contains_ptr:
@@ -243,6 +244,7 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     FIND_ZONE_CONFIG_SQL = "select raw_config_sql from [show zone configuration from range default]"
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
         response = connection.execute_sql(FIND_ZONE_CONFIG_SQL)
         statement = response[0][0]
         if 'num_replicas = 5' in statement:
@@ -282,6 +284,7 @@ def backup_health_check(deployment_env, region, cluster_name):
                                      "schedule_status = 'ACTIVE'")
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
         backup_count = connection.execute_sql(get_backup_schedule_count_sql)
         count = backup_count[0][0]
         if count is None:
@@ -300,7 +303,7 @@ def backup_health_check(deployment_env, region, cluster_name):
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "error"
-        check_result = "zone_config_check_failed"
+        check_result = "backup_check_failed"
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
