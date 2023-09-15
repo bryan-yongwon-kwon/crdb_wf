@@ -177,9 +177,10 @@ def etl_health_check(deployment_env, region, cluster_name):
             if set(new_instance_list) == set(lb_instance_list):
                 logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
                 check_result = "pass"
+                check_output = "etl_loadbalancer_refreshed"
             else:
                 check_result = "fail"
-                raise Exception(f"{cluster_name}: Instances don't match. ETL load balancer refresh failed!")
+                check_output = "etl_loadbalancer_refresh_failed"
         else:
             logger.info(f"{cluster_name}: Invalid instance found while registering instances on etl loadbalancer. Skipping...")
             check_result = "skipped"

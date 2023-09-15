@@ -39,7 +39,7 @@ class ElasticLoadBalancerGateway:
                 return None
             else:
                 # Handle other possible exceptions or re-raise
-                logger.error("Unhandled client exception occurred.")
+                logger.error("Unhandled client exception occurred while registering new instance(s) with etl")
                 return None
 
     
