@@ -23,7 +23,7 @@ class StorageMetadata:
                                     connect_args=MetadataDBConnection.get_connection_args("storage_metadata",
                                                                                           "storage_metadata_app_20230509"))
         self.max_records = max_records
-        self.session_factory = sessionmaker(bind=self.engine)
+        self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False)
 
     def insert_health_check(self, **kwargs):
         return run_transaction(self.session_factory,

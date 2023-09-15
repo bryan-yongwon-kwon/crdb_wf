@@ -63,7 +63,9 @@ def get_hc_workflow_id_state_txn(session: Session, workflow_id):
     Returns:
     ClusterHealthCheckWorkflowState
     """
-    return session.query(ClusterHealthCheckWorkflowState).filter_by(workflow_id=workflow_id).first()
+    workflow_state = session.query(ClusterHealthCheckWorkflowState).filter_by(workflow_id=workflow_id).first()
+
+    return workflow_state
 
 
 def update_workflow_state_with_retry_txn(session: Session, **kwargs):
