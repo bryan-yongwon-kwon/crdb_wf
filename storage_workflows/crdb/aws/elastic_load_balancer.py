@@ -54,6 +54,7 @@ class ElasticLoadBalancer:
                 logger.error("Instance does not exist or is not in a valid state.")
                 return False
             else:
+                logger.error(f"e: {e}")
                 # Handle other possible exceptions or re-raise
                 logger.error("Unhandled client exception occurred while calling elb gateway.")
                 return False

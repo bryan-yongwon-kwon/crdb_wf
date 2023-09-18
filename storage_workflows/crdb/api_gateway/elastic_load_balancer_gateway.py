@@ -40,12 +40,13 @@ class ElasticLoadBalancerGateway:
                 print(f"Instance {invalid_id} does not exist. Removing from the list.")
                 # Remove the invalid instance from the list
                 new_instances = [instance for instance in instances if instance['InstanceId'] != invalid_id]
+                logger.error(f"new_instances: {new_instances}")
                 new_response = elastic_load_balancer_client.register_instances_with_load_balancer(
                     LoadBalancerName=load_balancer_name,
                     Instances=new_instances)
                 return new_response
             else:
-                logger.error(f"e.response: {e.response}")
+                logger.error(f"e: {e}")
                 # Handle other possible exceptions or re-raise
                 logger.error("Unhandled client exception occurred while registering new instance(s) with etl")
                 return None
