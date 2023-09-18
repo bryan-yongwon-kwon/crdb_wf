@@ -37,7 +37,8 @@ class ElasticLoadBalancerGateway:
         except ClientError as e:
             if e.response['Error']['Code'] == 'InvalidInstance':
                 # Use a regular expression to locate the instance ID
-                invalid_id = re.search(r'i-\w{17}', str(e.response))
+                match = re.search(r'i-\w{17}', str(e.response))
+                invalid_id = match.group(0)
                 print(f"Instance {invalid_id} does not exist. Removing from the list.")
                 # Remove the invalid instance from the list
                 new_instances = [instance for instance in instances if instance['InstanceId'] != invalid_id]
