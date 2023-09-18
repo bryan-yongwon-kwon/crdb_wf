@@ -45,7 +45,8 @@ class ElasticLoadBalancerGateway:
                     Instances=new_instances)
                 return new_response
             else:
-                logger.error(f"error: {e}")
+                logger.error(f"e.response: {e.response}")
+                logger.error(f"e: {e}")
                 # Handle other possible exceptions or re-raise
                 logger.error("Unhandled client exception occurred while registering new instance(s) with etl")
                 return None
