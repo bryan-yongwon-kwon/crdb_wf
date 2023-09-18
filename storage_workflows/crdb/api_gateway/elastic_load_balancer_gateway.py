@@ -38,6 +38,7 @@ class ElasticLoadBalancerGateway:
                 logger.error("Instance does not exist or is not in a valid state.")
                 return None
             else:
+                logger.error(f"error: {e}")
                 # Handle other possible exceptions or re-raise
                 logger.error("Unhandled client exception occurred while registering new instance(s) with etl")
                 return None
