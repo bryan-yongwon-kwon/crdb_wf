@@ -34,7 +34,7 @@ class ElasticLoadBalancerGateway:
                                                                                       Instances=instances)
             return response['Instances']
         except ClientError as e:
-            if e.response['Error']['Code'] == 'InvalidEndPointException':
+            if e.response['Error']['Code'] == 'InvalidInstance':
                 # Extract instance ID from the error message
                 invalid_id = str(instances).split("'")[1]
                 print(f"Instance {invalid_id} does not exist. Removing from the list.")
@@ -46,7 +46,6 @@ class ElasticLoadBalancerGateway:
                 return new_response
             else:
                 logger.error(f"e.response: {e.response}")
-                logger.error(f"e: {e}")
                 # Handle other possible exceptions or re-raise
                 logger.error("Unhandled client exception occurred while registering new instance(s) with etl")
                 return None
