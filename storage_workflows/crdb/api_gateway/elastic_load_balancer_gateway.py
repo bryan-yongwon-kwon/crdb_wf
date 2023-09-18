@@ -42,7 +42,7 @@ class ElasticLoadBalancerGateway:
                 new_instances = [instance for instance in instances if instance['InstanceId'] != invalid_id]
                 new_response = elastic_load_balancer_client.register_instances_with_load_balancer(
                     LoadBalancerName=load_balancer_name,
-                    Instances=instances)
+                    Instances=new_instances)
                 return new_response
             else:
                 logger.error(f"error: {e}")
