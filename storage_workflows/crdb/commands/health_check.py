@@ -196,13 +196,13 @@ def version_mismatch_check(deployment_env, region, cluster_name):
     connection.connect()
     response = connection.execute_sql(crdb_sql_version)
     connection.close()
-    crdb_node_version_full = list(map(lambda node: node.full_version, cluster.nodes))
+    crdb_node_version_major = list(map(lambda node: node.minor_version, cluster.nodes))
     crdb_node_version_minor = list(map(lambda node: node.minor_version, cluster.nodes))
-    if all(version == crdb_node_version_full[0] for version in crdb_node_version_full):
+    if all(version == crdb_node_version_major[0] for version in crdb_node_version_major):
         logger.info("All nodes are running the same version on {} cluster" + response).format(cluster_name)
         # check_output = response
         # check_result = "version_mismatch_check_passed"
-        if crdb_sql_version == crdb_node_version_minor[0]:
+        if crdb_sql_version == crdb_node_version_minor:
             logger.info("The SQL version matches the Node version on {} cluster" + response).format(cluster_name)
             # check_output = response
             # check_result = "version_mismatch_check_passed"
