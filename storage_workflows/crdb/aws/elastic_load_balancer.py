@@ -50,14 +50,10 @@ class ElasticLoadBalancer:
                 self.reload()
                 return True
         except ClientError as e:
-            if e.response['Error']['Code'] == 'InvalidInstanceID.NotFound':
-                logger.error("Instance does not exist or is not in a valid state.")
-                return False
-            else:
-                logger.error(f"e: {e}")
-                # Handle other possible exceptions or re-raise
-                logger.error("Unhandled client exception occurred while calling elb gateway.")
-                return False
+            logger.error(f"e: {e.response}")
+            # Handle other possible exceptions or re-raise
+            logger.error("Unhandled client exception occurred while calling elb gateway.")
+            return False
 
     def deregister_instances(self, instances:list):
         ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(self.load_balancer_name, instances)

@@ -39,10 +39,9 @@ class ElasticLoadBalancerGateway:
                 # Use a regular expression to locate the instance ID
                 match = re.search(r'i-\w{17}', str(e.response))
                 invalid_id = match.group(0)
-                print(f"Instance {invalid_id} does not exist. Removing from the list.")
+                logger.error(f"Instance {invalid_id} does not exist. Removing from the list.")
                 # Remove the invalid instance from the list
                 new_instances = [instance for instance in instances if instance['InstanceId'] != invalid_id]
-                logger.error(f"new_instances: {new_instances}")
                 new_response = elastic_load_balancer_client.register_instances_with_load_balancer(
                     LoadBalancerName=load_balancer_name,
                     Instances=new_instances)
