@@ -1,4 +1,9 @@
 from storage_workflows.crdb.factory.aws_session_factory import AwsSessionFactory
+from botocore.exceptions import ClientError
+from storage_workflows.logging.logger import Logger
+
+logger = Logger()
+
 
 class ElasticLoadBalancerGateway:
 
@@ -24,9 +29,19 @@ class ElasticLoadBalancerGateway:
     @staticmethod
     def register_instances_with_load_balancer(load_balancer_name, instances):
         elastic_load_balancer_client = AwsSessionFactory.elb()
-        response = elastic_load_balancer_client.register_instances_with_load_balancer(LoadBalancerName=load_balancer_name, 
+        try:
+            response = elastic_load_balancer_client.register_instances_with_load_balancer(LoadBalancerName=load_balancer_name,
                                                                                       Instances=instances)
-        return response['Instances']
+            return response['Instances']
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'InvalidInstanceID.NotFound':
+                logger.error("Instance does not exist or is not in a valid state.")
+                return None
+            else:
+                # Handle other possible exceptions or re-raise
+                logger.error("Unhandled client exception occurred while registering new instance(s) with etl")
+                return None
+
     
     @staticmethod
     def deregister_instances_from_load_balancer(load_balancer_name, instances):

@@ -2,8 +2,9 @@ import json
 import os
 import typer
 import logging
+import psycopg2
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
-#from storage_workflows.logging.logger import Logger
+# from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
@@ -96,30 +97,36 @@ def ptr_health_check(deployment_env, region, cluster_name):
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "ptr_health_check"
-    logger.info("Running protected timestamp record check...")
+    logger.info(f"{cluster_name}: Running protected timestamp record check...")
     FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
                     "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '2d';")
-    connection = CrdbConnection.get_crdb_connection(cluster_name)
-    connection.connect()
-    response = connection.execute_sql(FIND_PTR_SQL)
-    connection.close()
-    contains_ptr = any(response)
-    if contains_ptr:
-        logger.warning("Protected timestamp records found on {} cluster: " + response).format(cluster_name)
-        check_output = response
+    try:
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
+        response = connection.execute_sql(FIND_PTR_SQL)
+        contains_ptr = any(response)
+        if contains_ptr:
+            logger.warning(f"{cluster_name}: Protected timestamp records found")
+            check_output = str(response)
+            check_result = "ptr_health_check_failed"
+        else:
+            logger.info(f"{cluster_name}: Protected timestamp record not found")
+            check_output = "{}"
+            check_result = "ptr_health_check_passed"
+        connection.close()
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "error"
         check_result = "ptr_health_check_failed"
-    else:
-        logger.info("Protected timestamp record not found")
-        check_output = "{}"
-        check_result = "ptr_health_check_passed"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result, check_output=check_output)
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info("PTR Health Check Complete")
+    logger.info(f"{cluster_name}: PTR Health Check Complete")
+
 
 @app.command()
 def send_slack_notification(deployment_env):
@@ -138,47 +145,58 @@ def etl_health_check(deployment_env, region, cluster_name):
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
     aws_account_alias = IamGateway.get_account_alias()
-    logger.info("account_alias: %s", aws_account_alias)
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
     if deployment_env == 'staging':
-        logger.info("Staging clusters doesn't have ETL load balancers.")
+        logger.info(f"{cluster_name}: Staging clusters doesn't have ETL load balancers.")
         return
     load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
-    old_lb_instances = load_balancer.instances
-    old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
-    logger.info("Old instances: {}".format(old_instance_id_set))
-    new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id},
-                             filter(lambda instance: instance.instance_id not in old_instance_id_set,
-                                    AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances)))
-    logger.info("New instances: {}".format(new_instances))
-    if not new_instances:
-        logger.warning("No new instances, no need to refresh. Step complete.")
-        check_result = "etl_health_check_no_action_needed"
-        # write results to storage_metadata
-        storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                           aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                           check_type=check_type, check_result=check_result, check_output=check_output)
-        return
-    load_balancer.register_instances(new_instances)
-    if old_lb_instances:
-        load_balancer.deregister_instances(old_lb_instances)
-    new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
-    lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
-    if set(new_instance_list) == set(lb_instance_list):
-        logger.info("ETL load balancer refresh completed!")
-        check_result = "pass"
+    if load_balancer is not None:
+        old_lb_instances = load_balancer.instances
+        old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
+        logger.info(f"{cluster_name}: Old instances: {old_instance_id_set}")
+        new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id},
+                                 filter(lambda instance: instance.instance_id not in old_instance_id_set,
+                                        AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances)))
+        logger.info(f"{cluster_name}: New instances: {new_instances}")
+        if not new_instances:
+            logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
+            check_result = "etl_health_check_no_action_needed"
+            # write results to storage_metadata
+            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                                 check_type=check_type, check_result=check_result,
+                                                 check_output=check_output)
+            return
+        if load_balancer.register_instances(new_instances):
+            if old_lb_instances:
+                load_balancer.deregister_instances(old_lb_instances)
+            new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
+            lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
+            if set(new_instance_list) == set(lb_instance_list):
+                logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
+                check_result = "pass"
+                check_output = "etl_loadbalancer_refreshed"
+            else:
+                check_result = "fail"
+                check_output = "etl_loadbalancer_refresh_failed"
+        else:
+            logger.info(f"{cluster_name}: Invalid instance found while registering instances on etl loadbalancer. Skipping...")
+            check_result = "skipped"
+            check_output = "etl_loadbalancer_registration_failed"
     else:
-        check_result = "fail"
-        raise Exception("Instances don't match. ETL load balancer refresh failed!")
+        logger.info(f"{cluster_name}: ETL load balancer not found. Skipping...")
+        check_result = "skipped"
+        check_output = "etl_loadbalancer_not_found"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result, check_output=check_output)
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info("ETL Health Check Complete")
+    logger.info(f"{cluster_name}: ETL Health Check Complete")
+
 
 @app.command()
 def az_health_check(deployment_env, region, cluster_name):
@@ -187,7 +205,7 @@ def az_health_check(deployment_env, region, cluster_name):
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
     aws_account_alias = IamGateway.get_account_alias()
-    logger.info("account_alias: %s", aws_account_alias)
+    #logger.info("account_alias: %s", aws_account_alias)
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "az_health_check"
     if region == 'us-west-2':
@@ -202,23 +220,24 @@ def az_health_check(deployment_env, region, cluster_name):
             filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down",
                    instances_with_cluster_tag))
         counts[az] = len(aws_cluster_instances)
-    logger.info("Node counts in each availability zone:")
+    logger.info(f"{cluster_name}: Node counts in each availability zone:")
     for az, count in counts.items():
         logger.info("{}: {} nodes".format(az, count))
     unique_counts = set(counts.values())
     if len(unique_counts) == 1:
-        logger.info("All availability zones have the same number of nodes!")
+        logger.info(f"{cluster_name}: All availability zones have the same number of nodes!")
         check_result = "pass"
     else:
-        logger.info("Mismatch in node counts across availability zones!")
+        logger.info(f"{cluster_name}: Mismatch in node counts across availability zones!")
         check_result = "fail"
     check_output = "{}"
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result, check_output=check_output)
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info("AZ Health Check Complete")
+    logger.info(f"{cluster_name}: AZ Health Check Complete")
+
 
 @app.command()
 def zone_config_health_check(deployment_env, region, cluster_name):
@@ -229,30 +248,35 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "zone_config_health_check"
-    logger.info("Running replication factor check...")
+    logger.info(f"{cluster_name}: Running replication factor check...")
     # check that default replication factor is five
     FIND_ZONE_CONFIG_SQL = "select raw_config_sql from [show zone configuration from range default]"
-    connection = CrdbConnection.get_crdb_connection(cluster_name)
-    connection.connect()
-    response = connection.execute_sql(FIND_ZONE_CONFIG_SQL)
-    connection.close()
-    logger.info(response)
-    statement = response[0][0]
-    if 'num_replicas = 5' in statement:
-        logger.info("The default replication factor is correctly set to 5.")
-        check_output = response
-        check_result = "zone_config_health_check_passed"
-    else:
-        logger.info("The default replication factor is not set to 5.")
-        check_output = response
-        check_result = "zone_config_health_check_failed"
+    try:
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
+        response = connection.execute_sql(FIND_ZONE_CONFIG_SQL)
+        statement = response[0][0]
+        if 'num_replicas = 5' in statement:
+            logger.info(f"{cluster_name}: The default replication factor is correctly set to 5.")
+            check_output = response
+            check_result = "zone_config_health_check_passed"
+        else:
+            logger.info(f"{cluster_name}: The default replication factor is not set to 5.")
+            check_output = response
+            check_result = "zone_config_health_check_failed"
+        connection.close()
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "error"
+        check_result = "zone_config_check_failed"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result, check_output=check_output)
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info("Zone Config Health Check Complete")
+    logger.info(f"{cluster_name}: Zone Config Health Check Complete")
+
 
 @app.command()
 def backup_health_check(deployment_env, region, cluster_name):
@@ -263,38 +287,97 @@ def backup_health_check(deployment_env, region, cluster_name):
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "backup_health_check"
-    logger.info("Running backup schedule check...")
+    logger.info(f"{cluster_name}: Running backup schedule check...")
     # check that there are two backup schedules running
     get_backup_schedule_count_sql = ("select count(*) from [show schedules] where label = 'backup_schedule' and  "
                                      "schedule_status = 'ACTIVE'")
-    connection = CrdbConnection.get_crdb_connection(cluster_name)
-    connection.connect()
-    backup_count = connection.execute_sql(get_backup_schedule_count_sql)
-    connection.close()
-    count = backup_count[0][0]
-    if count is None:
-        logger.info("Failed to fetch the backup schedule count.")
-        check_output = count
-        check_result = "backup_health_check_failed"
-    elif count == 2:
-        logger.info("There are two backup jobs scheduled. All is good!")
-        check_output = count
-        check_result = "backup_health_check_passed"
-    else:
-        logger.info(f"Warning: Expected 2 backup jobs but found {count}.")
-        check_output = count
-        check_result = "backup_health_check_failed"
+    try:
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
+        backup_count = connection.execute_sql(get_backup_schedule_count_sql)
+        count = backup_count[0][0]
+        if count is None:
+            logger.info(f"{cluster_name}: Failed to fetch the backup schedule count.")
+            check_output = count
+            check_result = "backup_health_check_failed"
+        elif count == 2:
+            logger.info(f"{cluster_name}: There are two backup jobs scheduled. All is good!")
+            check_output = count
+            check_result = "backup_health_check_passed"
+        else:
+            logger.info(f"{cluster_name}: Warning: Expected 2 backup jobs but found {count}.")
+            check_output = count
+            check_result = "backup_health_check_failed"
+        connection.close()
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "error"
+        check_result = "backup_check_failed"
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                       aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                       check_type=check_type, check_result=check_result, check_output=check_output)
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info("Backup Health Check Complete")
+    logger.info(f"{cluster_name}: Backup Health Check Complete")
+
 
 @app.command()
-def run_all_health_checks(deployment_env, region, cluster_name):
-    ptr_health_check(deployment_env, region, cluster_name)
-    etl_health_check(deployment_env, region, cluster_name)
-    az_health_check(deployment_env, region, cluster_name)
-    zone_config_health_check(deployment_env, region, cluster_name)
-    backup_health_check(deployment_env, region, cluster_name)
+def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
+    # List of methods in healthcheck workflow
+    hc_methods = [ptr_health_check, etl_health_check, az_health_check, zone_config_health_check, backup_health_check]
+
+    storage_metadata = StorageMetadata()
+    aws_account_alias = IamGateway.get_account_alias()
+
+    if workflow_id:
+        # If given a workflow_id, get the state from DB
+        state = storage_metadata.get_hc_workflow_id_state(workflow_id)
+        last_successful_step = hc_methods.index(state.check_type) if state.status == 'Success' else hc_methods.index(
+            state.check_type) - 1
+    else:
+        last_successful_step = -1
+        # set workflow_id if not provided
+        workflow_id = os.getenv('WORKFLOW-ID')
+        storage_metadata.initiate_hc_workflow(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                              aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                              check_type=str(hc_methods[0]), status='InProgress', retry_count=0)
+
+    logger.info(f"{cluster_name}: Running healthchecks on {cluster_name}")
+    for idx, method in enumerate(hc_methods):
+        if idx > last_successful_step:
+            try:
+                state = storage_metadata.get_hc_workflow_id_state(workflow_id)
+                if state.status == 'Failed':
+                    break
+                method(deployment_env, region, cluster_name)
+                storage_metadata.update_workflow_state_with_retry(cluster_name=cluster_name,
+                                                                  deployment_env=deployment_env, region=region,
+                                                                  aws_account_name=aws_account_alias,
+                                                                  workflow_id=workflow_id,
+                                                                  check_type=method.__name__, status='Success',
+                                                                  retry_count=0)
+            except Exception as e:
+                storage_metadata.update_workflow_state_with_retry(cluster_name=cluster_name,
+                                                                  deployment_env=deployment_env, region=region,
+                                                                  aws_account_name=aws_account_alias,
+                                                                  workflow_id=workflow_id,
+                                                                  check_type=method.__name__, status='Failure')
+                logger.error(e)
+                raise
+
+    logger.info(f"{cluster_name}: Healthcheck complete for {cluster_name}")
+
+@app.command()
+def run_health_check_all(deployment_env, region):
+    # cluster names saved to /tmp/cluster_names.json
+    get_cluster_names(deployment_env, region)
+
+    # Open and load the JSON file
+    with open('/tmp/cluster_names.json', 'r') as file:
+        items = json.load(file)
+
+    logger.info("Healthcheck for all all CRDB clusters started...")
+    # run healthcheck on each cluster
+    for cluster_name in items:
+        run_health_check_single(deployment_env, region, cluster_name)
+    logger.info("Healthcheck for all all CRDB clusters complete...")
