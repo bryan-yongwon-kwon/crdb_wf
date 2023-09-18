@@ -33,10 +33,10 @@ class ElasticLoadBalancerGateway:
             response = elastic_load_balancer_client.register_instances_with_load_balancer(LoadBalancerName=load_balancer_name,
                                                                                       Instances=instances)
             return response['Instances']
-        except Exception as e:
-            if "InvalidInstanceID.NotFound" in e:
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'InvalidEndPointException':
                 # Extract instance ID from the error message
-                invalid_id = str(e).split("'")[1]
+                invalid_id = str(instances).split("'")[1]
                 print(f"Instance {invalid_id} does not exist. Removing from the list.")
                 # Remove the invalid instance from the list
                 new_instances = [instance for instance in instances if instance['InstanceId'] != invalid_id]
