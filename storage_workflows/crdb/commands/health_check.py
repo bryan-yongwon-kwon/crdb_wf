@@ -225,10 +225,12 @@ def version_mismatch_check(deployment_env, region, cluster_name):
     check_type = "version_mismatch_check"
     logger.info(f"{cluster_name}: starting {check_type}")
     crdb_sql_version = ("SELECT node_id, server_version, tag FROM crdb_internal.kv_node_status;")
+    crdb_cluster_version = ("show cluster setting version;")
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
         response = connection.execute_sql(crdb_sql_version)
+        cluster_ver_response = connection.execute_sql(crdb_cluster_version)
         connection.close()
         # save sql response
         check_output = response
@@ -237,6 +239,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
         mismatched_nodes = []
         # debug response
         logger.info(f"{cluster_name} response: {response}")
+        logger.info(f"{cluster_name} cluster setting version: {cluster_ver_response}")
         for node in response:
             node_id, server_version, tag = node
             major_minor_from_tag = extract_major_minor_from_tag(tag)
@@ -244,7 +247,8 @@ def version_mismatch_check(deployment_env, region, cluster_name):
             if server_version != major_minor_from_tag:
                 mismatched_nodes.append(node_id)
         if mismatched_nodes:
-            logger.warning(f"{cluster_name}: server version mismatch detected. cluster upgrade may be incomplete.")
+            logger.warning(f"{cluster_name}: server version mismatch detected. cluster version is {cluster_ver_response}"
+                           f". cluster upgrade may be incomplete.")
             logger.warning(f"{cluster_name}: Nodes with IDs {', '.join(map(str, mismatched_nodes))} have server_version"
                            f" not matching the major.minor part of their tag.")
             check_result = "version_mismatch_check_failed-server_version_mismatch"
