@@ -78,22 +78,28 @@ def changefeed_health_check(deployment_env, region, cluster_name):
     check_type = "changefeed_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
     cluster = Cluster()
-    unhealthy_changefeed_jobs = list(
-        filter(lambda job: job.status != "running" and job.status != "canceled", cluster.changefeed_jobs))
-    if unhealthy_changefeed_jobs:
-        logger.warning(f"{cluster_name}: Changefeeds Not Running:")
-        check_output = unhealthy_changefeed_jobs
+    try:
+        unhealthy_changefeed_jobs = list(
+            filter(lambda job: job.status != "running" and job.status != "canceled", cluster.changefeed_jobs))
+        if unhealthy_changefeed_jobs:
+            logger.warning(f"{cluster_name}: Changefeeds Not Running:")
+            check_output = unhealthy_changefeed_jobs
+            check_result = "changefeed_health_check_failed"
+            for job in unhealthy_changefeed_jobs:
+                logger.warning(f"{cluster_name}: Job id is {job.id}. Status is {job.status}.")
+        else:
+            logger.info(f"{cluster_name}: {check_type} passed")
+            check_output = unhealthy_changefeed_jobs
+            check_result = "changefeed_health_check_passed"
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "error"
         check_result = "changefeed_health_check_failed"
-        for job in unhealthy_changefeed_jobs:
-            logger.warning(f"{cluster_name}: Job id is {job.id}. Status is {job.status}.")
-    else:
-        logger.info(f"{cluster_name}: {check_type} passed")
-        check_output = unhealthy_changefeed_jobs
-        check_result = "changefeed_health_check_passed"
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                          check_type=check_type, check_result=check_result, check_output=check_output)
+
     logger.info(f"{cluster_name}: {check_type} complete")
 
 
