@@ -230,6 +230,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
         response = connection.execute_sql(crdb_sql_version)
+        connection.connect()
         cluster_ver_response = connection.execute_sql(crdb_cluster_version)
         connection.close()
         # save sql response
