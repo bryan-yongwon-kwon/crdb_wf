@@ -210,39 +210,45 @@ def version_mismatch_check(deployment_env, region, cluster_name):
     check_type = "version_mismatch_check"
     logger.info("Running version mismatch check...")
     crdb_sql_version = ("SELECT node_id, tag FROM crdb_internal.kv_node_status;")
-    connection = CrdbConnection.get_crdb_connection(cluster_name)
-    connection.connect()
-    response = connection.execute_sql(crdb_sql_version)
-    connection.close()
-    # save sql response
-    check_output = response
-    # init dict for version check
-    version_dict = defaultdict(list)
-    # debug response
-    logger.info(f"response: {response}")
-    # save node versions
-    for node in response:
-        node_id, version = node
-        version_dict[version].append(node_id)
+    try:
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
+        response = connection.execute_sql(crdb_sql_version)
+        connection.close()
+        # save sql response
+        check_output = response
+        # init dict for version check
+        version_dict = defaultdict(list)
+        # debug response
+        logger.info(f"response: {response}")
+        # save node versions
+        for node in response:
+            node_id, version = node
+            version_dict[version].append(node_id)
 
-    # Check for mismatched versions
-    if len(version_dict) > 1:
-        logger.warning("WARNING: Nodes have mismatched versions.")
-        for version, node_ids in version_dict.items():
-            logger.warning(f"Version {version} is running on nodes: {', '.join(map(str, node_ids))}")
-        check_result = "version_mismatch_check_failed"
-        storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                            aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                            check_type=check_type, check_result=check_result, check_output=check_output)
-    else:
-        logger.info("All nodes are running the same version.")
-        check_result = "version_mismatch_check_passed"
-        storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                             aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                             check_type=check_type, check_result=check_result,
-                                             check_output=check_output)
-
+        # Check for mismatched versions
+        if len(version_dict) > 1:
+            logger.warning("WARNING: Nodes have mismatched versions.")
+            for version, node_ids in version_dict.items():
+                logger.warning(f"Version {version} is running on nodes: {', '.join(map(str, node_ids))}")
+            check_result = "version_mismatch_check_failed"
+            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                                aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                                check_type=check_type, check_result=check_result, check_output=check_output)
+        else:
+            logger.info("All nodes are running the same version.")
+            check_result = "version_mismatch_check_passed"
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "error"
+        check_result = "backup_check_failed"
+    # save results
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result,
+                                         check_output=check_output)
     logger.info("Version Mismatch Check Complete")
+
 
 def az_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
