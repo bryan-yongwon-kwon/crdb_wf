@@ -73,6 +73,7 @@ def orphan_health_check(deployment_env, region, cluster_name):
     check_type = "orphan_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
     # Get the count of AWS instances
+    cluster = Cluster()
     instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
     aws_cluster_instances = list(
         filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down",
@@ -421,7 +422,7 @@ def backup_health_check(deployment_env, region, cluster_name):
 def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
     # List of methods in healthcheck workflow
     hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check, az_health_check, zone_config_health_check,
-                  backup_health_check]
+                  backup_health_check, orphan_health_check]
 
     storage_metadata = StorageMetadata()
     aws_account_alias = IamGateway.get_account_alias()
