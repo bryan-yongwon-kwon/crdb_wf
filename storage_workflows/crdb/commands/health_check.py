@@ -243,11 +243,21 @@ def version_mismatch_check(deployment_env, region, cluster_name):
             tag_dict[tag].append(node_id)
             if server_version != major_minor_from_tag:
                 mismatched_nodes.append(node_id)
-
         if mismatched_nodes:
+            logger.warning(f"{cluster_name}: server version mismatch detected. cluster upgrade may be incomplete.")
             logger.warning(f"{cluster_name}: Nodes with IDs {', '.join(map(str, mismatched_nodes))} have server_version"
                            f" not matching the major.minor part of their tag.")
-            check_result = "version_mismatch_check_failed"
+            check_result = "version_mismatch_check_failed-server_version_mismatch"
+            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
+                                                 region=region,
+                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                                 check_type=check_type, check_result=check_result,
+                                                 check_output=check_output)
+        elif len(tag_dict) > 1:
+            logger.warning(f"{cluster_name}: Nodes have mismatched tags.")
+            for tag_version, node_ids in tag_dict.items():
+                logger.warning(f"Tag {tag_version} is found on nodes: {', '.join(map(str, node_ids))}")
+            check_result = "version_mismatch_check_failed-tag_mismatch"
             storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
                                                  region=region,
                                                  aws_account_name=aws_account_alias, workflow_id=workflow_id,
