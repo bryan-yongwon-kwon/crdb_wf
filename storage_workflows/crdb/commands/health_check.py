@@ -137,11 +137,11 @@ def orphan_health_check(deployment_env, region, cluster_name):
             logger.warning(f"{cluster_name}: Orphan instances found")
             logger.warning(f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
             logger.warning(f"{cluster_name}: Orphan instances are: {orphan_instances}")
-            check_output = orphan_instances
+            check_output = str(orphan_instances)
             check_result = "orphan_health_check_failed"
         else:
             logger.info(f"{cluster_name}: No orphan instances found.")
-            check_output = aws_cluster_instances
+            check_output = str(aws_cluster_instances)
             check_result = "orphan_health_check_passed"
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
