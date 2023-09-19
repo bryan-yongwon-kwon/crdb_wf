@@ -53,10 +53,12 @@ def asg_health_check(deployment_env, region, cluster_name):
         logger.warning(f"{cluster_name}: Displaying all unhealthy instances for the {cluster_name} cluster:")
         logger.warning(unhealthy_asg_instance_ids)
         logger.warning(f"{cluster_name}: Auto Scaling Group name: {asg.name}")
-        check_output = unhealthy_asg_instances
+        # TODO: provide useful output
+        check_output = "{}"
         check_result = "asg_health_check_failed"
     else:
-        check_output = asg
+        # TODO: provide useful output
+        check_output = "{}"
         check_result = "asg_health_check_passed"
         logger.info(f"{cluster_name}: asg_healthcheck_passed")
     # save results to metadatadb
@@ -83,16 +85,19 @@ def changefeed_health_check(deployment_env, region, cluster_name):
             filter(lambda job: job.status != "running" and job.status != "canceled", cluster.changefeed_jobs))
         if unhealthy_changefeed_jobs:
             logger.warning(f"{cluster_name}: Changefeeds Not Running:")
-            check_output = unhealthy_changefeed_jobs
+            # TODO: provide useful output
+            check_output = "{}"
             check_result = "changefeed_health_check_failed"
             for job in unhealthy_changefeed_jobs:
                 logger.warning(f"{cluster_name}: Job id is {job.id}. Status is {job.status}.")
         else:
             logger.info(f"{cluster_name}: {check_type} passed")
-            check_output = unhealthy_changefeed_jobs
+            # TODO: provide useful output
+            check_output = "{}"
             check_result = "changefeed_health_check_passed"
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
+        # TODO: provide useful output
         check_output = "error"
         check_result = "changefeed_health_check_failed"
     # save results to metadatadb
@@ -114,7 +119,6 @@ def orphan_health_check(deployment_env, region, cluster_name):
     check_type = "orphan_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
     # Get the count of AWS instances
-    cluster = Cluster()
     instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
     aws_cluster_instances = list(
         filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down",
@@ -137,10 +141,12 @@ def orphan_health_check(deployment_env, region, cluster_name):
             logger.warning(f"{cluster_name}: Orphan instances found")
             logger.warning(f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
             logger.warning(f"{cluster_name}: Orphan instances are: {orphan_instances}")
+            # TODO: provide useful output
             check_output = "{}"
             check_result = "orphan_health_check_failed"
         else:
             logger.info(f"{cluster_name}: No orphan instances found.")
+            # TODO: provide useful output
             check_output = "{}"
             check_result = "orphan_health_check_passed"
     except (psycopg2.DatabaseError, ValueError) as error:
