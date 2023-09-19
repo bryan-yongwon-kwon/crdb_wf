@@ -238,12 +238,16 @@ def version_mismatch_check(deployment_env, region, cluster_name):
         else:
             logger.info("All nodes are running the same version.")
             check_result = "version_mismatch_check_passed"
+            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
+                                                 region=region,
+                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                                 check_type=check_type, check_result=check_result,
+                                                 check_output=check_output)
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
-        check_output = "error"
         check_result = "backup_check_failed"
-    # save results
-    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+        check_output = "connection_error"
+        storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                          check_type=check_type, check_result=check_result,
                                          check_output=check_output)
