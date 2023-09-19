@@ -240,7 +240,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
         mismatched_nodes = []
         # debug response
         logger.info(f"{cluster_name} response: {response}")
-        logger.info(f"{cluster_name} cluster setting version: {cluster_ver_response}")
+        logger.info(f"{cluster_name} cluster setting version: {cluster_ver_response[0][0]}")
         for node in response:
             node_id, server_version, tag = node
             major_minor_from_tag = extract_major_minor_from_tag(tag)
