@@ -208,7 +208,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "version_mismatch_check"
-    logger.info("Running version mismatch check...")
+    logger.info(f"{cluster_name}: Running version mismatch check...")
     crdb_sql_version = ("SELECT node_id, tag FROM crdb_internal.kv_node_status;")
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
@@ -220,7 +220,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
         # init dict for version check
         version_dict = defaultdict(list)
         # debug response
-        logger.info(f"response: {response}")
+        logger.info(f"{cluster_name} response: {response}")
         # save node versions
         for node in response:
             node_id, version = node
@@ -228,15 +228,15 @@ def version_mismatch_check(deployment_env, region, cluster_name):
 
         # Check for mismatched versions
         if len(version_dict) > 1:
-            logger.warning("WARNING: Nodes have mismatched versions.")
+            logger.warning(f"{cluster_name}: Nodes have mismatched versions.")
             for version, node_ids in version_dict.items():
-                logger.warning(f"Version {version} is running on nodes: {', '.join(map(str, node_ids))}")
+                logger.warning(f"{cluster_name}: version {version} is running on nodes: {', '.join(map(str, node_ids))}")
             check_result = "version_mismatch_check_failed"
             storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                                 check_type=check_type, check_result=check_result, check_output=check_output)
         else:
-            logger.info("All nodes are running the same version.")
+            logger.info(f"{cluster_name}: All nodes are running the same version.")
             check_result = "version_mismatch_check_passed"
             storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
                                                  region=region,
@@ -251,7 +251,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                          check_type=check_type, check_result=check_result,
                                          check_output=check_output)
-    logger.info("Version Mismatch Check Complete")
+    logger.info(f"{cluster_name}: Version Mismatch Check Complete")
 
 
 def az_health_check(deployment_env, region, cluster_name):
@@ -379,7 +379,8 @@ def backup_health_check(deployment_env, region, cluster_name):
 @app.command()
 def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
     # List of methods in healthcheck workflow
-    hc_methods = [version_mismatch_check]
+    hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check, az_health_check, zone_config_health_check,
+                  backup_health_check]
 
     storage_metadata = StorageMetadata()
     aws_account_alias = IamGateway.get_account_alias()
