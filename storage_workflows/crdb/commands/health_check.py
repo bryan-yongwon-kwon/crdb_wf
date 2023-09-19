@@ -206,6 +206,14 @@ def etl_health_check(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name}: {check_type} complete")
 
 
+def extract_major_minor_from_tag(tag):
+    """
+    Extracts the major.minor version from the tag (e.g., "v22.2.13" -> "22.2").
+    """
+    parts = tag[1:].split('.')  # Remove the 'v' prefix and split by dot
+    return f"{parts[0]}.{parts[1]}"
+
+
 @app.command()
 def version_mismatch_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
@@ -216,7 +224,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "version_mismatch_check"
     logger.info(f"{cluster_name}: starting {check_type}")
-    crdb_sql_version = ("SELECT node_id, tag FROM crdb_internal.kv_node_status;")
+    crdb_sql_version = ("SELECT node_id, server_version, tag FROM crdb_internal.kv_node_status;")
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
@@ -224,26 +232,29 @@ def version_mismatch_check(deployment_env, region, cluster_name):
         connection.close()
         # save sql response
         check_output = response
-        # init dict for version check
-        version_dict = defaultdict(list)
+        # init dict
+        tag_dict = defaultdict(list)
+        mismatched_nodes = []
         # debug response
         logger.info(f"{cluster_name} response: {response}")
-        # save node versions
         for node in response:
-            node_id, version = node
-            version_dict[version].append(node_id)
+            node_id, server_version, tag = node
+            major_minor_from_tag = extract_major_minor_from_tag(tag)
+            tag_dict[tag].append(node_id)
+            if server_version != major_minor_from_tag:
+                mismatched_nodes.append(node_id)
 
-        # Check for mismatched versions
-        if len(version_dict) > 1:
-            logger.warning(f"{cluster_name}: Nodes have mismatched versions.")
-            for version, node_ids in version_dict.items():
-                logger.warning(f"{cluster_name}: version {version} is running on nodes: {', '.join(map(str, node_ids))}")
+        if mismatched_nodes:
+            logger.warning(f"{cluster_name}: Nodes with IDs {', '.join(map(str, mismatched_nodes))} have server_version"
+                           f" not matching the major.minor part of their tag.")
             check_result = "version_mismatch_check_failed"
-            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                                aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                                check_type=check_type, check_result=check_result, check_output=check_output)
+            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
+                                                 region=region,
+                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                                 check_type=check_type, check_result=check_result,
+                                                 check_output=check_output)
         else:
-            logger.info(f"{cluster_name}: All nodes are running the same version.")
+            logger.info(f"{cluster_name}: All nodes have server_version matching the major.minor part of their tag.")
             check_result = "version_mismatch_check_passed"
             storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
                                                  region=region,
@@ -255,9 +266,9 @@ def version_mismatch_check(deployment_env, region, cluster_name):
         check_result = "backup_check_failed"
         check_output = "connection_error"
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                         check_type=check_type, check_result=check_result,
-                                         check_output=check_output)
+                                             aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                             check_type=check_type, check_result=check_result,
+                                             check_output=check_output)
     logger.info(f"{cluster_name}: {check_type} complete")
 
 
