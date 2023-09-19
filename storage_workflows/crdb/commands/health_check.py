@@ -39,14 +39,32 @@ def get_cluster_names(deployment_env, region):
 @app.command()
 def asg_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "asg_health_check"
+    logger.info(f"{cluster_name}: starting {check_type}")
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     unhealthy_asg_instances = list(filter(lambda instance: not instance.in_service(), asg.instances))
     if unhealthy_asg_instances:
         unhealthy_asg_instance_ids = list(map(lambda instance: instance.instance_id, unhealthy_asg_instances))
-        logger.warning("Displaying all unhealthy instances for the $cluster_name cluster:")
+        logger.warning(f"{cluster_name}: Displaying all unhealthy instances for the {cluster_name} cluster:")
         logger.warning(unhealthy_asg_instance_ids)
-        logger.warning("Auto Scaling Group name: {}".format(asg.name))
-    # TODO: Write result into metadata DB
+        logger.warning(f"{cluster_name}: Auto Scaling Group name: {asg.name}")
+        check_output = unhealthy_asg_instances
+        check_result = "asg_health_check_failed"
+    else:
+        check_output = asg
+        check_result = "asg_health_check_passed"
+        logger.info(f"{cluster_name}: asg_healthcheck_passed")
+    # save results to metadatadb
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result,
+                                         check_output=check_output)
+    logger.info(f"{cluster_name}: {check_type} complete")
 
 
 @app.command()
@@ -439,7 +457,7 @@ def backup_health_check(deployment_env, region, cluster_name):
 def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
     # List of methods in healthcheck workflow
     hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check, az_health_check, zone_config_health_check,
-                  backup_health_check, orphan_health_check, changefeed_health_check]
+                  backup_health_check, orphan_health_check, changefeed_health_check, asg_health_check]
 
     storage_metadata = StorageMetadata()
     aws_account_alias = IamGateway.get_account_alias()
