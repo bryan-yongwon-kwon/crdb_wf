@@ -86,12 +86,19 @@ def orphan_health_check(deployment_env, region, cluster_name):
         orphan_instances = list(
             map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
                 filter(lambda instance: instance.private_ip_address not in crdb_node_ips, aws_cluster_instances)))
-        logger.warning(f"{cluster_name}: Orphan instances found.")
+        logger.warning(f"{cluster_name}: Orphan instances found")
         logger.warning(f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
         logger.warning(f"{cluster_name}: Orphan instances are: {orphan_instances}")
+        check_output = orphan_instances
+        check_result = "orphan_health_check_failed"
     else:
         logger.info(f"{cluster_name}: No orphan instances found.")
-    # TODO: Write result into metadata DB
+        check_output = aws_cluster_instances
+        check_result = "orphan_health_check_passed"
+    # save results to metadatadb
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
     logger.info(f"{cluster_name}: {check_type} complete")
 
 
