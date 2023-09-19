@@ -120,23 +120,33 @@ def orphan_health_check(deployment_env, region, cluster_name):
         filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down",
                instances_with_cluster_tag))
     aws_cluster_instance_count = len(aws_cluster_instances)
-    # Get the IP count of CRDB nodes
-    crdb_node_ips = list(map(lambda node: node.ip_address, cluster.nodes))
-    crdb_cluster_instance_count = len(crdb_node_ips)
-    # Compare the IP count of AWS instances and CRDB nodes
-    if aws_cluster_instance_count != crdb_cluster_instance_count:
-        orphan_instances = list(
-            map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
-                filter(lambda instance: instance.private_ip_address not in crdb_node_ips, aws_cluster_instances)))
-        logger.warning(f"{cluster_name}: Orphan instances found")
-        logger.warning(f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
-        logger.warning(f"{cluster_name}: Orphan instances are: {orphan_instances}")
-        check_output = orphan_instances
+    try:
+        # Get the IP count of CRDB nodes
+        find_crdb_node_ip_sql = "select address from crdb_internal.kv_node_status;"
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
+        crdb_node_ips = connection.execute_sql(find_crdb_node_ip_sql)
+        connection.close()
+        crdb_cluster_instance_count = len(crdb_node_ips)
+        logger.info(f"{cluster_name} crdb_node_ips: {crdb_node_ips}")
+        # Compare the IP count of AWS instances and CRDB nodes
+        if aws_cluster_instance_count != crdb_cluster_instance_count:
+            orphan_instances = list(
+                map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
+                    filter(lambda instance: instance.private_ip_address not in crdb_node_ips, aws_cluster_instances)))
+            logger.warning(f"{cluster_name}: Orphan instances found")
+            logger.warning(f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
+            logger.warning(f"{cluster_name}: Orphan instances are: {orphan_instances}")
+            check_output = orphan_instances
+            check_result = "orphan_health_check_failed"
+        else:
+            logger.info(f"{cluster_name}: No orphan instances found.")
+            check_output = aws_cluster_instances
+            check_result = "orphan_health_check_passed"
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "error"
         check_result = "orphan_health_check_failed"
-    else:
-        logger.info(f"{cluster_name}: No orphan instances found.")
-        check_output = aws_cluster_instances
-        check_result = "orphan_health_check_passed"
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
