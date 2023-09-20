@@ -28,3 +28,23 @@ class Ec2Gateway:
     def terminate_instances(instances:list[str]):
         ec2_aws_client = AwsSessionFactory.ec2()
         return ec2_aws_client.terminate_instances(InstanceIds=instances, DryRun=False)
+
+    @staticmethod
+    def find_ec2_instances_with_tag(filters=[]):
+        ec2_aws_client = AwsSessionFactory.ec2()
+        # Create a paginator for the describe_instances method
+        paginator = ec2_aws_client.get_paginator('describe_instances')
+        page_iterator = paginator.paginate(Filters=filters)
+
+        all_instances = []
+
+        for page in page_iterator:
+            for reservation in page['Reservations']:
+                for instance in reservation['Instances']:
+                    all_instances.append(instance)
+
+        for instance in all_instances:
+            logger.info(f"Found EC2 instance with ID: {instance['InstanceId']}")
+
+        return all_instances
+

@@ -120,13 +120,10 @@ def orphan_health_check(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name}: starting {check_type}")
     # Get the count of AWS instances
     instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
-    logger.info(f"instances_with_cluster_tag: {instances_with_cluster_tag}")
     aws_cluster_instances = list(
         filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down",
                instances_with_cluster_tag))
-    logger.info(f"aws_cluster_instances: {aws_cluster_instances}")
     aws_cluster_instance_count = len(aws_cluster_instances)
-    logger.info(f"aws_cluster_instance_count: {aws_cluster_instance_count}")
     try:
         # Get the IP count of CRDB nodes
         find_crdb_node_ip_sql = "select address from crdb_internal.kv_node_status;"
