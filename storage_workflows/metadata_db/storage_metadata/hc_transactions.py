@@ -111,7 +111,7 @@ def update_workflow_state_with_retry_txn(session: Session, **kwargs):
     return True
 
 
-def get_hc_results_txn(session: Session, workflow_id, status):
+def get_hc_results_txn(session: Session, workflow_id, check_result):
     """
     Retrieves healthcheck workflow state
 
@@ -120,8 +120,8 @@ def get_hc_results_txn(session: Session, workflow_id, status):
     - status (str): check_type status
 
     Returns:
-    ClusterHealthCheckWorkflowState
+    ClusterHealthCheck
     """
-    hc_results = session.query(ClusterHealthCheckWorkflowState).filter_by(workflow_id=workflow_id, status=status).all()
+    hc_results = session.query(ClusterHealthCheck).filter_by(workflow_id=workflow_id, check_result=check_result).all()
 
     return hc_results

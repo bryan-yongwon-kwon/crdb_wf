@@ -55,12 +55,12 @@ def asg_health_check(deployment_env, region, cluster_name):
         logger.warning(unhealthy_asg_instance_ids)
         logger.warning(f"{cluster_name}: Auto Scaling Group name: {asg.name}")
         # TODO: provide useful output
-        check_output = "{}"
-        check_result = "asg_health_check_failed"
+        check_output = "asg_health_check_failed"
+        check_result = "fail"
     else:
         # TODO: provide useful output
-        check_output = "{}"
-        check_result = "asg_health_check_passed"
+        check_output = "asg_health_check_passed"
+        check_result = "pass"
         logger.info(f"{cluster_name}: asg_healthcheck_passed")
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -87,20 +87,20 @@ def changefeed_health_check(deployment_env, region, cluster_name):
         if unhealthy_changefeed_jobs:
             logger.warning(f"{cluster_name}: Changefeeds Not Running:")
             # TODO: provide useful output
-            check_output = "{}"
-            check_result = "changefeed_health_check_failed"
+            check_output = "changefeed_health_check_failed"
+            check_result = "fail"
             for job in unhealthy_changefeed_jobs:
                 logger.warning(f"{cluster_name}: Job id is {job.id}. Status is {job.status}.")
         else:
             logger.info(f"{cluster_name}: {check_type} passed")
             # TODO: provide useful output
-            check_output = "{}"
-            check_result = "changefeed_health_check_passed"
+            check_output = "changefeed_health_check_passed"
+            check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         # TODO: provide useful output
-        check_output = "error"
-        check_result = "changefeed_health_check_failed"
+        check_output = "changefeed_health_check_failed"
+        check_result = "fail"
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -143,13 +143,13 @@ def orphan_health_check(deployment_env, region, cluster_name):
             logger.warning(f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
             logger.warning(f"{cluster_name}: Orphan instances are: {orphan_instances}")
             # TODO: provide useful output
-            check_output = "{}"
-            check_result = "orphan_health_check_failed"
+            check_output = "orphan_health_check_failed"
+            check_result = "fail"
         else:
             logger.info(f"{cluster_name}: No orphan instances found.")
             # TODO: provide useful output
-            check_output = "{}"
-            check_result = "orphan_health_check_passed"
+            check_output = "orphan_health_check_passed"
+            check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "error"
@@ -182,16 +182,16 @@ def ptr_health_check(deployment_env, region, cluster_name):
         if contains_ptr:
             logger.warning(f"{cluster_name}: Protected timestamp records found")
             check_output = str(response)
-            check_result = "ptr_health_check_failed"
+            check_result = "fail"
         else:
             logger.info(f"{cluster_name}: Protected timestamp record not found")
-            check_output = "{}"
-            check_result = "ptr_health_check_passed"
+            check_output = "ptr_health_check_passed"
+            check_result = "pass"
         connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
-        check_output = "error"
-        check_result = "ptr_health_check_failed"
+        check_output = "ptr_health_check_failed"
+        check_result = "fail"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -319,7 +319,8 @@ def version_mismatch_check(deployment_env, region, cluster_name):
                            f". cluster upgrade may be incomplete.")
             logger.warning(f"{cluster_name}: Nodes with IDs {', '.join(map(str, mismatched_nodes))} have server_version"
                            f" not matching the major.minor part of their tag.")
-            check_result = "version_mismatch_check_failed-server_version_mismatch"
+            check_output = "version_mismatch_check_failed-server_version_mismatch"
+            check_result = "fail"
             storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
                                                  region=region,
                                                  aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -329,7 +330,8 @@ def version_mismatch_check(deployment_env, region, cluster_name):
             logger.warning(f"{cluster_name}: Nodes have mismatched tags.")
             for tag_version, node_ids in tag_dict.items():
                 logger.warning(f"Tag {tag_version} is found on nodes: {', '.join(map(str, node_ids))}")
-            check_result = "version_mismatch_check_failed-tag_mismatch"
+            check_output = "version_mismatch_check_failed-tag_mismatch"
+            check_result = "fail"
             storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
                                                  region=region,
                                                  aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -337,7 +339,8 @@ def version_mismatch_check(deployment_env, region, cluster_name):
                                                  check_output=check_output)
         else:
             logger.info(f"{cluster_name}: All nodes have server_version matching the major.minor part of their tag.")
-            check_result = "version_mismatch_check_passed"
+            check_output = "All nodes have server_version matching the major.minor part of their tag."
+            check_result = "pass"
             storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
                                                  region=region,
                                                  aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -345,7 +348,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
                                                  check_output=check_output)
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
-        check_result = "backup_check_failed"
+        check_result = "fail"
         check_output = "connection_error"
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                              aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -415,16 +418,16 @@ def zone_config_health_check(deployment_env, region, cluster_name):
         if 'num_replicas = 5' in statement:
             logger.info(f"{cluster_name}: The default replication factor is correctly set to 5.")
             check_output = response
-            check_result = "zone_config_health_check_passed"
+            check_result = "pass"
         else:
             logger.info(f"{cluster_name}: The default replication factor is not set to 5.")
             check_output = response
-            check_result = "zone_config_health_check_failed"
+            check_result = "fail"
         connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "error"
-        check_result = "zone_config_check_failed"
+        check_result = "fail"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -455,20 +458,20 @@ def backup_health_check(deployment_env, region, cluster_name):
         if count is None:
             logger.info(f"{cluster_name}: Failed to fetch the backup schedule count.")
             check_output = count
-            check_result = "backup_health_check_failed"
+            check_result = "fail"
         elif count == 2:
             logger.info(f"{cluster_name}: There are two backup jobs scheduled. All is good!")
             check_output = count
-            check_result = "backup_health_check_passed"
+            check_result = "pass"
         else:
             logger.info(f"{cluster_name}: Warning: Expected 2 backup jobs but found {count}.")
             check_output = count
-            check_result = "backup_health_check_failed"
+            check_result = "fail"
         connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "error"
-        check_result = "backup_check_failed"
+        check_result = "fail"
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -552,7 +555,7 @@ def run_health_check_all(deployment_env, region):
         run_health_check_single(deployment_env, region, cluster_name)
     logger.info("Healthcheck for all all CRDB clusters complete...")
     # find failed healthchecks and send report to Slack
-    failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, status='Failure')
+    failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, status='fail')
     logger.info(f"failed checks: {failed_checks}")
     slack_webhook_url = "https://hooks.slack.com/services/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"
     base_message = "Health checks failed for the following:\n"
