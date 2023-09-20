@@ -4,6 +4,7 @@ import typer
 import logging
 from collections import defaultdict
 import psycopg2
+import requests
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 # from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
@@ -523,6 +524,19 @@ def run_health_check_single(deployment_env, region, cluster_name, workflow_id=No
 
     logger.info(f"{cluster_name}: Healthcheck complete for {cluster_name}")
 
+
+def send_to_slack(message):
+    slack_webhook_url = "https://hooks.slack.com/services/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"
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    data = {
+        'text': message
+    }
+    response = requests.post(slack_webhook_url, headers=headers, data=json.dumps(data))
+    return response.status_code
+
+
 @app.command()
 def run_health_check_all(deployment_env, region):
     # cluster names saved to /tmp/cluster_names.json
@@ -547,4 +561,4 @@ def run_health_check_all(deployment_env, region):
     else:
         message = "All health checks completed successfully!"
 
-    send_slack_notification(deployment_env, message)
+    send_to_slack(message)
