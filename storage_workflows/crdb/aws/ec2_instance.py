@@ -27,7 +27,8 @@ class Ec2Instance:
                 cluster_name + "_" + os.getenv('DEPLOYMENT_ENV'),
             ]
         }]
-        return list(map(lambda response: Ec2Instance(response), Ec2Gateway.describe_ec2_instances(filters)))
+        # return list(map(lambda response: Ec2Instance(response), Ec2Gateway.describe_ec2_instances(filters)))
+        return list(map(lambda response: Ec2Instance(response), Ec2Gateway.find_ec2_instances_with_tag(filters)))
 
     def __init__(self, api_response):
         self._api_response = api_response

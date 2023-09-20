@@ -2,6 +2,7 @@ import json
 import os
 import typer
 import logging
+from collections import defaultdict
 import psycopg2
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 # from storage_workflows.logging.logger import Logger
@@ -38,54 +39,125 @@ def get_cluster_names(deployment_env, region):
 @app.command()
 def asg_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "asg_health_check"
+    logger.info(f"{cluster_name}: starting {check_type}")
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     unhealthy_asg_instances = list(filter(lambda instance: not instance.in_service(), asg.instances))
     if unhealthy_asg_instances:
         unhealthy_asg_instance_ids = list(map(lambda instance: instance.instance_id, unhealthy_asg_instances))
-        logger.warning("Displaying all unhealthy instances for the $cluster_name cluster:")
+        logger.warning(f"{cluster_name}: Displaying all unhealthy instances for the {cluster_name} cluster:")
         logger.warning(unhealthy_asg_instance_ids)
-        logger.warning("Auto Scaling Group name: {}".format(asg.name))
-    # TODO: Write result into metadata DB
+        logger.warning(f"{cluster_name}: Auto Scaling Group name: {asg.name}")
+        # TODO: provide useful output
+        check_output = "{}"
+        check_result = "asg_health_check_failed"
+    else:
+        # TODO: provide useful output
+        check_output = "{}"
+        check_result = "asg_health_check_passed"
+        logger.info(f"{cluster_name}: asg_healthcheck_passed")
+    # save results to metadatadb
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result,
+                                         check_output=check_output)
+    logger.info(f"{cluster_name}: {check_type} complete")
 
 
 @app.command()
 def changefeed_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "changefeed_health_check"
+    logger.info(f"{cluster_name}: starting {check_type}")
     cluster = Cluster()
-    unhealthy_changefeed_jobs = list(
-        filter(lambda job: job.status != "running" and job.status != "canceled", cluster.changefeed_jobs))
-    if unhealthy_changefeed_jobs:
-        logger.warning("Changefeeds Not Running:")
-        for job in unhealthy_changefeed_jobs:
-            logger.warning("Job id is {}. Status is {}.".format(job.id, job.status))
-    # TODO: Write result into metadata DB 
+    try:
+        unhealthy_changefeed_jobs = list(
+            filter(lambda job: job.status != "running" and job.status != "canceled", cluster.changefeed_jobs))
+        if unhealthy_changefeed_jobs:
+            logger.warning(f"{cluster_name}: Changefeeds Not Running:")
+            # TODO: provide useful output
+            check_output = "{}"
+            check_result = "changefeed_health_check_failed"
+            for job in unhealthy_changefeed_jobs:
+                logger.warning(f"{cluster_name}: Job id is {job.id}. Status is {job.status}.")
+        else:
+            logger.info(f"{cluster_name}: {check_type} passed")
+            # TODO: provide useful output
+            check_output = "{}"
+            check_result = "changefeed_health_check_passed"
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        # TODO: provide useful output
+        check_output = "error"
+        check_result = "changefeed_health_check_failed"
+    # save results to metadatadb
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
+
+    logger.info(f"{cluster_name}: {check_type} complete")
 
 
 @app.command()
 def orphan_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    cluster = Cluster()
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "orphan_health_check"
+    logger.info(f"{cluster_name}: starting {check_type}")
     # Get the count of AWS instances
     instances_with_cluster_tag = Ec2Instance.find_ec2_instances_by_cluster_tag(cluster_name)
     aws_cluster_instances = list(
         filter(lambda instance: instance.state != "terminated" and instance.state != "shutting-down",
                instances_with_cluster_tag))
     aws_cluster_instance_count = len(aws_cluster_instances)
-    # Get the IP count of CRDB nodes
-    crdb_node_ips = list(map(lambda node: node.ip_address, cluster.nodes))
-    crdb_cluster_instance_count = len(crdb_node_ips)
-    # Compare the IP count of AWS instances and CRDB nodes
-    if aws_cluster_instance_count != crdb_cluster_instance_count:
-        orphan_instances = list(
-            map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
-                filter(lambda instance: instance.private_ip_address not in crdb_node_ips, aws_cluster_instances)))
-        logger.warning("Orphan instances found.")
-        logger.warning("AWS instance count is {} and CRDB instance count is {}.".format(aws_cluster_instance_count,
-                                                                                        crdb_cluster_instance_count))
-        logger.warning("Orphan instances are: {}".format(orphan_instances))
-    else:
-        logger.info("No orphan instances found.")
-    # TODO: Write result into metadata DB 
+    try:
+        # Get the IP count of CRDB nodes
+        find_crdb_node_ip_sql = "select address from crdb_internal.kv_node_status;"
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
+        crdb_node_ips = connection.execute_sql(find_crdb_node_ip_sql)
+        connection.close()
+        crdb_cluster_instance_count = len(crdb_node_ips)
+        logger.info(f"{cluster_name} crdb_node_ips: {crdb_node_ips}")
+        # Compare the IP count of AWS instances and CRDB nodes
+        if aws_cluster_instance_count != crdb_cluster_instance_count:
+            orphan_instances = list(
+                map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
+                    filter(lambda instance: instance.private_ip_address not in crdb_node_ips, aws_cluster_instances)))
+            logger.warning(f"{cluster_name}: Orphan instances found")
+            logger.warning(f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
+            logger.warning(f"{cluster_name}: Orphan instances are: {orphan_instances}")
+            # TODO: provide useful output
+            check_output = "{}"
+            check_result = "orphan_health_check_failed"
+        else:
+            logger.info(f"{cluster_name}: No orphan instances found.")
+            # TODO: provide useful output
+            check_output = "{}"
+            check_result = "orphan_health_check_passed"
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "error"
+        check_result = "orphan_health_check_failed"
+    # save results to metadatadb
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result, check_output=check_output)
+    logger.info(f"{cluster_name}: {check_type} complete")
 
 
 @app.command()
@@ -97,7 +169,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "ptr_health_check"
-    logger.info(f"{cluster_name}: Running protected timestamp record check...")
+    logger.info(f"{cluster_name}: starting {check_type}")
     FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
                     "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '2d';")
@@ -125,7 +197,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                          check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info(f"{cluster_name}: PTR Health Check Complete")
+    logger.info(f"{cluster_name}: {check_type} complete")
 
 
 @app.command()
@@ -148,6 +220,7 @@ def etl_health_check(deployment_env, region, cluster_name):
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
+    logger.info(f"{cluster_name}: starting {check_type}")
     if deployment_env == 'staging':
         logger.info(f"{cluster_name}: Staging clusters doesn't have ETL load balancers.")
         return
@@ -195,10 +268,90 @@ def etl_health_check(deployment_env, region, cluster_name):
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                          check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info(f"{cluster_name}: ETL Health Check Complete")
+    logger.info(f"{cluster_name}: {check_type} complete")
+
+
+def extract_major_minor_from_tag(tag):
+    """
+    Extracts the major.minor version from the tag (e.g., "v22.2.13" -> "22.2").
+    """
+    parts = tag[1:].split('.')  # Remove the 'v' prefix and split by dot
+    return f"{parts[0]}.{parts[1]}"
 
 
 @app.command()
+def version_mismatch_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    storage_metadata = StorageMetadata()
+    # Usually an AWS account has one alias, but the response is a list.
+    # Thus, this will return the first alias, or None if there are no aliases.
+    aws_account_alias = IamGateway.get_account_alias()
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "version_mismatch_check"
+    logger.info(f"{cluster_name}: starting {check_type}")
+    crdb_sql_version = ("SELECT node_id, server_version, tag FROM crdb_internal.kv_node_status;")
+    crdb_cluster_version = ("show cluster setting version;")
+    try:
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
+        response = connection.execute_sql(crdb_sql_version)
+        connection.connect()
+        cluster_ver_response = connection.execute_sql(crdb_cluster_version)
+        connection.close()
+        # save sql response
+        check_output = response
+        # init dict
+        tag_dict = defaultdict(list)
+        mismatched_nodes = []
+        # debug response
+        logger.info(f"{cluster_name} response: {response}")
+        logger.info(f"{cluster_name} cluster setting version: {cluster_ver_response[0][0]}")
+        for node in response:
+            node_id, server_version, tag = node
+            major_minor_from_tag = extract_major_minor_from_tag(tag)
+            tag_dict[tag].append(node_id)
+            if server_version != major_minor_from_tag:
+                mismatched_nodes.append(node_id)
+        if mismatched_nodes:
+            logger.warning(f"{cluster_name}: server version mismatch detected. cluster version is {cluster_ver_response}"
+                           f". cluster upgrade may be incomplete.")
+            logger.warning(f"{cluster_name}: Nodes with IDs {', '.join(map(str, mismatched_nodes))} have server_version"
+                           f" not matching the major.minor part of their tag.")
+            check_result = "version_mismatch_check_failed-server_version_mismatch"
+            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
+                                                 region=region,
+                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                                 check_type=check_type, check_result=check_result,
+                                                 check_output=check_output)
+        elif len(tag_dict) > 1:
+            logger.warning(f"{cluster_name}: Nodes have mismatched tags.")
+            for tag_version, node_ids in tag_dict.items():
+                logger.warning(f"Tag {tag_version} is found on nodes: {', '.join(map(str, node_ids))}")
+            check_result = "version_mismatch_check_failed-tag_mismatch"
+            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
+                                                 region=region,
+                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                                 check_type=check_type, check_result=check_result,
+                                                 check_output=check_output)
+        else:
+            logger.info(f"{cluster_name}: All nodes have server_version matching the major.minor part of their tag.")
+            check_result = "version_mismatch_check_passed"
+            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
+                                                 region=region,
+                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                                 check_type=check_type, check_result=check_result,
+                                                 check_output=check_output)
+    except (psycopg2.DatabaseError, ValueError) as error:
+        logger.error(f"{cluster_name}: encountered error - {error}")
+        check_result = "backup_check_failed"
+        check_output = "connection_error"
+        storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                             aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                             check_type=check_type, check_result=check_result,
+                                             check_output=check_output)
+    logger.info(f"{cluster_name}: {check_type} complete")
+
+
 def az_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     storage_metadata = StorageMetadata()
@@ -208,6 +361,7 @@ def az_health_check(deployment_env, region, cluster_name):
     #logger.info("account_alias: %s", aws_account_alias)
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "az_health_check"
+    logger.info(f"{cluster_name}: starting {check_type}")
     if region == 'us-west-2':
         availability_zones = ['us-west-2a', 'us-west-2b', 'us-west-2c']
     else:
@@ -236,7 +390,7 @@ def az_health_check(deployment_env, region, cluster_name):
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                          check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info(f"{cluster_name}: AZ Health Check Complete")
+    logger.info(f"{cluster_name}: {check_type} complete")
 
 
 @app.command()
@@ -248,7 +402,7 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "zone_config_health_check"
-    logger.info(f"{cluster_name}: Running replication factor check...")
+    logger.info(f"{cluster_name}: starting {check_type}")
     # check that default replication factor is five
     FIND_ZONE_CONFIG_SQL = "select raw_config_sql from [show zone configuration from range default]"
     try:
@@ -275,7 +429,7 @@ def zone_config_health_check(deployment_env, region, cluster_name):
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                          check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info(f"{cluster_name}: Zone Config Health Check Complete")
+    logger.info(f"{cluster_name}: {check_type} complete")
 
 
 @app.command()
@@ -287,7 +441,7 @@ def backup_health_check(deployment_env, region, cluster_name):
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "backup_health_check"
-    logger.info(f"{cluster_name}: Running backup schedule check...")
+    logger.info(f"{cluster_name}: starting {check_type}")
     # check that there are two backup schedules running
     get_backup_schedule_count_sql = ("select count(*) from [show schedules] where label = 'backup_schedule' and  "
                                      "schedule_status = 'ACTIVE'")
@@ -318,13 +472,14 @@ def backup_health_check(deployment_env, region, cluster_name):
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                          check_type=check_type, check_result=check_result, check_output=check_output)
 
-    logger.info(f"{cluster_name}: Backup Health Check Complete")
+    logger.info(f"{cluster_name}: {check_type} complete")
 
 
 @app.command()
 def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
     # List of methods in healthcheck workflow
-    hc_methods = [ptr_health_check, etl_health_check, az_health_check, zone_config_health_check, backup_health_check]
+    hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check, az_health_check, zone_config_health_check,
+                  backup_health_check, orphan_health_check, changefeed_health_check, asg_health_check]
 
     storage_metadata = StorageMetadata()
     aws_account_alias = IamGateway.get_account_alias()
