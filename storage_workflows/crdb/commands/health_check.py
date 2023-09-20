@@ -569,6 +569,7 @@ def run_health_check_all(deployment_env, region):
     logger.info("Healthcheck for all all CRDB clusters complete...")
     # find failed healthchecks and send report to Slack
     failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, status='Failure')
+    logger.info(f"failed checks: {failed_checks}")
     slack_webhook_url = "https://hooks.slack.com/services/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"
     base_message = "Health checks failed for the following:\n"
     message_chunk = ""
@@ -581,5 +582,6 @@ def run_health_check_all(deployment_env, region):
         message_chunk += new_line
 
     if message_chunk:
+        logger.info(f"message_chunk: {message_chunk}")
         send_to_slack(slack_webhook_url, base_message + message_chunk)
 
