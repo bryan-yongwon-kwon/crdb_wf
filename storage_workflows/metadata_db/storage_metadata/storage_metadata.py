@@ -42,6 +42,6 @@ class StorageMetadata:
         return run_transaction(self.session_factory,
                                lambda session: update_workflow_state_with_retry_txn(session, **kwargs))
 
-    def get_hc_results(self, workflow_id, status):
+    def get_hc_results(self, workflow_id, check_result):
         return run_transaction(self.session_factory,
-                               lambda session: get_hc_results_txn(session, workflow_id, status))
+                               lambda session: get_hc_results_txn(session, workflow_id, check_result))
