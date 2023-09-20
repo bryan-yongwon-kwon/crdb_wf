@@ -1,6 +1,7 @@
 from storage_workflows.crdb.factory.aws_session_factory import AwsSessionFactory
 from botocore.exceptions import ClientError
 from storage_workflows.logging.logger import Logger
+import re
 
 logger = Logger()
 
@@ -34,10 +35,19 @@ class ElasticLoadBalancerGateway:
                                                                                       Instances=instances)
             return response['Instances']
         except ClientError as e:
-            if e.response['Error']['Code'] == 'InvalidInstanceID.NotFound':
-                logger.error("Instance does not exist or is not in a valid state.")
-                return None
+            if e.response['Error']['Code'] == 'InvalidInstance':
+                # Use a regular expression to locate the instance ID
+                match = re.search(r'i-\w{17}', str(e.response))
+                invalid_id = match.group(0)
+                logger.error(f"Instance {invalid_id} does not exist. Removing from the list.")
+                # Remove the invalid instance from the list
+                new_instances = [instance for instance in instances if instance['InstanceId'] != invalid_id]
+                new_response = elastic_load_balancer_client.register_instances_with_load_balancer(
+                    LoadBalancerName=load_balancer_name,
+                    Instances=new_instances)
+                return new_response
             else:
+                logger.error(f"e: {e}")
                 # Handle other possible exceptions or re-raise
                 logger.error("Unhandled client exception occurred while registering new instance(s) with etl")
                 return None
