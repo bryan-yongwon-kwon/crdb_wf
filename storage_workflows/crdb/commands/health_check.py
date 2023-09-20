@@ -536,22 +536,6 @@ def send_to_slack(slack_webhook_url, message):
     return response.status_code
 
 
-def send_failure_report_to_slack(failed_checks):
-    slack_webhook_url = "https://hooks.slack.com/services/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"
-    base_message = "Health checks failed for the following:\n"
-    message_chunk = ""
-
-    for check in failed_checks:
-        new_line = f"Cluster: {check.cluster_name}, Workflow ID: {check.workflow_id}, Check Type: {check.check_type}\n"
-        if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
-            send_to_slack(slack_webhook_url, base_message + message_chunk)
-            message_chunk = ""
-        message_chunk += new_line
-
-    if message_chunk:
-        send_to_slack(slack_webhook_url, base_message + message_chunk)
-
-
 @app.command()
 def run_health_check_all(deployment_env, region):
     # cluster names saved to /tmp/cluster_names.json

@@ -122,6 +122,6 @@ def get_hc_results_txn(session: Session, workflow_id, status):
     Returns:
     ClusterHealthCheckWorkflowState
     """
-    hc_results = session.query(ClusterHealthCheckWorkflowState).filter_by(workflow_id=workflow_id, status=status)
+    hc_results = session.query(ClusterHealthCheckWorkflowState).filter_by(workflow_id=workflow_id, status=status).all()
 
     return hc_results
