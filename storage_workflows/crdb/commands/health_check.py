@@ -201,13 +201,14 @@ def ptr_health_check(deployment_env, region, cluster_name):
 
 
 @app.command()
-def send_slack_notification(deployment_env):
+def send_slack_notification(deployment_env, message):
     # TODO: Read healthy check result from metadata DB
-    results = ["text1", "text2"]  # this is a place holder
-    webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv(
-        'SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
+    #results = ["text1", "text2"]  # this is a place holder
+    #webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv(
+    #    'SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
+    webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST')
     notification = SlackNotification(webhook_url)
-    notification.send_notification(ContentTemplate.get_health_check_template(results))
+    notification.send_notification(ContentTemplate.get_health_check_template(message))
 
 
 @app.command()
@@ -526,7 +527,8 @@ def run_health_check_single(deployment_env, region, cluster_name, workflow_id=No
 def run_health_check_all(deployment_env, region):
     # cluster names saved to /tmp/cluster_names.json
     get_cluster_names(deployment_env, region)
-
+    storage_metadata = StorageMetadata()
+    workflow_id = os.getenv('WORKFLOW-ID')
     # Open and load the JSON file
     with open('/tmp/cluster_names.json', 'r') as file:
         items = json.load(file)
@@ -536,3 +538,13 @@ def run_health_check_all(deployment_env, region):
     for cluster_name in items:
         run_health_check_single(deployment_env, region, cluster_name)
     logger.info("Healthcheck for all all CRDB clusters complete...")
+    # find failed healthchecks and send report to Slack
+    failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, status='Failure')
+    if failed_checks:
+        message = "Health checks failed for the following:\n"
+        for check in failed_checks:
+            message += f"Cluster: {check.cluster_name}, Workflow ID: {check.workflow_id}, Check Type: {check.check_type}\n"
+    else:
+        message = "All health checks completed successfully!"
+
+    send_slack_notification(deployment_env, message)
