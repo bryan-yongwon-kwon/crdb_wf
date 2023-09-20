@@ -529,12 +529,26 @@ def run_health_check_single(deployment_env, region, cluster_name, workflow_id=No
     logger.info(f"{cluster_name}: Healthcheck complete for {cluster_name}")
 
 
-def send_to_slack(slack_webhook_url, message):
+def send_to_slack(slack_webhook_url, text_message):
     headers = {
         'Content-Type': 'application/json'
     }
     data = {
-        'text': message
+        'blocks': [
+            {
+                "type": "section",
+                "block_id": "section567",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": text_message
+                },
+                "accessory": {
+                    "type": "image",
+                    "image_url": "https://via.placeholder.com/150",  # You can add an image if desired
+                    "alt_text": "Example Image"
+                }
+            }
+        ]
     }
     response = requests.post(slack_webhook_url, headers=headers, data=json.dumps(data))
     return response.status_code
@@ -563,7 +577,7 @@ def run_health_check_all(deployment_env, region):
     message_chunk = ""
 
     for check in failed_checks:
-        new_line = f"Cluster: {check.cluster_name}, Workflow ID: {check.workflow_id}, Check Type: {check.check_type}\n"
+        new_line = f"Cluster: {check.cluster_name}, CheckType: {check.check_type}, CheckResult: {check.check_result}\n"
         if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
             send_to_slack(slack_webhook_url, base_message + message_chunk)
             message_chunk = ""
