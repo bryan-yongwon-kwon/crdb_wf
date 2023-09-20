@@ -55,7 +55,7 @@ def asg_health_check(deployment_env, region, cluster_name):
         logger.warning(unhealthy_asg_instance_ids)
         logger.warning(f"{cluster_name}: Auto Scaling Group name: {asg.name}")
         # TODO: provide useful output
-        check_output = "asg_health_check_failed"
+        check_output = unhealthy_asg_instance_ids
         check_result = "fail"
     else:
         # TODO: provide useful output
@@ -87,7 +87,7 @@ def changefeed_health_check(deployment_env, region, cluster_name):
         if unhealthy_changefeed_jobs:
             logger.warning(f"{cluster_name}: Changefeeds Not Running:")
             # TODO: provide useful output
-            check_output = "changefeed_health_check_failed"
+            check_output = str(unhealthy_changefeed_jobs)
             check_result = "fail"
             for job in unhealthy_changefeed_jobs:
                 logger.warning(f"{cluster_name}: Job id is {job.id}. Status is {job.status}.")
@@ -99,7 +99,7 @@ def changefeed_health_check(deployment_env, region, cluster_name):
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         # TODO: provide useful output
-        check_output = "changefeed_health_check_failed"
+        check_output = str(error.response)
         check_result = "fail"
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -143,7 +143,7 @@ def orphan_health_check(deployment_env, region, cluster_name):
             logger.warning(f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
             logger.warning(f"{cluster_name}: Orphan instances are: {orphan_instances}")
             # TODO: provide useful output
-            check_output = "orphan_health_check_failed"
+            check_output = f"Orphan instances are: {orphan_instances}"
             check_result = "fail"
         else:
             logger.info(f"{cluster_name}: No orphan instances found.")
@@ -152,8 +152,8 @@ def orphan_health_check(deployment_env, region, cluster_name):
             check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
-        check_output = "error"
-        check_result = "orphan_health_check_failed"
+        check_output = str(error.response)
+        check_result = "fail"
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -190,7 +190,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
         connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
-        check_output = "ptr_health_check_failed"
+        check_output = str(error.response)
         check_result = "fail"
 
     # write results to storage_metadata
@@ -237,7 +237,8 @@ def etl_health_check(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name}: New instances: {new_instances}")
         if not new_instances:
             logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
-            check_result = "etl_health_check_no_action_needed"
+            check_output = "no_action_needed"
+            check_result = "pass"
             # write results to storage_metadata
             storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                                  aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -319,7 +320,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
                            f". cluster upgrade may be incomplete.")
             logger.warning(f"{cluster_name}: Nodes with IDs {', '.join(map(str, mismatched_nodes))} have server_version"
                            f" not matching the major.minor part of their tag.")
-            check_output = "version_mismatch_check_failed-server_version_mismatch"
+            check_output = str(mismatched_nodes)
             check_result = "fail"
             storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
                                                  region=region,
@@ -330,7 +331,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
             logger.warning(f"{cluster_name}: Nodes have mismatched tags.")
             for tag_version, node_ids in tag_dict.items():
                 logger.warning(f"Tag {tag_version} is found on nodes: {', '.join(map(str, node_ids))}")
-            check_output = "version_mismatch_check_failed-tag_mismatch"
+            check_output = str(tag_dict.items())
             check_result = "fail"
             storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
                                                  region=region,
@@ -349,7 +350,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         check_result = "fail"
-        check_output = "connection_error"
+        check_output = str(error.response)
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                              aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                              check_type=check_type, check_result=check_result,
