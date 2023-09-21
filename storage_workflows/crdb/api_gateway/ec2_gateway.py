@@ -43,8 +43,8 @@ class Ec2Gateway:
                 for instance in reservation['Instances']:
                     all_instances.append(instance)
 
-        for instance in all_instances:
-            logger.info(f"Found EC2 instance with ID: {instance['InstanceId']}")
+        # for instance in all_instances:
+        #    logger.info(f"Found EC2 instance with ID: {instance['InstanceId']}")
 
         return all_instances
 
