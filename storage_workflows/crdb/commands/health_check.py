@@ -529,11 +529,14 @@ def run_health_check_single(deployment_env, region, cluster_name, workflow_id=No
     logger.info(f"{cluster_name}: Healthcheck complete for {cluster_name}")
 
 
-def send_to_slack(slack_webhook_url, text_message):
+def send_to_slack(slack_webhook_url, message):
     headers = {
         'Content-Type': 'application/json'
     }
-    response = requests.post(slack_webhook_url, headers=headers)
+    data = {
+        'text': message
+    }
+    response = requests.post(slack_webhook_url, headers=headers, data=json.dumps(data))
     return response.status_code
 
 
