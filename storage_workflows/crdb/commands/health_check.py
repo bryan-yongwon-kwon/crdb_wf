@@ -533,24 +533,7 @@ def send_to_slack(slack_webhook_url, text_message):
     headers = {
         'Content-Type': 'application/json'
     }
-    data = {
-        'blocks': [
-            {
-                "type": "section",
-                "block_id": "section567",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": text_message
-                },
-                "accessory": {
-                    "type": "image",
-                    "image_url": "https://via.placeholder.com/150",  # You can add an image if desired
-                    "alt_text": "Example Image"
-                }
-            }
-        ]
-    }
-    response = requests.post(slack_webhook_url, headers=headers, data=json.dumps(data))
+    response = requests.post(slack_webhook_url, headers=headers)
     return response.status_code
 
 
@@ -577,7 +560,9 @@ def run_health_check_all(deployment_env, region):
     message_chunk = ""
 
     for check in failed_checks:
-        new_line = f"Cluster: {check.cluster_name}, CheckType: {check.check_type}, CheckResult: {check.check_result}\n"
+        if check.cluster_name == 'test_prod':  # Skip the checks for test cluster
+            continue
+        new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
         if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
             send_to_slack(slack_webhook_url, base_message + message_chunk)
             message_chunk = ""
