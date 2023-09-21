@@ -97,9 +97,8 @@ def changefeed_health_check(deployment_env, region, cluster_name):
             check_output = "changefeed_health_check_passed"
             check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
-        logger.error(f"{cluster_name}: encountered error - {error}")
-        # TODO: provide useful output
-        check_output = str(error)
+        #logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "db_connection_error"
         check_result = "fail"
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -151,8 +150,8 @@ def orphan_health_check(deployment_env, region, cluster_name):
             check_output = "orphan_health_check_passed"
             check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
-        logger.error(f"{cluster_name}: encountered error - {error}")
-        check_output = str(error)
+        #logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "db_connection_error"
         check_result = "fail"
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -189,8 +188,8 @@ def ptr_health_check(deployment_env, region, cluster_name):
             check_result = "pass"
         connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
-        logger.error(f"{cluster_name}: encountered error - {error}")
-        check_output = str(error)
+        #logger.error(f"{cluster_name}: encountered error - {error}")
+        check_output = "db_connection_error"
         check_result = "fail"
 
     # write results to storage_metadata
@@ -348,9 +347,9 @@ def version_mismatch_check(deployment_env, region, cluster_name):
                                                  check_type=check_type, check_result=check_result,
                                                  check_output=check_output)
     except (psycopg2.DatabaseError, ValueError) as error:
-        logger.error(f"{cluster_name}: encountered error - {error}")
+        #logger.error(f"{cluster_name}: encountered error - {error}")
         check_result = "fail"
-        check_output = str(error)
+        check_output = "db_connection_error"
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                              aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                              check_type=check_type, check_result=check_result,
@@ -427,7 +426,7 @@ def zone_config_health_check(deployment_env, region, cluster_name):
         connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
-        check_output = "error"
+        check_output = "db_connection_error"
         check_result = "fail"
 
     # write results to storage_metadata
@@ -471,7 +470,7 @@ def backup_health_check(deployment_env, region, cluster_name):
         connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
-        check_output = "error"
+        check_output = "db_connection_error"
         check_result = "fail"
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -558,7 +557,10 @@ def run_health_check_all(deployment_env, region):
     # find failed healthchecks and send report to Slack
     failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, check_result='fail')
     slack_webhook_url = "https://hooks.slack.com/services/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"
-    base_message = "Health checks failed for the following:\n"
+    base_message = (f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n"
+                    f"Health checks failed for the following:\n"
+                    f"For full report run - SELECT * FROM cluster_health_check WHERE workflow_id={workflow_id} AND "
+                    f"check_result='fail';")
     message_chunk = ""
 
     for check in failed_checks:
@@ -566,12 +568,9 @@ def run_health_check_all(deployment_env, region):
             continue
         new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
         if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
-            slack_response = send_to_slack(slack_webhook_url, base_message + message_chunk)
-            logger.info(f"first_message_chunk: {message_chunk}")
             message_chunk = ""
         message_chunk += new_line
 
     if message_chunk:
-        logger.info(f"overflow_message_chunk: {message_chunk}")
         send_to_slack(slack_webhook_url, base_message + message_chunk)
 
