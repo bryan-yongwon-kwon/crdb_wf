@@ -3,27 +3,6 @@ from storage_workflows.crdb.factory.aws_session_factory import AwsSessionFactory
 
 class S3Gateway:
 
-    # @staticmethod
-    # def list_all_bucket_contents(bucket_name):
-    #     s3_client = AwsSessionFactory.s3()
-    #     response = s3_client.list_objects_v2(Bucket=bucket_name)
-    #
-    #     # Check if there are any objects in the bucket
-    #     if 'Contents' in response:
-    #         # Loop through the objects and read their contents
-    #         for obj in response['Contents']:
-    #             object_key = obj['Key']
-    #             # Download and read the object's content
-    #             try:
-    #                 response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
-    #                 content = response['Body'].read().decode('utf-8')
-    #
-    #                 print(f"Contents of {object_key}:\n{content}")
-    #             except Exception as e:
-    #                 print(f"Error reading {object_key}: {str(e)}")
-    #     else:
-    #         print(f"The bucket {bucket_name} is empty.")
-
     @staticmethod
     def read_objects_with_pagination(bucket_name, page_token=None, page_size=1):
         """
