@@ -546,7 +546,7 @@ def send_to_slack_with_attachment(filename, message):
     """Send a file as an attachment to a Slack channel."""
     url = "https://slack.com/api/files.upload"
     headers = {
-        'Authorization': 'xoxb-3764086579-1881097306055-lLF3ASKqs9UfgpSdnGEztpMp',
+        'Authorization': 'Bearer xoxb-3764086579-1881097306055-lLF3ASKqs9UfgpSdnGEztpMp',
     }
 
     with open(filename, 'rb') as f:
