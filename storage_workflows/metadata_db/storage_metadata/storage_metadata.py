@@ -4,6 +4,7 @@ from storage_workflows.metadata_db.storage_metadata.hc_transactions import (add_
                                                                             initiate_hc_workflow_txn,
                                                                             get_hc_workflow_id_state_txn,
                                                                             update_workflow_state_with_retry_txn)
+from storage_workflows.metadata_db.storage_metadata.user_management_transactions import (add_user_txn, get_user_txn)
 from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
 from sqlalchemy_cockroachdb import run_transaction
 from storage_workflows.logging.logger import Logger
@@ -40,3 +41,12 @@ class StorageMetadata:
     def update_workflow_state_with_retry(self, **kwargs):
         return run_transaction(self.session_factory,
                                lambda session: update_workflow_state_with_retry_txn(session, **kwargs))
+
+    def insert_user(self, **kwargs):
+        return run_transaction(self.session_factory,
+                               lambda session: add_user_txn(session, **kwargs))
+
+    def get_user(self, cluster_name, region, aws_account, database_name, role_name, deployment_env):
+        return run_transaction(self.session_factory,
+                               lambda session: get_user_txn(session, cluster_name, region, aws_account, database_name,
+                                                            role_name, deployment_env))
