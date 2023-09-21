@@ -7,7 +7,7 @@ from storage_workflows.crdb.models.users.sql_user import SqlUser
 app = typer.Typer()
 logger = Logger()
 
-@app.command
+@app.command()
 def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_account):
     setup_env(deployment_env, region, None)
     storage_metadata = StorageMetadata()
