@@ -557,10 +557,10 @@ def run_health_check_all(deployment_env, region):
     # find failed healthchecks and send report to Slack
     failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, check_result='fail')
     slack_webhook_url = "https://hooks.slack.com/services/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"
-    base_message = (f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n"
-                    f"Health checks failed for the following:\n"
+    base_message = (f"Health checks failed for the following:\n\n"
+                    f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n\n"
                     f"For full report run - SELECT * FROM cluster_health_check WHERE workflow_id={workflow_id} AND "
-                    f"check_result='fail';")
+                    f"check_result='fail';\n\n")
     message_chunk = ""
 
     for check in failed_checks:
@@ -568,6 +568,7 @@ def run_health_check_all(deployment_env, region):
             continue
         new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
         if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
+            send_to_slack(slack_webhook_url, base_message + message_chunk)
             message_chunk = ""
         message_chunk += new_line
 
