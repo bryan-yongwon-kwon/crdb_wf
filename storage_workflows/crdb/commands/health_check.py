@@ -535,14 +535,14 @@ def generate_report_file(failed_checks):
     with open(filename, 'w', newline='') as f:
         writer = csv.writer(f)
         # Writing the header
-        writer.writerow(["cluster_name", "check_type", "check_result"])
+        writer.writerow(["cluster_name", "check_type", "check_result", "check_output"])
         for check in failed_checks:
             if check.cluster_name == 'test_prod':
                 continue
-            writer.writerow([check.cluster_name, check.check_type, check.check_result])
+            writer.writerow([check.cluster_name, check.check_type, check.check_result, check.check_output])
     return filename
 
-def send_to_slack_with_attachment(slack_webhook_url, filename, message):
+def send_to_slack_with_attachment(filename, message):
     """Send a file as an attachment to a Slack channel."""
     url = "https://slack.com/api/files.upload"
     headers = {
@@ -593,7 +593,8 @@ def run_health_check_all(deployment_env, region):
                     f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n\n"
                     f"For full report run - SELECT * FROM cluster_health_check WHERE workflow_id={workflow_id} AND "
                     f"check_result='fail';\n\n")
-    send_to_slack_with_attachment(slack_webhook_url, report_file, base_message)
+    response_http_code = send_to_slack_with_attachment(report_file, base_message)
+    logger.info(f"response_http_code: {response_http_code}")
     #message_chunk = ""
 
     #for check in failed_checks:
