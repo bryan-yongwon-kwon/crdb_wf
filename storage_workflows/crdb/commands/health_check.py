@@ -586,26 +586,29 @@ def run_health_check_all(deployment_env, region):
     logger.info("Healthcheck for all all CRDB clusters complete...")
     # find failed healthchecks and send report to Slack
     failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, check_result='fail')
+    # NOTE: slack file upload is not ready yet
     # Generate the health check report file
-    report_file = generate_report_file(failed_checks)
+    # report_file = generate_report_file(failed_checks)
     slack_webhook_url = "https://hooks.slack.com/services/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"
-    base_message = (f"Health checks failed for the following:\n\n"
-                    f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n\n"
+    base_message = (f"**********************************************************************************************\n"
+                    f"Health checks failed for the following:\n"
+                    f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n"
                     f"For full report run - SELECT * FROM cluster_health_check WHERE workflow_id={workflow_id} AND "
-                    f"check_result='fail';\n\n")
-    response_http_code = send_to_slack_with_attachment(report_file, base_message)
-    logger.info(f"response_http_code: {response_http_code}")
-    #message_chunk = ""
+                    f"check_result='fail';\n"
+                    f"**********************************************************************************************\n")
+    # response_http_code = send_to_slack_with_attachment(report_file, base_message)
+    # logger.info(f"response_http_code: {response_http_code}")
+    message_chunk = ""
 
-    #for check in failed_checks:
-    #    if check.cluster_name == 'test_prod':  # Skip the checks for test cluster
-    #        continue
-    #    new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
-    #    if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
-    #        send_to_slack(slack_webhook_url, base_message + message_chunk)
-    #        message_chunk = ""
-    #    message_chunk += new_line
+    for check in failed_checks:
+        if check.cluster_name == 'test_prod' or check.check_output == 'db_connection_error':  # Skip the checks for test cluster
+            continue
+        new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
+        if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
+            send_to_slack(slack_webhook_url, base_message + message_chunk)
+            message_chunk = ""
+        message_chunk += new_line
 
-    # if message_chunk:
-    #    send_to_slack(slack_webhook_url, base_message + message_chunk)
+    if message_chunk:
+        send_to_slack(slack_webhook_url, base_message + message_chunk)
 
