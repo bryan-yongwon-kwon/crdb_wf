@@ -47,7 +47,9 @@ def asg_health_check(deployment_env, region, cluster_name):
     check_type = "asg_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+    logger.info(f"{cluster_name}: asg.instances:  {asg.instances}")
     unhealthy_asg_instances = list(filter(lambda instance: not instance.in_service(), asg.instances))
+    logger.info(f"{cluster_name}: unhealthy_asg_instances:  {unhealthy_asg_instances}")
     if unhealthy_asg_instances:
         unhealthy_asg_instance_ids = list(map(lambda instance: instance.instance_id, unhealthy_asg_instances))
         logger.warning(f"{cluster_name}: Displaying all unhealthy instances for the {cluster_name} cluster:")
