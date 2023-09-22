@@ -2,9 +2,8 @@ from functools import cached_property
 
 class AutoScalingGroupInstance:
 
-    def __init__(self, api_response, instance_data):
+    def __init__(self, api_response):
         self._api_response = api_response
-        self._data = instance_data
 
     def in_service(self):
         return self._api_response['LifecycleState'] == "InService"
@@ -15,4 +14,4 @@ class AutoScalingGroupInstance:
 
     @property
     def health_status(self):
-        return self._data['HealthStatus']
+        return self._api_response['HealthStatus']
