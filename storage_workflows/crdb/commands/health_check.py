@@ -243,8 +243,7 @@ def etl_health_check(deployment_env, region, cluster_name):
         filtered_instances = filter(
             lambda instance: instance.is_healthy, new_instances)
         new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id}, filtered_instances))
-        new_instance_ids = list(map(lambda instance: instance.instance_id, new_instances))
-        logger.info(f"{cluster_name}: New instances: {new_instance_ids}")
+        logger.info(f"{cluster_name}: New instances: {new_instances}")
         if not new_instances:
             logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
             check_output = "no_action_needed"
