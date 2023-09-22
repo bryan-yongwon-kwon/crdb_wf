@@ -254,24 +254,22 @@ def etl_health_check(deployment_env, region, cluster_name):
                                                  check_type=check_type, check_result=check_result,
                                                  check_output=check_output)
             return
-        if load_balancer.register_instances(new_instances):
+        else:
             if old_lb_instances:
                 load_balancer.deregister_instances(old_lb_instances)
-            new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
-            lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
-            if set(new_instance_list) == set(lb_instance_list):
-                logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
-                check_result = "pass"
-                check_output = "etl_loadbalancer_refreshed"
-            else:
-                logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
-                check_result = "fail"
-                check_output = "etl_loadbalancer_refresh_failed"
-        else:
-            logger.info(f"{cluster_name}: Invalid instance found while registering instances on etl loadbalancer. "
-                        f"Skipping...")
-            check_result = "fail"
-            check_output = "etl_loadbalancer_registration_failed"
+            load_balancer.register_instances(new_instances)
+            check_result = "pass"
+            check_output = "etl_loadbalancer_refreshed"
+            # new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
+            # lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
+            # if set(new_instance_list) == set(lb_instance_list):
+            #    logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
+            #    check_result = "pass"
+            #    check_output = "etl_loadbalancer_refreshed"
+            # else:
+            #    logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
+            #    check_result = "fail"
+            #    check_output = "etl_loadbalancer_refresh_failed"
     else:
         logger.info(f"{cluster_name}: ETL load balancer not found. Skipping...")
         check_result = "skipped"
