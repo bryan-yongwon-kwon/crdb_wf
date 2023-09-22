@@ -11,7 +11,7 @@ from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
-from storage_workflows.slack.slack_notification import SlackNotification
+from storage_workflows.slack.slack_notification import SlackNotification, send_to_slack
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
@@ -529,46 +529,6 @@ def run_health_check_single(deployment_env, region, cluster_name, workflow_id=No
     logger.info(f"{cluster_name}: Healthcheck complete for {cluster_name}")
 
 
-def generate_report_file(failed_checks):
-    """Generate a report from failed checks and save as a CSV file."""
-    filename = "/tmp/health_check_report.csv"
-    with open(filename, 'w', newline='') as f:
-        writer = csv.writer(f)
-        # Writing the header
-        writer.writerow(["cluster_name", "check_type", "check_result", "check_output"])
-        for check in failed_checks:
-            if check.cluster_name == 'test_prod':
-                continue
-            writer.writerow([check.cluster_name, check.check_type, check.check_result, check.check_output])
-    return filename
-
-def send_to_slack_with_attachment(filename, message):
-    """Send a file as an attachment to a Slack channel."""
-    url = "https://slack.com/api/files.upload"
-    headers = {
-        'Authorization': 'Bearer xoxb-3764086579-1881097306055-lLF3ASKqs9UfgpSdnGEztpMp',
-    }
-
-    with open(filename, 'rb') as f:
-        payload = {
-            "channels": "#storage-alert-test",
-            "file": f,
-            "initial_comment": message,
-        }
-        response = requests.post(url, headers=headers, files=payload)
-    return response.status_code
-
-def send_to_slack(slack_webhook_url, message):
-    headers = {
-        'Content-Type': 'application/json'
-    }
-    data = {
-        'text': message
-    }
-    response = requests.post(slack_webhook_url, headers=headers, data=json.dumps(data))
-    return response.status_code
-
-
 @app.command()
 def run_health_check_all(deployment_env, region):
     # cluster names saved to /tmp/cluster_names.json
@@ -587,19 +547,12 @@ def run_health_check_all(deployment_env, region):
     # find failed healthchecks and send report to Slack
     failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, check_result='fail')
     # NOTE: slack file upload is not ready yet
-    # Generate the health check report file
-    # report_file = generate_report_file(failed_checks)
-    # slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv(
-    #    'SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
-    slack_webhook_url = "https://hooks.slack.com/services/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"
     base_message = (f"**********************************************************************************************\n"
                     f"HEALTH CHECK REPORT\n"
                     f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n"
                     f"For full report run - SELECT * FROM cluster_health_check WHERE workflow_id={workflow_id} AND "
                     f"check_result='fail';\n"
                     f"**********************************************************************************************\n")
-    # response_http_code = send_to_slack_with_attachment(report_file, base_message)
-    # logger.info(f"response_http_code: {response_http_code}")
     message_chunk = ""
 
     for check in failed_checks:
@@ -607,10 +560,10 @@ def run_health_check_all(deployment_env, region):
             continue
         new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
         if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
-            send_to_slack(slack_webhook_url, base_message + message_chunk)
+            send_to_slack("test", base_message + message_chunk)
             message_chunk = ""
         message_chunk += new_line
 
     if message_chunk:
-        send_to_slack(slack_webhook_url, base_message + message_chunk)
+        send_to_slack("test", base_message + message_chunk)
 
