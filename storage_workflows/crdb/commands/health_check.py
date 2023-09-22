@@ -241,7 +241,7 @@ def etl_health_check(deployment_env, region, cluster_name):
         # Extracting instance_ids from healthy instances in asg
         asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
         new_instances = [instance for instance in asg.instances if instance.is_healthy()]
-        new_instance_id_set = set(map(lambda new_instance: new_instance['InstanceId'], new_instances))
+        new_instance_id_set = [instance.instance_id for instance in asg.instances if instance.is_healthy()]
         logger.info(f"{cluster_name}: New instances: {new_instance_id_set}")
         if not new_instances:
             logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
