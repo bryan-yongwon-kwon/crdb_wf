@@ -204,10 +204,10 @@ def ptr_health_check(deployment_env, region, cluster_name):
 @app.command()
 def send_slack_notification(deployment_env, message):
     # TODO: Read healthy check result from metadata DB
-    #results = ["text1", "text2"]  # this is a place holder
-    #webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv(
-    #    'SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
-    webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST')
+    results = ["text1", "text2"]  # this is a place holder
+    webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv(
+        'SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
+    # webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST')
     notification = SlackNotification(webhook_url)
     notification.send_notification(ContentTemplate.get_health_check_template(message))
 
@@ -589,9 +589,11 @@ def run_health_check_all(deployment_env, region):
     # NOTE: slack file upload is not ready yet
     # Generate the health check report file
     # report_file = generate_report_file(failed_checks)
+    # slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB') if deployment_env == 'prod' else os.getenv(
+    #    'SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
     slack_webhook_url = "https://hooks.slack.com/services/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"
     base_message = (f"**********************************************************************************************\n"
-                    f"Health checks failed for the following:\n"
+                    f"HEALTH CHECK REPORT\n"
                     f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n"
                     f"For full report run - SELECT * FROM cluster_health_check WHERE workflow_id={workflow_id} AND "
                     f"check_result='fail';\n"
