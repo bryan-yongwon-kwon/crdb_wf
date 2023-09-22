@@ -52,19 +52,20 @@ def asg_health_check(deployment_env, region, cluster_name):
     info_str = ', '.join([f"ID: {id}, Health: {status}" for id, status in instance_info])
     logger.info(f"{cluster_name}: Instances: {info_str}")
     # debugging_end
-    unhealthy_asg_instances = list(filter(lambda instance: not instance.is_healthy(), asg.instances))
-    logger.info(f"{cluster_name}: unhealthy_asg_instances:  {unhealthy_asg_instances}")
+    # Filtering out only the unhealthy instances
+    unhealthy_asg_instances = [instance for instance in asg.instances if instance.health_status == 'Unhealthy']
+    # Extracting instance_ids from the filtered instances
+    unhealthy_asg_instance_ids = [instance.instance_id for instance in unhealthy_asg_instances]
     if unhealthy_asg_instances:
-        unhealthy_asg_instance_ids = list(map(lambda instance: instance.instance_id, unhealthy_asg_instances))
         logger.warning(f"{cluster_name}: Displaying all unhealthy instances for the {cluster_name} cluster:")
         logger.warning(unhealthy_asg_instance_ids)
         logger.warning(f"{cluster_name}: Auto Scaling Group name: {asg.name}")
         # TODO: provide useful output
-        check_output = "{}"
+        check_output = str(unhealthy_asg_instance_ids)
         check_result = "asg_health_check_failed"
     else:
         # TODO: provide useful output
-        check_output = "{}"
+        check_output = str(unhealthy_asg_instance_ids)
         check_result = "asg_health_check_passed"
         logger.info(f"{cluster_name}: asg_healthcheck_passed")
     # save results to metadatadb
