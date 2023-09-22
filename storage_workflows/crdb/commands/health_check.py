@@ -59,8 +59,8 @@ def asg_health_check(deployment_env, region, cluster_name):
     # Extracting instance_ids from the filtered instances
     unhealthy_asg_instance_ids = [instance.instance_id for instance in unhealthy_asg_instances]
     if unhealthy_asg_instances:
-        logger.warning(f"{cluster_name}: Displaying all unhealthy instances for the {cluster_name} cluster:")
-        logger.warning(unhealthy_asg_instance_ids)
+        logger.warning(f"{cluster_name}: Displaying all unhealthy instances for the {cluster_name} cluster: "
+                       f"{unhealthy_asg_instance_ids}")
         logger.warning(f"{cluster_name}: Auto Scaling Group name: {asg.name}")
         # TODO: provide useful output
         check_output = unhealthy_asg_instance_ids
