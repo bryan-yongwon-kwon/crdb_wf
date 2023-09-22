@@ -7,7 +7,10 @@ class AutoScalingGroupInstance:
 
     def in_service(self):
         return self._api_response['LifecycleState'] == "InService"
-    
+
+    def is_healthy(self):
+        return self._api_response['HealthStatus'] == "Healthy"
+
     @cached_property
     def instance_id(self):
         return self._api_response['InstanceId']

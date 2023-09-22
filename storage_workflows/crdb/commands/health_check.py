@@ -52,7 +52,7 @@ def asg_health_check(deployment_env, region, cluster_name):
     info_str = ', '.join([f"ID: {id}, Health: {status}" for id, status in instance_info])
     logger.info(f"{cluster_name}: Instances: {info_str}")
     # debugging_end
-    unhealthy_asg_instances = list(filter(lambda instance: not instance.in_service(), asg.instances))
+    unhealthy_asg_instances = list(filter(lambda instance: not instance.is_healthy(), asg.instances))
     logger.info(f"{cluster_name}: unhealthy_asg_instances:  {unhealthy_asg_instances}")
     if unhealthy_asg_instances:
         unhealthy_asg_instance_ids = list(map(lambda instance: instance.instance_id, unhealthy_asg_instances))
