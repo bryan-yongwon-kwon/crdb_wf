@@ -3,7 +3,8 @@ from sqlalchemy.orm import sessionmaker
 from storage_workflows.metadata_db.storage_metadata.hc_transactions import (add_cluster_health_check_txn,
                                                                             initiate_hc_workflow_txn,
                                                                             get_hc_workflow_id_state_txn,
-                                                                            update_workflow_state_with_retry_txn)
+                                                                            update_workflow_state_with_retry_txn,
+                                                                            get_hc_results_txn)
 from storage_workflows.metadata_db.storage_metadata.user_management_transactions import (add_user_txn, get_user_txn)
 from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
 from sqlalchemy_cockroachdb import run_transaction
@@ -50,3 +51,7 @@ class StorageMetadata:
         return run_transaction(self.session_factory,
                                lambda session: get_user_txn(session, cluster_name, region, aws_account, database_name,
                                                             role_name, deployment_env))
+
+    def get_hc_results(self, workflow_id, check_result):
+        return run_transaction(self.session_factory,
+                               lambda session: get_hc_results_txn(session, workflow_id, check_result))
