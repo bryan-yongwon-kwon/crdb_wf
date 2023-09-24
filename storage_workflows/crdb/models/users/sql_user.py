@@ -17,11 +17,11 @@ class SqlUser(BaseUser):
         super().__init__(user_name, "sql", cluster_name)
 
     def create_user(self):
-        self.connection.execute(self.CREATE_SQL_ROLE.format(self.user_name))
-        self.connection.execute(self.GRANT_CONNECT.format(self.db_name, self.user_name))
-        self.connection.execute(self.GRANT_OTHERS.format(self.db_name, self.user_name))
-        self.connection.execute(self.ALTER_DEFAULT_PRIVS_ON_TABLES.format(self.db_name, self.user_name))
-        self.connection.execute(self.ALTER_DEFAULT_PRIVS_ON_SEQUENCES.format(self.db_name, self.user_name))
-        self.connection.execute(self.ALTER_DEFAULT_PRIVS_ON_TYPES.format(self.db_name, self.user_name))
-        self.connection.execute(self.ALTER_DEFAULT_PRIVS_ON_FUNCTIONS.format(self.db_name, self.user_name))
+        self.connection.execute_sql(self.CREATE_SQL_ROLE.format(self.user_name))
+        self.connection.execute_sql(self.GRANT_CONNECT.format(self.db_name, self.user_name))
+        self.connection.execute_sql(self.GRANT_OTHERS.format(self.db_name, self.user_name))
+        self.connection.execute_sql(self.ALTER_DEFAULT_PRIVS_ON_TABLES.format(self.db_name, self.user_name))
+        self.connection.execute_sql(self.ALTER_DEFAULT_PRIVS_ON_SEQUENCES.format(self.db_name, self.user_name))
+        self.connection.execute_sql(self.ALTER_DEFAULT_PRIVS_ON_TYPES.format(self.db_name, self.user_name))
+        self.connection.execute_sql(self.ALTER_DEFAULT_PRIVS_ON_FUNCTIONS.format(self.db_name, self.user_name))
         self.connection.close()
