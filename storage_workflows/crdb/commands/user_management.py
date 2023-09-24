@@ -19,7 +19,7 @@ def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_accoun
     #for obj in objects:
     #    content = obj['Key']
     user_type, db_name, user_name = ["sql", "crdb_benchmark", "meha.kaushik"]#content.split(':')
-    logger.info("Read user_type : {0}, db_name : {1}, user_name : {2}", user_type, db_name, user_name)
+    logger.info("Read user_type : {}, db_name : {}, user_name : {}".format(user_type, db_name, user_name))
     os.environ['CLUSTER_NAME'] = db_name
     # check if the user already exists, if yes, then do not do this.
     storage_metadata.insert_user(cluster_name=db_name, deployment_env=deployment_env, region=region,
@@ -27,7 +27,7 @@ def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_accoun
                                  certificate_path="cert_path")
     sql_user = SqlUser(user_name, cluster_name=db_name)
     sql_user.create_user()
-    logger.info("Successfully created user_name: {0}", user_name)
+    logger.info("Successfully created user_name: {0}".format(user_name))
 
     # while next_page_token:
     #     objects, next_page_token = S3Gateway.read_objects_with_pagination(bucket_name, page_token=next_page_token)

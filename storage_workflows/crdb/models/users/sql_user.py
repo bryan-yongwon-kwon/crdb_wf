@@ -16,7 +16,6 @@ class SqlUser(BaseUser):
     def __init__(self, user_name, cluster_name):
         super().__init__(user_name, "sql", cluster_name)
 
-    @staticmethod
     def create_user(self):
         self.connection.execute(self.CREATE_SQL_ROLE.format(self.user_name))
         self.connection.execute(self.GRANT_CONNECT.format(self.db_name, self.user_name))
