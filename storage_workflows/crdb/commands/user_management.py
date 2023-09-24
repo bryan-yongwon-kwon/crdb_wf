@@ -12,7 +12,7 @@ logger = Logger()
 
 @app.command()
 def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_account):
-    setup_env(deployment_env, region, None)
+    setup_env(deployment_env, region, "")
     storage_metadata = StorageMetadata()
     objects, next_page_token = S3Gateway.read_objects_with_pagination(bucket_name)
     #Process the objects in the current page
