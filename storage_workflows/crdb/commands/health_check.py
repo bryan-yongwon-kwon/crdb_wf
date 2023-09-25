@@ -287,9 +287,9 @@ def etl_health_check(deployment_env, region, cluster_name):
         return
 
     elb_load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
-    elb_instances = elb_load_balancer.instances
 
-    if elb_instances is not None:
+    if elb_load_balancer is not None:
+        elb_instances = elb_load_balancer.instances
         old_lb_instances = [instance for instance in elb_instances if
                                     instance.get('InstanceState', {}).get('State') == 'InService']
         old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
