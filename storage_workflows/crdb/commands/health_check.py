@@ -105,7 +105,7 @@ def changefeed_health_check(deployment_env, region, cluster_name):
             check_output = "changefeed_health_check_passed"
             check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
-        #logger.error(f"{cluster_name}: encountered error - {error}")
+        # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
         check_result = "fail"
     # save results to metadatadb
@@ -144,10 +144,12 @@ def orphan_health_check(deployment_env, region, cluster_name):
         # Compare the IP count of AWS instances and CRDB nodes
         if aws_cluster_instance_count != crdb_cluster_instance_count:
             orphan_instances = list(
-                map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
+                map(lambda instance: {"InstanceId": instance.instance_id,
+                                      "PrivateIpAddress": instance.private_ip_address},
                     filter(lambda instance: instance.private_ip_address not in crdb_node_ips, aws_cluster_instances)))
             logger.warning(f"{cluster_name}: Orphan instances found")
-            logger.warning(f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
+            logger.warning(
+                f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
             logger.warning(f"{cluster_name}: Orphan instances are: {orphan_instances}")
             # TODO: provide useful output
             check_output = f"Orphan instances are: {orphan_instances}"
@@ -158,7 +160,7 @@ def orphan_health_check(deployment_env, region, cluster_name):
             check_output = "orphan_health_check_passed"
             check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
-        #logger.error(f"{cluster_name}: encountered error - {error}")
+        # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
         check_result = "fail"
     # save results to metadatadb
@@ -196,7 +198,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
             check_result = "pass"
         connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
-        #logger.error(f"{cluster_name}: encountered error - {error}")
+        # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
         check_result = "fail"
 
@@ -249,7 +251,8 @@ def etl_health_check(deployment_env, region, cluster_name):
             check_output = "no_action_needed"
             check_result = "pass"
             # write results to storage_metadata
-            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
+                                                 region=region,
                                                  aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                                  check_type=check_type, check_result=check_result,
                                                  check_output=check_output)
@@ -260,16 +263,18 @@ def etl_health_check(deployment_env, region, cluster_name):
             load_balancer.register_instances(new_instances)
             check_result = "pass"
             check_output = "etl_loadbalancer_refreshed"
-            # new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
-            # lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
-            # if set(new_instance_list) == set(lb_instance_list):
-            #    logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
-            #    check_result = "pass"
-            #    check_output = "etl_loadbalancer_refreshed"
-            # else:
-            #    logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
-            #    check_result = "fail"
-            #    check_output = "etl_loadbalancer_refresh_failed"
+            new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
+            logger.info(f"{cluster_name} new_instance_list: {new_instance_list}")
+            lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
+            logger.info(f"{cluster_name} lb_instance_list: {lb_instance_list}")
+            if set(new_instance_list) == set(lb_instance_list):
+                logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
+                check_result = "pass"
+                check_output = "etl_loadbalancer_refreshed"
+            else:
+                logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
+                check_result = "fail"
+                check_output = "etl_loadbalancer_refresh_failed"
     else:
         logger.info(f"{cluster_name}: ETL load balancer not found. Skipping...")
         check_result = "skipped"
@@ -325,8 +330,9 @@ def version_mismatch_check(deployment_env, region, cluster_name):
             if server_version != major_minor_from_tag:
                 mismatched_nodes.append(node_id)
         if mismatched_nodes:
-            logger.warning(f"{cluster_name}: server version mismatch detected. cluster version is {cluster_ver_response}"
-                           f". cluster upgrade may be incomplete.")
+            logger.warning(
+                f"{cluster_name}: server version mismatch detected. cluster version is {cluster_ver_response}"
+                f". cluster upgrade may be incomplete.")
             logger.warning(f"{cluster_name}: Nodes with IDs {', '.join(map(str, mismatched_nodes))} have server_version"
                            f" not matching the major.minor part of their tag.")
             check_output = str(mismatched_nodes)
@@ -357,7 +363,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
                                                  check_type=check_type, check_result=check_result,
                                                  check_output=check_output)
     except (psycopg2.DatabaseError, ValueError) as error:
-        #logger.error(f"{cluster_name}: encountered error - {error}")
+        # logger.error(f"{cluster_name}: encountered error - {error}")
         check_result = "fail"
         check_output = "db_connection_error"
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -373,7 +379,7 @@ def az_health_check(deployment_env, region, cluster_name):
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
     aws_account_alias = IamGateway.get_account_alias()
-    #logger.info("account_alias: %s", aws_account_alias)
+    # logger.info("account_alias: %s", aws_account_alias)
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "az_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
@@ -575,4 +581,3 @@ def run_health_check_all(deployment_env, region):
 
     if message_chunk:
         send_to_slack("test", base_message + message_chunk)
-
