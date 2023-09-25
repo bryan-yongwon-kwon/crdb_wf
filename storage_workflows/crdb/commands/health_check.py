@@ -320,10 +320,15 @@ def etl_health_check(deployment_env, region, cluster_name):
                     check_output = "etl_loadbalancer_refreshed"
                 else:
                     logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
+                    logger.info(f"{cluster_name}: unhealthy_instances are: {unhealthy_instances}")
+                    logger.info(f"{cluster_name}: new_instance_list are: {new_instance_list}")
+                    logger.info(f"{cluster_name}: lb_instance_list are: {lb_instance_list}")
                     check_result = "fail"
                     check_output = f"etl_loadbalancer_refresh_failed, OutOfService instances: {unhealthy_instances}"
             else:
                 logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
+                logger.info(f"{cluster_name}: new_instance_list are: {new_instance_list}")
+                logger.info(f"{cluster_name}: lb_instance_list are: {lb_instance_list}")
                 check_result = "fail"
                 check_output = f"etl_loadbalancer_refresh_failed, the number of new and old instance sets do not match."
 
