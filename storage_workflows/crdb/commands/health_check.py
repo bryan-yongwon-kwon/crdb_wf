@@ -1,13 +1,10 @@
 import json
 import os
 import typer
-import logging
 from collections import defaultdict
 import psycopg2
-import requests
-import csv
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
-# from storage_workflows.logging.logger import Logger
+from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
@@ -17,9 +14,10 @@ from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.metadata_db.storage_metadata.storage_metadata import StorageMetadata
 from storage_workflows.crdb.api_gateway.iam_gateway import IamGateway
+from storage_workflows.crdb.api_gateway.ebs_gateway import EBSGateway
 
 app = typer.Typer()
-logger = logging.getLogger(__name__)
+logger = Logger()
 
 
 @app.command()
@@ -74,6 +72,54 @@ def asg_health_check(deployment_env, region, cluster_name):
         check_output = "asg_health_check_passed"
         check_result = "pass"
         logger.info(f"{cluster_name}: asg_healthcheck_passed")
+
+    # save results to metadatadb
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result,
+                                         check_output=check_output)
+    logger.info(f"{cluster_name}: {check_type} complete")
+
+
+@app.command()
+def volume_mismatch_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)  # Assuming setup_env is defined somewhere else
+    storage_metadata = StorageMetadata()  # Assuming StorageMetadata is defined somewhere else
+    aws_account_alias = IamGateway.get_account_alias()  # Assuming IamGateway is defined somewhere else
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "volume_mismatch_health_check"
+
+    logger.info(f"{cluster_name}: starting {check_type}")
+
+    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+
+    all_volumes = []
+    for instance in asg.instances:
+        all_volumes.extend((instance.instance_id, vol) for vol in EBSGateway.get_ebs_volumes_for_instance(instance.instance_id))
+
+    reference_instance_id, reference_volume = all_volumes[0]
+    consistent = True
+    check_output = []  # List to store mismatch data
+
+    for instance_id, volume in all_volumes[1:]:
+        if volume != reference_volume:
+            consistent = False
+            mismatch_data = {
+                "instance_id": instance_id,
+                "ebs_volume_size": volume.size,
+                "ebs_volume_iops": volume.iops,
+                "ebs_volume_throughput": volume.throughput
+            }
+            check_output.append(mismatch_data)
+
+    if consistent:
+        check_output = "ebs_volumes_are_consistent"
+        check_result = "pass"
+        logger.info(f"{cluster_name}: All EBS volumes have the same size, IOPS, and throughput!")
+    else:
+        check_output = str(check_output)
+        check_result = "fail"
+        logger.warning(f"{cluster_name}: Found inconsistencies in EBS volumes.")
 
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -498,8 +544,9 @@ def backup_health_check(deployment_env, region, cluster_name):
 @app.command()
 def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
     # List of methods in healthcheck workflow
-    hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check, az_health_check, zone_config_health_check,
-                  backup_health_check, orphan_health_check, changefeed_health_check, asg_health_check]
+    hc_methods = [volume_mismatch_health_check, version_mismatch_check, ptr_health_check, etl_health_check,
+                  az_health_check, zone_config_health_check, backup_health_check, orphan_health_check,
+                  changefeed_health_check, asg_health_check]
 
     storage_metadata = StorageMetadata()
     aws_account_alias = IamGateway.get_account_alias()
