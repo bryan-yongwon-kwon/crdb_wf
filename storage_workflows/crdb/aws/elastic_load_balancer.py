@@ -10,21 +10,8 @@ logger = Logger()
 class ElasticLoadBalancer:
 
     @property
-    def healthy_instances(self) -> dict:
-        all_instances = self.api_response['Instances']
-        healthy_instances = {inst['InstanceId']: inst for inst in all_instances if self._is_instance_healthy(inst)}
-        return healthy_instances
-
-    @property
     def instances(self) -> list:
         return self.api_response['Instances']
-
-    def _is_instance_healthy(self, instance) -> bool:
-        # Make the necessary API call or check to determine if the instance is healthy.
-        # You should replace this with an actual call to get the health status of the instance.
-        health_response = ElasticLoadBalancerGateway.describe_instance_health(self.load_balancer_name,
-                                                                              instance['InstanceId'])
-        return health_response.get('State', {}).get('Code') == 'InService'
 
     @staticmethod
     def find_elastic_load_balancers(names:list) -> list:
@@ -46,14 +33,9 @@ class ElasticLoadBalancer:
                 raise e
         return ElasticLoadBalancer(load_balancers[0])
 
-    def get_unhealthy_instances(self) -> list:
-        # This is a mocked method. In reality, you'd want to call the ELB's API to get the health status
-        # of the instances and then filter out the unhealthy ones.
-        unhealthy_instances = [i for i in self.instances if i["HealthStatus"] != "Healthy"]
-        return unhealthy_instances
-
     def __init__(self, api_response):
         self.api_response = api_response
+
 
     @cached_property
     def load_balancer_name(self):
@@ -77,3 +59,9 @@ class ElasticLoadBalancer:
     def deregister_instances(self, instances:list):
         ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(self.load_balancer_name, instances)
         self.reload()
+
+    def get_in_service_instances(self) -> list:
+        return [instance for instance in self.instances if instance['InstanceState']['State'] == 'InService']
+
+    def get_out_of_service_instances(self) -> list:
+        return [instance for instance in self.instances if instance['InstanceState']['State'] == 'OutOfService']

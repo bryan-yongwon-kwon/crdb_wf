@@ -289,7 +289,7 @@ def etl_health_check(deployment_env, region, cluster_name):
     load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
 
     if load_balancer is not None:
-        old_lb_instances = load_balancer.healthy_instances
+        old_lb_instances = load_balancer.get_in_service_instances()
         old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
         logger.info(f"{cluster_name}: Old instances: {old_instance_id_set}")
 
@@ -309,7 +309,7 @@ def etl_health_check(deployment_env, region, cluster_name):
             new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
             lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
 
-            unhealthy_instances = load_balancer.get_unhealthy_instances()
+            unhealthy_instances = load_balancer.get_out_of_service_instances()
 
             if set(new_instance_list) == set(lb_instance_list):
                 logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
