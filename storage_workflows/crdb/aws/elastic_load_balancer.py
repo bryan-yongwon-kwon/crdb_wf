@@ -10,11 +10,14 @@ logger = Logger()
 class ElasticLoadBalancer:
 
     @property
-    def instances(self) -> list:
+    def healthy_instances(self) -> dict:
         all_instances = self.api_response['Instances']
+        healthy_instances = {inst['InstanceId']: inst for inst in all_instances if self._is_instance_healthy(inst)}
+        return healthy_instances
 
-        # Filter out only the healthy ones.
-        return [inst for inst in all_instances if self._is_instance_healthy(inst)]
+    @property
+    def instances(self) -> list:
+        return self.api_response['Instances']
 
     def _is_instance_healthy(self, instance) -> bool:
         # Make the necessary API call or check to determine if the instance is healthy.
