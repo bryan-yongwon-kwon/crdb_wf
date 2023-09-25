@@ -261,8 +261,6 @@ def etl_health_check(deployment_env, region, cluster_name):
             if old_lb_instances:
                 load_balancer.deregister_instances(old_lb_instances)
             load_balancer.register_instances(new_instances)
-            check_result = "pass"
-            check_output = "etl_loadbalancer_refreshed"
             new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
             logger.info(f"{cluster_name} new_instance_list: {new_instance_list}")
             lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
