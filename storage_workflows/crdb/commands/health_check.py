@@ -305,23 +305,27 @@ def etl_health_check(deployment_env, region, cluster_name):
             check_output = "no_action_needed"
             check_result = "pass"
         else:
-            if old_lb_instances:
-                elb_load_balancer.deregister_instances(old_lb_instances)
-            elb_load_balancer.register_instances(new_instances)
             new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
-            lb_instance_list = list(map(lambda instance: instance['InstanceId'], elb_load_balancer.instances))
-
-            unhealthy_instances = [instance for instance in elb_instances if
-                                    instance.get('InstanceState', {}).get('State') == 'OutOfService']
+            lb_instance_list = list(map(lambda instance: instance['InstanceId'], old_lb_instances))
 
             if set(new_instance_list) == set(lb_instance_list):
-                logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
-                check_result = "pass"
-                check_output = "etl_loadbalancer_refreshed"
+                if old_lb_instances:
+                    elb_load_balancer.deregister_instances(old_lb_instances)
+                elb_load_balancer.register_instances(new_instances)
+                unhealthy_instances = [instance for instance in elb_instances if
+                                       instance.get('InstanceState', {}).get('State') == 'OutOfService']
+                if not unhealthy_instances:
+                    logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
+                    check_result = "pass"
+                    check_output = "etl_loadbalancer_refreshed"
+                else:
+                    logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
+                    check_result = "fail"
+                    check_output = f"etl_loadbalancer_refresh_failed, OutOfService instances: {unhealthy_instances}"
             else:
                 logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
                 check_result = "fail"
-                check_output = f"etl_loadbalancer_refresh_failed, Unhealthy instances: {unhealthy_instances}"
+                check_output = f"etl_loadbalancer_refresh_failed, the number of new and old instance sets do not match."
 
     else:
         logger.info(f"{cluster_name}: ETL load balancer not found. Skipping...")
