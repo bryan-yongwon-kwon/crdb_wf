@@ -42,34 +42,39 @@ def get_cluster_names(deployment_env, region):
 def asg_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     storage_metadata = StorageMetadata()
-    # Usually an AWS account has one alias, but the response is a list.
-    # Thus, this will return the first alias, or None if there are no aliases.
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "asg_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    # debugging_start
+
+    # Debugging info
     instance_info = [(instance.instance_id, instance.health_status) for instance in asg.instances]
     info_str = ', '.join([f"ID: {id}, Health: {status}" for id, status in instance_info])
     logger.info(f"{cluster_name}: Instances: {info_str}")
-    # debugging_end
-    # Filtering out only the unhealthy instances
+
+    # Separate lists for unhealthy and standby instances
     unhealthy_asg_instances = [instance for instance in asg.instances if instance.health_status == 'Unhealthy']
+    standby_asg_instances = [instance for instance in asg.instances if instance.health_status == 'Standby']
+
     # Extracting instance_ids from the filtered instances
     unhealthy_asg_instance_ids = [instance.instance_id for instance in unhealthy_asg_instances]
-    if unhealthy_asg_instances:
+    standby_asg_instance_ids = [instance.instance_id for instance in standby_asg_instances]
+
+    if unhealthy_asg_instances or standby_asg_instances:
         logger.warning(f"{cluster_name}: Displaying all unhealthy instances for the {cluster_name} cluster: "
                        f"{unhealthy_asg_instance_ids}")
+        if standby_asg_instances:
+            logger.warning(f"{cluster_name}: Displaying all standby instances for the {cluster_name} cluster: "
+                           f"{standby_asg_instance_ids}")
         logger.warning(f"{cluster_name}: Auto Scaling Group name: {asg.name}")
-        # TODO: provide useful output
-        check_output = unhealthy_asg_instance_ids
+        check_output = f"unhealthy_asg_instance_ids: {unhealthy_asg_instance_ids}, standby_asg_instance_ids: {standby_asg_instance_ids}"
         check_result = "fail"
     else:
-        # TODO: provide useful output
         check_output = "asg_health_check_passed"
         check_result = "pass"
         logger.info(f"{cluster_name}: asg_healthcheck_passed")
+
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,

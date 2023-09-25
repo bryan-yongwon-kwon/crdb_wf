@@ -2,7 +2,6 @@ import os
 import time
 from storage_workflows.crdb.factory.aws_session_factory import AwsSessionFactory
 from storage_workflows.logging.logger import Logger
-from botocore.exceptions import ClientError
 
 
 logger = Logger()
