@@ -544,7 +544,7 @@ def backup_health_check(deployment_env, region, cluster_name):
 @app.command()
 def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
     # List of methods in healthcheck workflow
-    hc_methods = [volume_mismatch_health_check, version_mismatch_check, ptr_health_check, etl_health_check,
+    hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check,
                   az_health_check, zone_config_health_check, backup_health_check, orphan_health_check,
                   changefeed_health_check, asg_health_check]
 
