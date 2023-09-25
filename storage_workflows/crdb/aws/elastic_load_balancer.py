@@ -59,9 +59,3 @@ class ElasticLoadBalancer:
     def deregister_instances(self, instances:list):
         ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(self.load_balancer_name, instances)
         self.reload()
-
-    def get_in_service_instances(self) -> list:
-        return [instance for instance in self.instances if instance['InstanceState']['State'] == 'InService']
-
-    def get_out_of_service_instances(self) -> list:
-        return [instance for instance in self.instances if instance['InstanceState']['State'] == 'OutOfService']
