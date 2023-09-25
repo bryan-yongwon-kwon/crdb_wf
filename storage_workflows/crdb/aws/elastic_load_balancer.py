@@ -31,7 +31,7 @@ class ElasticLoadBalancer:
                 return None
             else:
                 raise e
-        return ElasticLoadBalancer(load_balancers[0])
+        return load_balancers[0]
 
     def __init__(self, api_response):
         self.api_response = api_response
