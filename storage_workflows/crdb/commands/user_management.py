@@ -25,7 +25,7 @@ def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_accoun
     storage_metadata.insert_user(cluster_name=db_name, deployment_env=deployment_env, region=region,
                                  aws_account=aws_account, database_name=db_name, role_name=user_name,
                                  certificate_path="cert_path")
-    sql_user = SqlUser(user_name, cluster_name=db_name)
+    sql_user = SqlUser(user_name, cluster_name=db_name, db_name=db_name)
     sql_user.create_user()
     logger.info("Successfully created user_name: {0}".format(user_name))
 

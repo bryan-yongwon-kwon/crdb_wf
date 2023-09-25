@@ -13,8 +13,8 @@ class SqlUser(BaseUser):
     ALTER_DEFAULT_PRIVS_ON_TYPES = "USE \"{}\"; ALTER DEFAULT PRIVILEGES FOR ALL ROLES GRANT USAGE ON TYPES TO \"{}\";"
     ALTER_DEFAULT_PRIVS_ON_FUNCTIONS = "USE \"{}\"; ALTER DEFAULT PRIVILEGES FOR ALL ROLES GRANT EXECUTE ON FUNCTIONS TO \"{}\";"
 
-    def __init__(self, user_name, cluster_name):
-        super().__init__(user_name, "sql", cluster_name)
+    def __init__(self, user_name, cluster_name, db_name):
+        super().__init__(user_name, "sql", cluster_name, db_name)
 
     def create_user(self):
         self.connection.execute_sql(self.CREATE_SQL_ROLE.format(self.user_name))
