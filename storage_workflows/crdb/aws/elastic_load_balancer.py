@@ -55,11 +55,7 @@ class ElasticLoadBalancer:
     @cached_property
     def load_balancer_name(self):
         return self.api_response['LoadBalancerName']
-    
-    @property
-    def instances(self) -> list:
-        return self.api_response['Instances']
-    
+
     def reload(self):
         self.api_response = list(filter(lambda load_balancer: load_balancer['LoadBalancerName'] == self.load_balancer_name, 
                                         ElasticLoadBalancerGateway.describe_load_balancers([self.load_balancer_name])))[0]
