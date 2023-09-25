@@ -308,7 +308,7 @@ def etl_health_check(deployment_env, region, cluster_name):
             new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
             lb_instance_list = list(map(lambda instance: instance['InstanceId'], old_lb_instances))
 
-            if set(new_instance_list) == set(lb_instance_list):
+            if new_instance_list:
                 if old_lb_instances:
                     elb_load_balancer.deregister_instances(old_lb_instances)
                 elb_load_balancer.register_instances(new_instances)
@@ -325,12 +325,6 @@ def etl_health_check(deployment_env, region, cluster_name):
                     logger.info(f"{cluster_name}: lb_instance_list are: {lb_instance_list}")
                     check_result = "fail"
                     check_output = f"etl_loadbalancer_refresh_failed, OutOfService instances: {unhealthy_instances}"
-            else:
-                logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
-                logger.info(f"{cluster_name}: new_instance_list are: {new_instance_list}")
-                logger.info(f"{cluster_name}: lb_instance_list are: {lb_instance_list}")
-                check_result = "fail"
-                check_output = f"etl_loadbalancer_refresh_failed, the number of new and old instance sets do not match."
 
     else:
         logger.info(f"{cluster_name}: ETL load balancer not found. Skipping...")
