@@ -59,3 +59,18 @@ class ElasticLoadBalancerGateway:
                                                                                         Instances=instances)
         return response['Instances']
 
+    @staticmethod
+    def get_out_of_service_instances(load_balancer_name):
+        elastic_load_balancer_client = AwsSessionFactory.elbv2()
+        instances_out_of_service = []
+
+        # Get the description of the instances registered with the ELB
+        response = elastic_load_balancer_client.describe_instance_health(
+            LoadBalancerName=load_balancer_name
+        )
+
+        for instance in response['InstanceStates']:
+            if instance['State'] == 'OutOfService':
+                instances_out_of_service.append(instance['InstanceId'])
+
+        return instances_out_of_service

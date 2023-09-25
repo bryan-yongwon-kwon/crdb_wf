@@ -15,6 +15,7 @@ from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.metadata_db.storage_metadata.storage_metadata import StorageMetadata
 from storage_workflows.crdb.api_gateway.iam_gateway import IamGateway
 from storage_workflows.crdb.api_gateway.ebs_gateway import EBSGateway
+from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 
 app = typer.Typer()
 logger = Logger()
@@ -312,8 +313,7 @@ def etl_health_check(deployment_env, region, cluster_name):
                 if old_lb_instances:
                     elb_load_balancer.deregister_instances(old_lb_instances)
                 elb_load_balancer.register_instances(new_instances)
-                unhealthy_instances = [instance for instance in elb_instances if
-                                       instance.get('InstanceState', {}).get('State') == 'OutOfService']
+                unhealthy_instances = ElasticLoadBalancerGateway.get_out_of_service_instances(cluster_name)
                 if not unhealthy_instances:
                     logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
                     check_result = "pass"
