@@ -14,7 +14,7 @@ class BaseUser:
 
     @property
     def user_name(self):
-        return self.__user_name
+        return self._user_name
 
     @property
     def user_type(self):
