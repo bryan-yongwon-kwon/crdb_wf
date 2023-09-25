@@ -59,3 +59,13 @@ class ElasticLoadBalancerGateway:
         response = elastic_load_balancer_client.deregister_instances_from_load_balancer(LoadBalancerName=load_balancer_name, 
                                                                                         Instances=instances)
         return response['Instances']
+
+    @staticmethod
+    def describe_instance_health(load_balancer_name, instance_id):
+        elastic_load_balancer_client = AwsSessionFactory.elb()
+        response = elastic_load_balancer_client.describe_instance_health(
+            LoadBalancerName=load_balancer_name,
+            Instances=[{'InstanceId': instance_id}]
+        )
+        # Assuming you want to return the description of the first (and only) instance.
+        return response['InstanceStates'][0]

@@ -225,46 +225,41 @@ def send_slack_notification(deployment_env, message):
 def etl_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     storage_metadata = StorageMetadata()
-    # Usually an AWS account has one alias, but the response is a list.
-    # Thus, this will return the first alias, or None if there are no aliases.
-    aws_account_alias = IamGateway.get_account_alias()
+    aws_account_alias = IamGateway.get_account_alias()  # Assuming this method is defined somewhere in your codebase
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
+
     logger.info(f"{cluster_name}: starting {check_type}")
     if deployment_env == 'staging':
         logger.info(f"{cluster_name}: Staging clusters doesn't have ETL load balancers.")
         return
+
     load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
+
     if load_balancer is not None:
         old_lb_instances = load_balancer.instances
         old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
         logger.info(f"{cluster_name}: Old instances: {old_instance_id_set}")
-        # Extracting instance_ids from healthy instances in asg
+
         new_instances = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances
-        filtered_instances = filter(
-            lambda instance: instance.is_healthy, new_instances)
+        filtered_instances = filter(lambda instance: instance.is_healthy, new_instances)
         new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id}, filtered_instances))
         logger.info(f"{cluster_name}: New instances: {new_instances}")
+
         if not new_instances:
             logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
             check_output = "no_action_needed"
             check_result = "pass"
-            # write results to storage_metadata
-            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env,
-                                                 region=region,
-                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                                 check_type=check_type, check_result=check_result,
-                                                 check_output=check_output)
-            return
         else:
             if old_lb_instances:
                 load_balancer.deregister_instances(old_lb_instances)
             load_balancer.register_instances(new_instances)
             new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
-            logger.info(f"{cluster_name} new_instance_list: {new_instance_list}")
             lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
-            logger.info(f"{cluster_name} lb_instance_list: {lb_instance_list}")
+
+            unhealthy_instances = load_balancer.get_unhealthy_instances()
+
             if set(new_instance_list) == set(lb_instance_list):
                 logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
                 check_result = "pass"
@@ -272,7 +267,8 @@ def etl_health_check(deployment_env, region, cluster_name):
             else:
                 logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
                 check_result = "fail"
-                check_output = "etl_loadbalancer_refresh_failed"
+                check_output = f"etl_loadbalancer_refresh_failed, Unhealthy instances: {unhealthy_instances}"
+
     else:
         logger.info(f"{cluster_name}: ETL load balancer not found. Skipping...")
         check_result = "skipped"

@@ -9,6 +9,20 @@ logger = Logger()
 
 class ElasticLoadBalancer:
 
+    @property
+    def instances(self) -> list:
+        all_instances = self.api_response['Instances']
+
+        # Filter out only the healthy ones.
+        return [inst for inst in all_instances if self._is_instance_healthy(inst)]
+
+    def _is_instance_healthy(self, instance) -> bool:
+        # Make the necessary API call or check to determine if the instance is healthy.
+        # You should replace this with an actual call to get the health status of the instance.
+        health_response = ElasticLoadBalancerGateway.describe_instance_health(self.load_balancer_name,
+                                                                              instance['InstanceId'])
+        return health_response.get('State', {}).get('Code') == 'InService'
+
     @staticmethod
     def find_elastic_load_balancers(names:list) -> list:
         return list(map(lambda load_balancer: ElasticLoadBalancer(load_balancer),
@@ -27,8 +41,14 @@ class ElasticLoadBalancer:
                 return None
             else:
                 raise e
-        return load_balancers[0]
-    
+        return ElasticLoadBalancer(load_balancers[0])
+
+    def get_unhealthy_instances(self) -> list:
+        # This is a mocked method. In reality, you'd want to call the ELB's API to get the health status
+        # of the instances and then filter out the unhealthy ones.
+        unhealthy_instances = [i for i in self.instances if i["HealthStatus"] != "Healthy"]
+        return unhealthy_instances
+
     def __init__(self, api_response):
         self.api_response = api_response
 
