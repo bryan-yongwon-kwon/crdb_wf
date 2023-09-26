@@ -18,6 +18,7 @@ def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_accoun
     #Process the objects in the current page
     for obj in objects:
         content = obj['Key']
+        logger.info("Read content is:".format(content))
         user_type, db_name, user_name = content.split(':')
         logger.info("Read user_type : {}, db_name : {}, user_name : {}".format(user_type, db_name, user_name))
         os.environ['CLUSTER_NAME'] = db_name
@@ -33,6 +34,7 @@ def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_accoun
         objects, next_page_token = S3Gateway.read_objects_with_pagination(bucket_name, page_token=next_page_token)
         for obj in objects:
             content = obj['Key']
+            logger.info("Read content is:".format(content))
             user_type, db_name, user_name = content.split(':')
             logger.info("Read user_type : {0}, db_name : {1}, user_name : {2}", user_type, db_name, user_name)
             os.environ['CLUSTER_NAME'] = db_name
