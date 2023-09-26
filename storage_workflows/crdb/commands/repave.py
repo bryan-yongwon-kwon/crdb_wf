@@ -222,7 +222,8 @@ def detach_old_instances_from_asg(deployment_env, region, cluster_name, timeout_
     # get instance ids of old nodes
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids, asg.name)
+    for index in range(0, len(old_instance_ids), 12):
+        AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids[index:index+12], asg.name)
     cluster = Cluster()
     cluster.wait_for_connections_drain_on_old_nodes(int(timeout_minus))
     return
