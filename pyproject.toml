@@ -46,6 +46,7 @@ storage-workflows = "storage_workflows.main:app"
 crdb-repave = "storage_workflows.crdb.commands.repave:app"
 generate-traffic = "storage_workflows.crdb.commands.generate_traffic:app"
 crdb-health-check = "storage_workflows.crdb.commands.health_check:app"
+crdb-user-management = "storage_workflows.crdb.commands.user_management:app"
 
 [tool.pytest.ini_options]
 pythonpath = "storage_workflows"
