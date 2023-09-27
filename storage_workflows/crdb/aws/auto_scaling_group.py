@@ -101,3 +101,45 @@ class AutoScalingGroup:
         min_instance_count = min(az_count.values())
 
         return max_instance_count == min_instance_count and len(az_count) == 3
+
+    # STORAGE-7583:  remove instances if scaling down
+    def get_instance_ids_to_terminate(self, instances_to_terminate):
+        """
+        Get a list of instance IDs to terminate based on the desired number of instances to terminate.
+        Ensure an equal distribution of nodes across availability zones.
+        :param instances_to_terminate: Number of instances to terminate
+        :return: List of instance IDs to terminate
+        """
+        if instances_to_terminate <= 0:
+            return []
+
+        instance_ids_to_terminate = []
+        instances = self.instances
+
+        # Create a dictionary to count instances per availability zone
+        az_count = {"us-west-2a": 0, "us-west-2b": 0, "us-west-2c": 0}
+
+        # Sort instances by launch time (oldest first)
+        instances.sort(key=lambda instance: instance.launch_time)
+
+        # Count instances per availability zone
+        for instance in instances:
+            az = instance.availability_zone
+            if az in az_count:
+                az_count[az] += 1
+
+        # Calculate the target termination count per availability zone
+        target_termination_count = instances_to_terminate // len(az_count)
+
+        # Select the oldest instances for termination based on availability zone
+        for instance in instances:
+            az = instance.availability_zone
+            if az_count[az] > target_termination_count:
+                instance_ids_to_terminate.append(instance.instance_id)
+                az_count[az] -= 1
+                instances_to_terminate -= 1
+
+            if instances_to_terminate == 0:
+                break
+
+        return instance_ids_to_terminate

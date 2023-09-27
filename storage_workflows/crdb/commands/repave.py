@@ -159,14 +159,16 @@ def copy_crontab(deployment_env, region, cluster_name):
     logger.info("Copied all the crontab jobs to new node successfully!")
 
 @app.command()
-def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydration_timeout_mins):
+def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydration_timeout_mins, desired_capacity=None):
     hydration_timeout_mins = int(hydration_timeout_mins)
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     initial_capacity = len(old_instance_ids)
-    desired_capacity = 2*len(old_instance_ids)
+    # STORAGE-7583: repurpose repave workflow to handle cluster scaling
+    if desired_capacity is None:
+        desired_capacity = 2*len(old_instance_ids)
     current_capacity = len(asg.instances)
     logger.info("Current Capacity at the beginning is:" + str(current_capacity))
     logger.info("Initial Capacity is:" + str(initial_capacity))
@@ -176,26 +178,46 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
     if len(cluster.nodes) != len(asg.instances):
         raise Exception("Instances count in ASG doesn't match nodes count in cluster.")
 
-    if initial_capacity % 3 != 0 or current_capacity % 3 != 0 or not asg.check_equal_az_distribution_in_asg():
+    # STORAGE-7583: also check desired_capacity
+    if (initial_capacity % 3 != 0 or current_capacity % 3 != 0 or desired_capacity % 3 != 0 or
+            not asg.check_equal_az_distribution_in_asg()):
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception("Imbalanced cluster, exiting.")
         return
 
-    all_new_instance_ids = []
-    # current_capacity = initial_capacity
-    while current_capacity < desired_capacity:
-        #current_capacity determines number of nodes in standby + number of nodes in-service
-        #according to asg desired_capacity is the count of number of nodes in-service state only
-        #hence we only set intial_capacity+3 as desired capacity in each loop
-        new_instance_ids = asg.add_ec2_instances(initial_capacity+3)
-        all_new_instance_ids.append(new_instance_ids)
-        AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
-        cluster.wait_for_hydration(hydration_timeout_mins)
-        asg.reload(cluster_name)
-        current_capacity = len(asg.instances)
-        logger.info("Current Capacity is:" + str(current_capacity))
-        if not asg.check_equal_az_distribution_in_asg():
-            raise Exception("Imbalanced nodes added.")
+    # STORAGE-7583: if the cluster is scaling down, remove nodes
+    if desired_capacity < current_capacity:
+        logger.info(f"{cluster_name} is scaling down. selecting instances to remove...")
+        # Calculate the number of instances to terminate
+        instances_to_terminate = current_capacity - desired_capacity
+        if instances_to_terminate <= 0:
+            logger.info("No instances to terminate.")
+        else:
+            # Get a list of instance IDs to terminate
+            instance_ids_to_terminate = asg.get_instance_ids_to_terminate(instances_to_terminate)
+
+            if instance_ids_to_terminate:
+                # set new old_instance_ids as nodes that are being removed
+                persist_instance_ids(deployment_env, region, cluster_name, instance_ids_to_terminate, autoscale=True)
+                logger.info(f"upserted {len(instance_ids_to_terminate)} instances as old_instance_ids")
+            else:
+                logger.info("No instances selected for termination.")
+    else:
+        all_new_instance_ids = []
+        # current_capacity = initial_capacity
+        while current_capacity < desired_capacity:
+            #current_capacity determines number of nodes in standby + number of nodes in-service
+            #according to asg desired_capacity is the count of number of nodes in-service state only
+            #hence we only set intial_capacity+3 as desired capacity in each loop
+            new_instance_ids = asg.add_ec2_instances(initial_capacity+3)
+            all_new_instance_ids.append(new_instance_ids)
+            AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
+            cluster.wait_for_hydration(hydration_timeout_mins)
+            asg.reload(cluster_name)
+            current_capacity = len(asg.instances)
+            logger.info("Current Capacity is:" + str(current_capacity))
+            if not asg.check_equal_az_distribution_in_asg():
+                raise Exception("Imbalanced nodes added.")
     return
 
 @app.command()
@@ -358,13 +380,19 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     logger.info("Resumed all changefeed jobs!")
 
 @app.command()
-def persist_instance_ids(deployment_env, region, cluster_name):
-    setup_env(deployment_env, region, cluster_name)
-    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
-    logger.info("Instance IDs to be persist: {}".format(instance_ids))
-    metadata_db_operations = MetadataDBOperations()
-    metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
+def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None, autoscale=False):
+    # STORAGE-7583: upsert new instance_ids in downscaling scenario
+    if not instance_ids and autoscale:
+        logger.info(f"scaling up nodes for {cluster_name}. no instance_id will be persisted.")
+    elif not instance_ids and not autoscale:
+        logger.error(f"received instance_ids for {cluster_name} with no autoscale confirmation. do nothing.")
+    else:
+        setup_env(deployment_env, region, cluster_name)
+        asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+        instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
+        logger.info("Instance IDs to be persist: {}".format(instance_ids))
+        metadata_db_operations = MetadataDBOperations()
+        metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
     logger.info("Persist completed!")
 
 @app.command()

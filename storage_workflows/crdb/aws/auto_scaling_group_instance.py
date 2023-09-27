@@ -18,3 +18,8 @@ class AutoScalingGroupInstance:
     @property
     def health_status(self):
         return self._api_response['HealthStatus']
+
+    @cached_property
+    def availability_zone(self):
+        return self._api_response['AvailabilityZone']
+
