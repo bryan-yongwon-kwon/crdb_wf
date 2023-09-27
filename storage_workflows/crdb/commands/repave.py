@@ -167,8 +167,11 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     initial_capacity = len(old_instance_ids)
     # STORAGE-7583: repurpose repave workflow to handle cluster scaling
+    is_scaling_event = False
     if desired_capacity is None:
         desired_capacity = 2*len(old_instance_ids)
+    else:
+        is_scaling_event = True
     current_capacity = len(asg.instances)
     logger.info("Current Capacity at the beginning is:" + str(current_capacity))
     logger.info("Initial Capacity is:" + str(initial_capacity))
@@ -203,6 +206,9 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
             else:
                 logger.info("No instances selected for termination.")
     else:
+        if is_scaling_event:
+            # STORAGE-7583: we're scaling up. no instance removal needed. reset old_instance_ids in metadata_db.
+            persist_instance_ids(deployment_env, region, cluster_name, [], autoscale=True)
         all_new_instance_ids = []
         # current_capacity = initial_capacity
         while current_capacity < desired_capacity:
@@ -383,7 +389,10 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
 def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None, autoscale=False):
     # STORAGE-7583: upsert new instance_ids in downscaling scenario
     if not instance_ids and autoscale:
-        logger.info(f"scaling up nodes for {cluster_name}. no instance_id will be persisted.")
+        logger.info(f"scaling up nodes for {cluster_name}. setting old_instance_ids to none.")
+        instance_ids = []
+        metadata_db_operations = MetadataDBOperations()
+        metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
     elif not instance_ids and not autoscale:
         logger.error(f"received instance_ids for {cluster_name} with no autoscale confirmation. do nothing.")
     else:
