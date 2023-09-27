@@ -1,5 +1,4 @@
 from functools import cached_property
-from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
 class BaseUser:
 
@@ -24,9 +23,3 @@ class BaseUser:
     @property
     def db_name(self):
         return self._db_name
-
-    @cached_property
-    def connection(self):
-        connection = CrdbConnection.get_crdb_connection(self.cluster_name)
-        connection.connect()
-        return connection
