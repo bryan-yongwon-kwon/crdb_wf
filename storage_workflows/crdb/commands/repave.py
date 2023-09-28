@@ -388,6 +388,7 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
 
 @app.command()
 def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None, autoscale=False):
+    setup_env(deployment_env, region, cluster_name)
     # STORAGE-7583: upsert new instance_ids in downscaling scenario
     if not instance_ids and autoscale:
         logger.info(f"scaling up nodes for {cluster_name}. setting old_instance_ids to none.")
@@ -401,7 +402,6 @@ def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None
         metadata_db_operations = MetadataDBOperations()
         metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
     else:
-        setup_env(deployment_env, region, cluster_name)
         asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
         instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
         logger.info("Instance IDs to be persist: {}".format(instance_ids))
