@@ -56,10 +56,11 @@ class AutoScalingGroup:
     def instances_not_in_service_exist(self):
         return any(map(lambda instance: not instance.in_service(), self.instances))
     
-    def add_ec2_instances(self, desired_capacity):
+    def add_ec2_instances(self, desired_capacity, autoscale=False):
         asg_instances = self.instances
 
-        if desired_capacity == self.capacity:
+        # STORAGE-7583: skip this check if desired_capacity was set statically
+        if desired_capacity == self.capacity and not autoscale:
             logger.warning("Expected Desired capacity same as existing desired capacity.")
             return
 
