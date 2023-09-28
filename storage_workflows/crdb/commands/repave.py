@@ -138,25 +138,29 @@ def copy_crontab(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    old_instance_ips = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
-    nodes = Node.get_nodes()
-    new_nodes = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))
-    new_nodes.sort(key=lambda node: node.id)
-    new_node = new_nodes[0]
-    logger.info("Copying crontab jobs to new node: {}".format(new_node.id))
-    for ip in old_instance_ips:
-        ssh_client = SSH(ip)
-        ssh_client.connect_to_node()
-        stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
-        lines = stdout.readlines()
-        errors = stderr.readlines()
-        ssh_client.close_connection()
-        logger.info("Listing cron jobs for {}: {}".format(ip, lines))
-        if errors:
-            continue
-        new_node.copy_cron_scripts_from_old_node(ssh_client)
-        new_node.schedule_cron_jobs(lines)
-    logger.info("Copied all the crontab jobs to new node successfully!")
+    # STORAGE-7583: do nothing if scaling up
+    if instance_ids:
+        old_instance_ips = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
+        nodes = Node.get_nodes()
+        new_nodes = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))
+        new_nodes.sort(key=lambda node: node.id)
+        new_node = new_nodes[0]
+        logger.info("Copying crontab jobs to new node: {}".format(new_node.id))
+        for ip in old_instance_ips:
+            ssh_client = SSH(ip)
+            ssh_client.connect_to_node()
+            stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
+            lines = stdout.readlines()
+            errors = stderr.readlines()
+            ssh_client.close_connection()
+            logger.info("Listing cron jobs for {}: {}".format(ip, lines))
+            if errors:
+                continue
+            new_node.copy_cron_scripts_from_old_node(ssh_client)
+            new_node.schedule_cron_jobs(lines)
+        logger.info("Copied all the crontab jobs to new node successfully!")
+    else:
+        logger.info("no instance_id found. skipping copy_crontab.")
 
 @app.command()
 def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydration_timeout_mins, desired_capacity=None):
@@ -251,52 +255,75 @@ def detach_old_instances_from_asg(deployment_env, region, cluster_name, timeout_
     # get instance ids of old nodes
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids, asg.name)
-    cluster = Cluster()
-    cluster.wait_for_connections_drain_on_old_nodes(int(timeout_minus))
-    return
+    # STORAGE-7583: do nothing if scaling up
+    if old_instance_ids:
+        AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids, asg.name)
+        cluster = Cluster()
+        cluster.wait_for_connections_drain_on_old_nodes(int(timeout_minus))
+        logger.info("detached instances from asg")
+        return
+    else:
+        logger.info("no instances found. skipping detach instances from asg. ")
 
 @app.command()
 def terminate_instances(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    for id in old_instance_ids:
-        ec2_instance = Ec2Instance.find_ec2_instance(id)
-        ec2_instance.terminate_instance()
+    # STORAGE-7583: do nothing if scaling up
+    if old_instance_ids:
+        for id in old_instance_ids:
+            ec2_instance = Ec2Instance.find_ec2_instance(id)
+            ec2_instance.terminate_instance()
+        logger.info("terminated ec2 instances")
+    else:
+        logger.info("no instances found. skipping ec2 instance termination.")
 
 @app.command()
 def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, old_instance_ids))
-    for ip in instances_ips:
-        Node.stop_crdb(ip)
+    # STORAGE-7583: do nothing if scaling up
+    if old_instance_ids:
+        instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, old_instance_ids))
+        for ip in instances_ips:
+            Node.stop_crdb(ip)
+        logger.info("stopped all crdb instances")
+    else:
+        logger.info("no nodes found. skipping crdb process stop.")
 
 @app.command()
 def drain_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
-    for node in old_nodes:
-        logger.info("Draining node {} ...".format(node.id))
-        node.drain()
-        logger.info("Draining complete for node {}".format(node.id))
-    logger.info("Nodes drain complete!")
+    # STORAGE-7583: do nothing if scaling up
+    if old_instance_ids:
+        old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+        for node in old_nodes:
+            logger.info("Draining node {} ...".format(node.id))
+            node.drain()
+            logger.info("Draining complete for node {}".format(node.id))
+        logger.info("Nodes drain complete!")
+    else:
+        logger.info("No nodes to drain")
 
 @app.command()
 def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
-    cluster = Cluster()
-    if cluster.unhealthy_ranges_exist():
-        raise Exception("Abort decommission, unhealthy ranges exist!")
-    cluster.decommission_nodes(old_nodes)
-    logger.info("Decommission completed!")
+    # STORAGE-7583: do nothing if scaling up
+    if old_instance_ids:
+        old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+        cluster = Cluster()
+        if cluster.unhealthy_ranges_exist():
+            raise Exception("Abort decommission, unhealthy ranges exist!")
+        cluster.decommission_nodes(old_nodes)
+        logger.info("Decommission completed!")
+    else:
+        logger.info("No nodes to decommission")
 
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
