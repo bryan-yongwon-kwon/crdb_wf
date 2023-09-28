@@ -103,7 +103,7 @@ class AutoScalingGroup:
         return max_instance_count == min_instance_count and len(az_count) == 3
 
     # STORAGE-7583:  remove instances if scaling down
-    def get_instance_ids_to_terminate(self, instances_to_terminate):
+    def num_of_instances_to_terminate(self, instances_to_terminate):
         """
         Get a list of instance IDs to terminate based on the desired number of instances to terminate.
         Ensure an equal distribution of nodes across availability zones.
