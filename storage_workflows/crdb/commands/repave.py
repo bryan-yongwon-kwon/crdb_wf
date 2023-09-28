@@ -42,6 +42,13 @@ def pre_check(deployment_env, region, cluster_name):
     else:
         logger.info("Check passed")
 
+
+def get_old_instance_ids(deployment_env, region, cluster_name):
+    # STORAGE-7583: do nothing if scaling up
+    metadata_db_operations = MetadataDBOperations()
+    return metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+
+
 @app.command()
 def refresh_etl_load_balancer(deployment_env, region, cluster_name):
     if deployment_env == 'staging':
@@ -330,21 +337,29 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
-    paused_changefeed_jobs = list(filter(lambda job: job.status == 'paused', changefeed_jobs))
-    for job in paused_changefeed_jobs:
-        logger.info("Resuming changefeed job {}".format(job.id))
-        job.resume()
-    logger.info("Resumed all paused changefeed jobs!")
+    old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
+    if old_instance_ids:
+        changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+        paused_changefeed_jobs = list(filter(lambda job: job.status == 'paused', changefeed_jobs))
+        for job in paused_changefeed_jobs:
+            logger.info("Resuming changefeed job {}".format(job.id))
+            job.resume()
+        logger.info("Resumed all paused changefeed jobs!")
+    else:
+        logger.info("old_instance_ids not found. skipping resume_all_paused_changefeeds.")
 
 @app.command()
 def pause_all_changefeeds(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
-    for job in changefeed_jobs:
-        logger.info("Pausing changefeed job {}".format(job.id))
-        job.pause()
-    logger.info("Paused all changefeed jobs!")
+    old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
+    if old_instance_ids:
+        changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+        for job in changefeed_jobs:
+            logger.info("Pausing changefeed job {}".format(job.id))
+            job.pause()
+        logger.info("Paused all changefeed jobs!")
+    else:
+        logger.info("no old_instance_ids found. skipping pause_all_changefeeds.")
     
 @app.command()
 def complete_repave_global_change_log(deployment_env, region, cluster_name):
@@ -367,53 +382,57 @@ def start_repave_global_change_log(deployment_env, region, cluster_name):
 @app.command()
 def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
-    for job in changefeed_jobs:
-        logger.info("Pausing changefeed job {}".format(job.id))
-        job.pause()
+    old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
+    if old_instance_ids:
+        changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+        for job in changefeed_jobs:
+            logger.info("Pausing changefeed job {}".format(job.id))
+            job.pause()
 
-    #wait for all jobs to pause
-    for job in changefeed_jobs:
-        job.wait_for_job_to_pause()
+        #wait for all jobs to pause
+        for job in changefeed_jobs:
+            job.wait_for_job_to_pause()
 
-    logger.info("Paused all changefeed jobs!")
+        logger.info("Paused all changefeed jobs!")
 
-    for job in changefeed_jobs:
-        logger.info("Removing coordinator node for job {}".format(job.id))
-        job.remove_coordinator_node()
-    logger.info("Removed coordinator node for all changefeed jobs!")
+        for job in changefeed_jobs:
+            logger.info("Removing coordinator node for job {}".format(job.id))
+            job.remove_coordinator_node()
+        logger.info("Removed coordinator node for all changefeed jobs!")
 
-    # get instance ids of old nodes
-    metadata_db_operations = MetadataDBOperations()
-    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
-    old_node_ids = set(map(lambda node: node.id, old_nodes))
-    logger.info("Node ids of old nodes" + str(old_node_ids))
+        # get instance ids of old nodes
+        metadata_db_operations = MetadataDBOperations()
+        old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+        old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+        old_node_ids = set(map(lambda node: node.id, old_nodes))
+        logger.info("Node ids of old nodes" + str(old_node_ids))
 
-    for job in changefeed_jobs:
-        logger.info("Resuming changefeed job {}".format(job.id))
-        job.resume()
-        # wait for job to resume
-        job.wait_for_job_to_resume()
+        for job in changefeed_jobs:
+            logger.info("Resuming changefeed job {}".format(job.id))
+            job.resume()
+            # wait for job to resume
+            job.wait_for_job_to_resume()
 
-        coordinator_node = None
-        while coordinator_node is None:
-            logger.info("Checking coordinator node.")
-            time.sleep(10)
-            coordinator_node = job.get_coordinator_node()
-            logger.info("Coordinator node is {}".format(coordinator_node))
+            coordinator_node = None
+            while coordinator_node is None:
+                logger.info("Checking coordinator node.")
+                time.sleep(10)
+                coordinator_node = job.get_coordinator_node()
+                logger.info("Coordinator node is {}".format(coordinator_node))
 
-            if coordinator_node is not None and coordinator_node in old_node_ids:
-                coordinator_node = None
-                logger.info("Removing coordinator node for job {}".format(job.id))
-                job.remove_coordinator_node()
-                logger.info("Pausing job {}".format(job.id))
-                job.pause()
-                job.wait_for_job_to_pause()
-                job.resume()
-                job.wait_for_job_to_resume()
-        logger.info("Coordinator node updated to {}".format(coordinator_node))
-    logger.info("Resumed all changefeed jobs!")
+                if coordinator_node is not None and coordinator_node in old_node_ids:
+                    coordinator_node = None
+                    logger.info("Removing coordinator node for job {}".format(job.id))
+                    job.remove_coordinator_node()
+                    logger.info("Pausing job {}".format(job.id))
+                    job.pause()
+                    job.wait_for_job_to_pause()
+                    job.resume()
+                    job.wait_for_job_to_resume()
+            logger.info("Coordinator node updated to {}".format(coordinator_node))
+        logger.info("Resumed all changefeed jobs!")
+    else:
+        logger.info("skipping move_changefeed_coordinator_node. we're adding new nodes.")
 
 @app.command()
 def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None, autoscale=False):
@@ -437,6 +456,7 @@ def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None
         metadata_db_operations = MetadataDBOperations()
         metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
     logger.info("Persist completed!")
+
 
 @app.command()
 def send_workflow_failure_notification(deployment_env, region, cluster_name, namespace, workflow_name):
