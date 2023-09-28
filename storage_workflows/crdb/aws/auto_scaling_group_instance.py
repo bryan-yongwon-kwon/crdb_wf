@@ -23,3 +23,6 @@ class AutoScalingGroupInstance:
     def availability_zone(self):
         return self._api_response['AvailabilityZone']
 
+    @property
+    def launch_time(self):
+        return self._api_response['LaunchTime']
