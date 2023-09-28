@@ -117,30 +117,34 @@ class AutoScalingGroup:
         instance_ids_to_terminate = []
         instances = self.instances
 
-        # Create a dictionary to count instances per availability zone
         az_count = {"us-west-2a": 0, "us-west-2b": 0, "us-west-2c": 0}
-
-        # Sort instances by launch time (oldest first)
         instances.sort(key=lambda instance: instance.launch_time)
 
-        # Count instances per availability zone
         for instance in instances:
             az = instance.availability_zone
             if az in az_count:
                 az_count[az] += 1
 
-        # Calculate the target termination count per availability zone
-        target_termination_count = instances_to_terminate // len(az_count)
+        az_list = list(az_count.keys())
+        num_azs = len(az_list)
+        target_termination_count = instances_to_terminate // num_azs
+        remainder = instances_to_terminate % num_azs
 
-        # Select the oldest instances for termination based on availability zone
-        for instance in instances:
-            az = instance.availability_zone
-            if az_count[az] > target_termination_count:
-                instance_ids_to_terminate.append(instance.instance_id)
-                az_count[az] -= 1
-                instances_to_terminate -= 1
+        for az in az_list:
+            if remainder > 0:
+                termination_count = target_termination_count + 1
+                remainder -= 1
+            else:
+                termination_count = target_termination_count
 
-            if instances_to_terminate == 0:
-                break
+            for instance in instances:
+                if instance.availability_zone == az and termination_count > 0:
+                    instance_ids_to_terminate.append(instance.instance_id)
+                    az_count[az] -= 1
+                    instances_to_terminate -= 1
+                    termination_count -= 1
+
+                if instances_to_terminate == 0:
+                    break
 
         return instance_ids_to_terminate
