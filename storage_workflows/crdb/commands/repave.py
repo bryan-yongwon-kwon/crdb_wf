@@ -173,19 +173,19 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
     else:
         is_scaling_event = True
     current_capacity = len(asg.instances)
-    logger.info("Current Capacity at the beginning is:" + str(current_capacity))
-    logger.info("Initial Capacity is:" + str(initial_capacity))
-    logger.info("Desired Capacity is:" + str(desired_capacity))
+    logger.info(f"{cluster_name} Current Capacity at the beginning is:" + str(current_capacity))
+    logger.info(f"{cluster_name} Initial Capacity is:" + str(initial_capacity))
+    logger.info(f"{cluster_name} Desired Capacity is:" + str(desired_capacity))
     cluster = Cluster()
 
     if len(cluster.nodes) != len(asg.instances):
-        raise Exception("Instances count in ASG doesn't match nodes count in cluster.")
+        raise Exception(f"{cluster_name} Instances count in ASG doesn't match nodes count in cluster.")
 
     # STORAGE-7583: also check desired_capacity
     if (initial_capacity % 3 != 0 or current_capacity % 3 != 0 or desired_capacity % 3 != 0 or
             not asg.check_equal_az_distribution_in_asg()):
         logger.error("The number of nodes in this cluster are not balanced.")
-        raise Exception("Imbalanced cluster, exiting.")
+        raise Exception(f"{cluster_name} Imbalanced cluster, exiting.")
         return
 
     # STORAGE-7583: if the cluster is scaling down, remove nodes
@@ -194,17 +194,18 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
         # Calculate the number of instances to terminate
         instances_to_terminate = current_capacity - desired_capacity
         if instances_to_terminate <= 0:
-            logger.info("No instances to terminate.")
+            logger.info(f"{cluster_name} No instances to terminate.")
         else:
             # Get a list of instance IDs to terminate
             instance_ids_to_terminate = asg.get_instance_ids_to_terminate(instances_to_terminate)
+            logger.info(f"{cluster_name} instance_ids_to_terminate: {instance_ids_to_terminate}")
 
             if instance_ids_to_terminate:
                 # set new old_instance_ids as nodes that are being removed
                 persist_instance_ids(deployment_env, region, cluster_name, instance_ids_to_terminate, autoscale=True)
-                logger.info(f"upserted {len(instance_ids_to_terminate)} instances as old_instance_ids")
+                logger.info(f"{cluster_name}: upserted {len(instance_ids_to_terminate)} instances as old_instance_ids")
             else:
-                logger.info("No instances selected for termination.")
+                logger.info(f"{cluster_name}: No instances selected for termination.")
     else:
         if is_scaling_event:
             # STORAGE-7583: we're scaling up. no instance removal needed. reset old_instance_ids in metadata_db.
@@ -221,9 +222,9 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
             cluster.wait_for_hydration(hydration_timeout_mins)
             asg.reload(cluster_name)
             current_capacity = len(asg.instances)
-            logger.info("Current Capacity is:" + str(current_capacity))
+            logger.info(f"{cluster_name} Current Capacity is:" + str(current_capacity))
             if not asg.check_equal_az_distribution_in_asg():
-                raise Exception("Imbalanced nodes added.")
+                raise Exception(f"{cluster_name} Imbalanced nodes added.")
     return
 
 @app.command()
@@ -239,7 +240,7 @@ def exit_new_instances_from_standby(deployment_env, region, cluster_name):
 
     # move instances out of standby 3 at a time
     for index in range(0, len(standby_instance_ids), 3):
-        logger.info(f"Moving following instances {standby_instance_ids[index:index+3]} out of standby mode.")
+        logger.info(f"{cluster_name} Moving following instances {standby_instance_ids[index:index+3]} out of standby mode.")
         AutoScalingGroupGateway.exit_instances_from_standby(asg.name, standby_instance_ids[index:index+3])
 
 @app.command()
