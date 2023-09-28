@@ -176,6 +176,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
         desired_capacity = 2*len(old_instance_ids)
     else:
         is_scaling_event = True
+        desired_capacity = int(desired_capacity)
     current_capacity = len(asg.instances)
     logger.info(f"{cluster_name} Current Capacity at the beginning is:" + str(current_capacity))
     logger.info(f"{cluster_name} Initial Capacity is:" + str(initial_capacity))
