@@ -210,7 +210,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
             logger.info(f"{cluster_name} No instances to terminate.")
         else:
             # Get a list of instance IDs to terminate
-            instance_ids_to_terminate = asg.num_of_instances_to_terminate(instances_to_terminate)
+            instance_ids_to_terminate = asg.get_instances_to_terminate(instances_to_terminate)
             logger.info(f"{cluster_name} instance_ids_to_terminate: {instance_ids_to_terminate}")
 
             if instance_ids_to_terminate:
