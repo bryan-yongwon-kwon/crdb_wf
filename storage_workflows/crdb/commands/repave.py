@@ -42,6 +42,13 @@ def pre_check(deployment_env, region, cluster_name):
     else:
         logger.info("Check passed")
 
+
+def get_old_instance_ids(deployment_env, region, cluster_name):
+    # STORAGE-7583: do nothing if scaling up
+    metadata_db_operations = MetadataDBOperations()
+    return metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+
+
 @app.command()
 def refresh_etl_load_balancer(deployment_env, region, cluster_name):
     if deployment_env == 'staging':
@@ -138,64 +145,99 @@ def copy_crontab(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    old_instance_ips = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
-    nodes = Node.get_nodes()
-    new_nodes = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))
-    new_nodes.sort(key=lambda node: node.id)
-    new_node = new_nodes[0]
-    logger.info("Copying crontab jobs to new node: {}".format(new_node.id))
-    for ip in old_instance_ips:
-        ssh_client = SSH(ip)
-        ssh_client.connect_to_node()
-        stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
-        lines = stdout.readlines()
-        errors = stderr.readlines()
-        ssh_client.close_connection()
-        logger.info("Listing cron jobs for {}: {}".format(ip, lines))
-        if errors:
-            continue
-        new_node.copy_cron_scripts_from_old_node(ssh_client)
-        new_node.schedule_cron_jobs(lines)
-    logger.info("Copied all the crontab jobs to new node successfully!")
+    # STORAGE-7583: do nothing if scaling up
+    if instance_ids:
+        old_instance_ips = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
+        nodes = Node.get_nodes()
+        new_nodes = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))
+        new_nodes.sort(key=lambda node: node.id)
+        new_node = new_nodes[0]
+        logger.info("Copying crontab jobs to new node: {}".format(new_node.id))
+        for ip in old_instance_ips:
+            ssh_client = SSH(ip)
+            ssh_client.connect_to_node()
+            stdin, stdout, stderr = ssh_client.execute_command("sudo crontab -l")
+            lines = stdout.readlines()
+            errors = stderr.readlines()
+            ssh_client.close_connection()
+            logger.info("Listing cron jobs for {}: {}".format(ip, lines))
+            if errors:
+                continue
+            new_node.copy_cron_scripts_from_old_node(ssh_client)
+            new_node.schedule_cron_jobs(lines)
+        logger.info("Copied all the crontab jobs to new node successfully!")
+    else:
+        logger.info("no instance_id found. skipping copy_crontab.")
 
 @app.command()
-def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydration_timeout_mins):
+def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydration_timeout_mins, desired_capacity=None):
     hydration_timeout_mins = int(hydration_timeout_mins)
     setup_env(deployment_env, region, cluster_name)
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    initial_capacity = len(old_instance_ids)
-    desired_capacity = 2*len(old_instance_ids)
+    # STORAGE-7583: repurpose repave workflow to handle cluster scaling
+    is_scaling_event = False
+    if desired_capacity is None:
+        desired_capacity = 2*len(old_instance_ids)
+        initial_capacity = len(old_instance_ids)
+    else:
+        is_scaling_event = True
+        desired_capacity = int(desired_capacity)
+        initial_capacity = len(asg.instances)
     current_capacity = len(asg.instances)
-    logger.info("Current Capacity at the beginning is:" + str(current_capacity))
-    logger.info("Initial Capacity is:" + str(initial_capacity))
-    logger.info("Desired Capacity is:" + str(desired_capacity))
+    logger.info(f"{cluster_name} Current Capacity at the beginning is:" + str(current_capacity))
+    logger.info(f"{cluster_name} Initial Capacity is:" + str(initial_capacity))
+    logger.info(f"{cluster_name} Desired Capacity is:" + str(desired_capacity))
     cluster = Cluster()
 
     if len(cluster.nodes) != len(asg.instances):
-        raise Exception("Instances count in ASG doesn't match nodes count in cluster.")
+        raise Exception(f"{cluster_name} Instances count in ASG doesn't match nodes count in cluster.")
 
-    if initial_capacity % 3 != 0 or current_capacity % 3 != 0 or not asg.check_equal_az_distribution_in_asg():
+    # STORAGE-7583: also check desired_capacity
+    if (initial_capacity % 3 != 0 or current_capacity % 3 != 0 or desired_capacity % 3 != 0 or
+            not asg.check_equal_az_distribution_in_asg()):
         logger.error("The number of nodes in this cluster are not balanced.")
-        raise Exception("Imbalanced cluster, exiting.")
+        raise Exception(f"{cluster_name} Imbalanced cluster, exiting.")
         return
 
-    all_new_instance_ids = []
-    # current_capacity = initial_capacity
-    while current_capacity < desired_capacity:
-        #current_capacity determines number of nodes in standby + number of nodes in-service
-        #according to asg desired_capacity is the count of number of nodes in-service state only
-        #hence we only set intial_capacity+3 as desired capacity in each loop
-        new_instance_ids = asg.add_ec2_instances(initial_capacity+3)
-        all_new_instance_ids.append(new_instance_ids)
-        AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
-        cluster.wait_for_hydration(hydration_timeout_mins)
-        asg.reload(cluster_name)
-        current_capacity = len(asg.instances)
-        logger.info("Current Capacity is:" + str(current_capacity))
-        if not asg.check_equal_az_distribution_in_asg():
-            raise Exception("Imbalanced nodes added.")
+    # STORAGE-7583: if the cluster is scaling down, remove nodes
+    if desired_capacity < current_capacity:
+        logger.info(f"{cluster_name} is scaling down. selecting instances to remove...")
+        # Calculate the number of instances to terminate
+        instances_to_terminate = current_capacity - desired_capacity
+        if instances_to_terminate <= 0:
+            logger.info(f"{cluster_name} No instances to terminate.")
+        else:
+            # Get a list of instance IDs to terminate
+            instance_ids_to_terminate = asg.get_instances_to_terminate(instances_to_terminate)
+            logger.info(f"{cluster_name} instance_ids_to_terminate: {instance_ids_to_terminate}")
+
+            if instance_ids_to_terminate:
+                # set new old_instance_ids as nodes that are being removed
+                persist_instance_ids(deployment_env, region, cluster_name, instance_ids_to_terminate, autoscale=True)
+                logger.info(f"{cluster_name}: upserted {len(instance_ids_to_terminate)} instances as old_instance_ids")
+            else:
+                logger.info(f"{cluster_name}: No instances selected for termination.")
+    else:
+        if is_scaling_event:
+            # STORAGE-7583: we're scaling up. no instance removal needed. reset old_instance_ids in metadata_db.
+            persist_instance_ids(deployment_env, region, cluster_name, [], autoscale=True)
+        all_new_instance_ids = []
+        # current_capacity = initial_capacity
+        while current_capacity < desired_capacity:
+            #current_capacity determines number of nodes in standby + number of nodes in-service
+            #according to asg desired_capacity is the count of number of nodes in-service state only
+            #hence we only set intial_capacity+3 as desired capacity in each loop
+            new_instance_ids = asg.add_ec2_instances(initial_capacity+3, autoscale=True)
+            all_new_instance_ids.append(new_instance_ids)
+            AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
+            cluster.wait_for_hydration(hydration_timeout_mins)
+            asg.reload(cluster_name)
+            current_capacity = len(asg.instances)
+            logger.info(f"{cluster_name} Current Capacity is:" + str(current_capacity))
+            if not asg.check_equal_az_distribution_in_asg():
+                raise Exception(f"{cluster_name} Imbalanced nodes added.")
     return
 
 @app.command()
@@ -211,7 +253,7 @@ def exit_new_instances_from_standby(deployment_env, region, cluster_name):
 
     # move instances out of standby 3 at a time
     for index in range(0, len(standby_instance_ids), 3):
-        logger.info(f"Moving following instances {standby_instance_ids[index:index+3]} out of standby mode.")
+        logger.info(f"{cluster_name} Moving following instances {standby_instance_ids[index:index+3]} out of standby mode.")
         AutoScalingGroupGateway.exit_instances_from_standby(asg.name, standby_instance_ids[index:index+3])
 
 @app.command()
@@ -222,71 +264,102 @@ def detach_old_instances_from_asg(deployment_env, region, cluster_name, timeout_
     # get instance ids of old nodes
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids, asg.name)
-    cluster = Cluster()
-    cluster.wait_for_connections_drain_on_old_nodes(int(timeout_minus))
-    return
+    # STORAGE-7583: do nothing if scaling up
+    if old_instance_ids:
+        AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids, asg.name)
+        cluster = Cluster()
+        cluster.wait_for_connections_drain_on_old_nodes(int(timeout_minus))
+        logger.info("detached instances from asg")
+        return
+    else:
+        logger.info("no instances found. skipping detach instances from asg. ")
 
 @app.command()
 def terminate_instances(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    for id in old_instance_ids:
-        ec2_instance = Ec2Instance.find_ec2_instance(id)
-        ec2_instance.terminate_instance()
+    # STORAGE-7583: do nothing if scaling up
+    if old_instance_ids:
+        for id in old_instance_ids:
+            ec2_instance = Ec2Instance.find_ec2_instance(id)
+            ec2_instance.terminate_instance()
+        logger.info("terminated ec2 instances")
+    else:
+        logger.info("no instances found. skipping ec2 instance termination.")
 
 @app.command()
 def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, old_instance_ids))
-    for ip in instances_ips:
-        Node.stop_crdb(ip)
+    # STORAGE-7583: do nothing if scaling up
+    if old_instance_ids:
+        instances_ips = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, old_instance_ids))
+        for ip in instances_ips:
+            Node.stop_crdb(ip)
+        logger.info("stopped all crdb instances")
+    else:
+        logger.info("no nodes found. skipping crdb process stop.")
 
 @app.command()
 def drain_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
-    for node in old_nodes:
-        logger.info("Draining node {} ...".format(node.id))
-        node.drain()
-        logger.info("Draining complete for node {}".format(node.id))
-    logger.info("Nodes drain complete!")
+    # STORAGE-7583: do nothing if scaling up
+    if old_instance_ids:
+        old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+        for node in old_nodes:
+            logger.info("Draining node {} ...".format(node.id))
+            node.drain()
+            logger.info("Draining complete for node {}".format(node.id))
+        logger.info("Nodes drain complete!")
+    else:
+        logger.info("No nodes to drain")
 
 @app.command()
 def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
-    cluster = Cluster()
-    if cluster.unhealthy_ranges_exist():
-        raise Exception("Abort decommission, unhealthy ranges exist!")
-    cluster.decommission_nodes(old_nodes)
-    logger.info("Decommission completed!")
+    # STORAGE-7583: do nothing if scaling up
+    if old_instance_ids:
+        old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+        cluster = Cluster()
+        if cluster.unhealthy_ranges_exist():
+            raise Exception("Abort decommission, unhealthy ranges exist!")
+        cluster.decommission_nodes(old_nodes)
+        logger.info("Decommission completed!")
+    else:
+        logger.info("No nodes to decommission")
 
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
-    paused_changefeed_jobs = list(filter(lambda job: job.status == 'paused', changefeed_jobs))
-    for job in paused_changefeed_jobs:
-        logger.info("Resuming changefeed job {}".format(job.id))
-        job.resume()
-    logger.info("Resumed all paused changefeed jobs!")
+    old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
+    if old_instance_ids:
+        changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+        paused_changefeed_jobs = list(filter(lambda job: job.status == 'paused', changefeed_jobs))
+        for job in paused_changefeed_jobs:
+            logger.info("Resuming changefeed job {}".format(job.id))
+            job.resume()
+        logger.info("Resumed all paused changefeed jobs!")
+    else:
+        logger.info("old_instance_ids not found. skipping resume_all_paused_changefeeds.")
 
 @app.command()
 def pause_all_changefeeds(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
-    for job in changefeed_jobs:
-        logger.info("Pausing changefeed job {}".format(job.id))
-        job.pause()
-    logger.info("Paused all changefeed jobs!")
+    old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
+    if old_instance_ids:
+        changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+        for job in changefeed_jobs:
+            logger.info("Pausing changefeed job {}".format(job.id))
+            job.pause()
+        logger.info("Paused all changefeed jobs!")
+    else:
+        logger.info("no old_instance_ids found. skipping pause_all_changefeeds.")
     
 @app.command()
 def complete_repave_global_change_log(deployment_env, region, cluster_name):
@@ -309,63 +382,81 @@ def start_repave_global_change_log(deployment_env, region, cluster_name):
 @app.command()
 def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
-    for job in changefeed_jobs:
-        logger.info("Pausing changefeed job {}".format(job.id))
-        job.pause()
+    old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
+    if old_instance_ids:
+        changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+        for job in changefeed_jobs:
+            logger.info("Pausing changefeed job {}".format(job.id))
+            job.pause()
 
-    #wait for all jobs to pause
-    for job in changefeed_jobs:
-        job.wait_for_job_to_pause()
+        #wait for all jobs to pause
+        for job in changefeed_jobs:
+            job.wait_for_job_to_pause()
 
-    logger.info("Paused all changefeed jobs!")
+        logger.info("Paused all changefeed jobs!")
 
-    for job in changefeed_jobs:
-        logger.info("Removing coordinator node for job {}".format(job.id))
-        job.remove_coordinator_node()
-    logger.info("Removed coordinator node for all changefeed jobs!")
+        for job in changefeed_jobs:
+            logger.info("Removing coordinator node for job {}".format(job.id))
+            job.remove_coordinator_node()
+        logger.info("Removed coordinator node for all changefeed jobs!")
 
-    # get instance ids of old nodes
-    metadata_db_operations = MetadataDBOperations()
-    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
-    old_node_ids = set(map(lambda node: node.id, old_nodes))
-    logger.info("Node ids of old nodes" + str(old_node_ids))
+        # get instance ids of old nodes
+        metadata_db_operations = MetadataDBOperations()
+        old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+        old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+        old_node_ids = set(map(lambda node: node.id, old_nodes))
+        logger.info("Node ids of old nodes" + str(old_node_ids))
 
-    for job in changefeed_jobs:
-        logger.info("Resuming changefeed job {}".format(job.id))
-        job.resume()
-        # wait for job to resume
-        job.wait_for_job_to_resume()
+        for job in changefeed_jobs:
+            logger.info("Resuming changefeed job {}".format(job.id))
+            job.resume()
+            # wait for job to resume
+            job.wait_for_job_to_resume()
 
-        coordinator_node = None
-        while coordinator_node is None:
-            logger.info("Checking coordinator node.")
-            time.sleep(10)
-            coordinator_node = job.get_coordinator_node()
-            logger.info("Coordinator node is {}".format(coordinator_node))
+            coordinator_node = None
+            while coordinator_node is None:
+                logger.info("Checking coordinator node.")
+                time.sleep(10)
+                coordinator_node = job.get_coordinator_node()
+                logger.info("Coordinator node is {}".format(coordinator_node))
 
-            if coordinator_node is not None and coordinator_node in old_node_ids:
-                coordinator_node = None
-                logger.info("Removing coordinator node for job {}".format(job.id))
-                job.remove_coordinator_node()
-                logger.info("Pausing job {}".format(job.id))
-                job.pause()
-                job.wait_for_job_to_pause()
-                job.resume()
-                job.wait_for_job_to_resume()
-        logger.info("Coordinator node updated to {}".format(coordinator_node))
-    logger.info("Resumed all changefeed jobs!")
+                if coordinator_node is not None and coordinator_node in old_node_ids:
+                    coordinator_node = None
+                    logger.info("Removing coordinator node for job {}".format(job.id))
+                    job.remove_coordinator_node()
+                    logger.info("Pausing job {}".format(job.id))
+                    job.pause()
+                    job.wait_for_job_to_pause()
+                    job.resume()
+                    job.wait_for_job_to_resume()
+            logger.info("Coordinator node updated to {}".format(coordinator_node))
+        logger.info("Resumed all changefeed jobs!")
+    else:
+        logger.info("skipping move_changefeed_coordinator_node. we're adding new nodes.")
 
 @app.command()
-def persist_instance_ids(deployment_env, region, cluster_name):
+def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None, autoscale=False):
     setup_env(deployment_env, region, cluster_name)
-    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
-    logger.info("Instance IDs to be persist: {}".format(instance_ids))
-    metadata_db_operations = MetadataDBOperations()
-    metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
+    # STORAGE-7583: upsert new instance_ids in downscaling scenario
+    if not instance_ids and autoscale:
+        logger.info(f"scaling up nodes for {cluster_name}. setting old_instance_ids to none.")
+        instance_ids = []
+        metadata_db_operations = MetadataDBOperations()
+        metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
+    elif not instance_ids and not autoscale:
+        logger.error(f"received instance_ids for {cluster_name} with no autoscale confirmation. do nothing.")
+    elif instance_ids and autoscale:
+        logger.info(f"scaling down nodes for {cluster_name}. setting old_instance_ids.")
+        metadata_db_operations = MetadataDBOperations()
+        metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
+    else:
+        asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+        instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
+        logger.info("Instance IDs to be persist: {}".format(instance_ids))
+        metadata_db_operations = MetadataDBOperations()
+        metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
     logger.info("Persist completed!")
+
 
 @app.command()
 def send_workflow_failure_notification(deployment_env, region, cluster_name, namespace, workflow_name):

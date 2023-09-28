@@ -3,7 +3,7 @@ from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 
 class BaseJob:
 
-    FIND_ALL_JOBS_BY_TYPE_SQL = "SELECT job_id,job_type,status FROM [SHOW JOBS] WHERE job_type='{}';"
+    FIND_ALL_JOBS_BY_TYPE_SQL = "SELECT job_id,job_type,status FROM [SHOW JOBS] WHERE job_type='{}' AND status='running';"
     PAUSE_JOB_BY_ID_SQL = "PAUSE JOB {};"
     RESUME_JOB_BY_ID_SQL = "RESUME JOB {};"
     GET_JOB_BY_ID_SQL = "SELECT job_id,job_type,status FROM [SHOW JOBS] WHERE job_id='{}';"
