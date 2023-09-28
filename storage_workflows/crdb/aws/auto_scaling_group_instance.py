@@ -25,4 +25,7 @@ class AutoScalingGroupInstance:
 
     @property
     def launch_time(self):
-        return self._api_response['LaunchTime']
+        if self.in_service():
+            return self._api_response.get('LaunchTime', 'N/A')
+        else:
+            return 'N/A'
