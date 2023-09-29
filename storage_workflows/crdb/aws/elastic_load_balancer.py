@@ -60,3 +60,6 @@ class ElasticLoadBalancer:
     def deregister_instances(self, instances:list):
         ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(self.load_balancer_name, instances)
         self.reload()
+
+    def __repr__(self):
+        return f"<ElasticLoadBalancer(name={self.load_balancer_name}, instances={len(self.instances)})>"
