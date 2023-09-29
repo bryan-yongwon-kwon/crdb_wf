@@ -551,10 +551,9 @@ def backup_health_check(deployment_env, region, cluster_name):
 @app.command()
 def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
     # List of methods in healthcheck workflow
-    #hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check,
-    #              az_health_check, zone_config_health_check, backup_health_check, orphan_health_check,
-    #              changefeed_health_check, asg_health_check]
-    hc_methods = [version_mismatch_check]
+    hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check,
+                  az_health_check, zone_config_health_check, backup_health_check, orphan_health_check,
+                  changefeed_health_check, asg_health_check]
 
     storage_metadata = StorageMetadata()
     aws_account_alias = IamGateway.get_account_alias()
@@ -626,10 +625,27 @@ def run_health_check_all(deployment_env, region):
                     f"For full report run - SELECT * FROM cluster_health_check WHERE workflow_id={workflow_id} AND "
                     f"check_result='fail';\n"
                     f"**********************************************************************************************\n")
-    bot_user_oauth_token=os.getenv('BOT-USER-OAUTH-TOKEN')
-    slack_notification = SlackNotification(webhook_url=os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB'),
-                                           bearer_token=bot_user_oauth_token)
+    message_chunk = ""
+
+    for check in failed_checks:
+        if check.cluster_name == 'test_prod' or check.check_output == 'db_connection_error':  # Skip the checks for test cluster
+            continue
+        new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
+        if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
+            send_to_slack("test", base_message + message_chunk)
+            message_chunk = ""
+        message_chunk += new_line
+
+    if message_chunk:
+        send_to_slack("test", base_message + message_chunk)
+
+    # TODO: troubleshoot sending slack msg with attachments. we get 200 response from slack, but no msg is
+    #   sent to the channel
+    # bot_user_oauth_token=os.getenv('BOT-USER-OAUTH-TOKEN')
+    # slack_notification = SlackNotification(webhook_url=os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB'),
+    #                                       bearer_token=bot_user_oauth_token)
+
 
     # Send the CSV file as attachment to the Slack channel
-    response = slack_notification.send_to_slack_with_attachment(csv_file_path, "CRDB HEALTH REPORT", "storage-alerts-crdb")
-    logger.info(f"response from slack: {response}")
+    # response = slack_notification.send_to_slack_with_attachment(csv_file_path, "CRDB HEALTH REPORT", "storage-alerts-crdb")
+    # logger.info(f"response from slack: {response}")

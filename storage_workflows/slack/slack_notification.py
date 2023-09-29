@@ -49,7 +49,7 @@ def generate_csv_file(list_of_values, header_fields):
 
 def send_to_slack(deployment_env, message):
     if deployment_env == 'prod':
-        slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB')
+        slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_OPERATIONS_LOG')
     elif deployment_env == 'staging':
         slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
     else:
