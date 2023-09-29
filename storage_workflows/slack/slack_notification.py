@@ -75,7 +75,6 @@ class SlackNotification:
         logger.info(response.text)
 
     def send_to_slack_with_attachment(self, filename, message, channel):
-        """Send a file as an attachment to a Slack channel."""
         url = "https://slack.com/api/files.upload"
         headers = {
             'Authorization': f'Bearer {self.__bearer_token}',

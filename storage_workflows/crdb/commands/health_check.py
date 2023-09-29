@@ -8,7 +8,7 @@ from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
-from storage_workflows.slack.slack_notification import SlackNotification, send_to_slack
+from storage_workflows.slack.slack_notification import SlackNotification, send_to_slack, generate_csv_file
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
@@ -612,25 +612,23 @@ def run_health_check_all(deployment_env, region):
     for cluster_name in items:
         run_health_check_single(deployment_env, region, cluster_name)
     logger.info("Healthcheck for all all CRDB clusters complete...")
-    # find failed healthchecks and send report to Slack
+    # find failed healthchecks
     failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, check_result='fail')
-    # NOTE: slack file upload is not ready yet
+
+    header = ["cluster_name", "check_type", "check_result", "check_output"]
+    # Generate CSV file with the failed checks
+    csv_file_path = generate_csv_file(failed_checks, header)
+
     base_message = (f"**********************************************************************************************\n"
                     f"HEALTH CHECK REPORT\n"
                     f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n"
                     f"For full report run - SELECT * FROM cluster_health_check WHERE workflow_id={workflow_id} AND "
                     f"check_result='fail';\n"
                     f"**********************************************************************************************\n")
-    message_chunk = ""
 
-    for check in failed_checks:
-        if check.cluster_name == 'test_prod' or check.check_output == 'db_connection_error':  # Skip the checks for test cluster
-            continue
-        new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
-        if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
-            send_to_slack("test", base_message + message_chunk)
-            message_chunk = ""
-        message_chunk += new_line
+    # initialize SlackNotification class (use your webhook_url and bearer_token here)
+    slack_notification = SlackNotification(webhook_url=os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST'),
+                                           bearer_token="xoxb-3764086579-1881097306055-lLF3ASKqs9UfgpSdnGEztpMp")
 
-    if message_chunk:
-        send_to_slack("test", base_message + message_chunk)
+    # Send the CSV file as attachment to the Slack channel
+    slack_notification.send_to_slack_with_attachment(csv_file_path, base_message, "storage-alert-test")
