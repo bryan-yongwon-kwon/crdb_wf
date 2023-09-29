@@ -314,7 +314,7 @@ def etl_health_check(deployment_env, region, cluster_name):
                     elb_load_balancer.deregister_instances(old_lb_instances)
                 elb_load_balancer.register_instances(new_instances)
                 # unhealthy_instances = []
-                unhealthy_instances = ElasticLoadBalancerGateway.get_out_of_service_instances(elb_load_balancer)
+                unhealthy_instances = ElasticLoadBalancerGateway.get_out_of_service_instances(str(elb_load_balancer))
                 if not unhealthy_instances:
                     logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
                     check_result = "pass"
