@@ -615,9 +615,10 @@ def run_health_check_all(deployment_env, region):
     # find failed healthchecks
     failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, check_result='fail')
 
-    header = ["cluster_name", "check_type", "check_result", "check_output"]
+    # TODO: uncomment to use send msg with attachment
+    # header = ["cluster_name", "check_type", "check_result", "check_output"]
     # Generate CSV file with the failed checks
-    csv_file_path = generate_csv_file(failed_checks, header)
+    # csv_file_path = generate_csv_file(failed_checks, header)
 
     base_message = (f"**********************************************************************************************\n"
                     f"HEALTH CHECK REPORT\n"
@@ -628,11 +629,11 @@ def run_health_check_all(deployment_env, region):
     message_chunk = ""
 
     for check in failed_checks:
-        if check.cluster_name == 'test_prod' or check.check_output == 'db_connection_error':  # Skip the checks for test cluster
+        if check.cluster_name == 'test_prod':  # Skip the checks for test cluster
             continue
         new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
         if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
-            send_to_slack("test", base_message + message_chunk)
+            send_to_slack(deployment_env, base_message + message_chunk)
             message_chunk = ""
         message_chunk += new_line
 
