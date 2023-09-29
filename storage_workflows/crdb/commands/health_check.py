@@ -638,7 +638,7 @@ def run_health_check_all(deployment_env, region):
         message_chunk += new_line
 
     if message_chunk:
-        send_to_slack("test", base_message + message_chunk)
+        send_to_slack(deployment_env, base_message + message_chunk)
 
     # TODO: troubleshoot sending slack msg with attachments. we get 200 response from slack, but no msg is
     #   sent to the channel
