@@ -4,6 +4,7 @@ import requests
 import os
 from requests import post
 from storage_workflows.logging.logger import Logger
+from datetime import datetime
 
 logger = Logger()
 
@@ -28,7 +29,8 @@ def generate_csv_file(list_of_values, header_fields):
     filename = self.generate_csv_file(checks, header)
     """
 
-    filename = f"/tmp/{list_of_values}.csv"
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    filename = f"/tmp/failed_checks_{timestamp}.csv"
 
     with open(filename, 'w', newline='') as f:
         writer = csv.writer(f)
