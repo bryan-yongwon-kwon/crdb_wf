@@ -314,12 +314,9 @@ def etl_health_check(deployment_env, region, cluster_name):
                     elb_load_balancer.deregister_instances(old_lb_instances)
                 elb_load_balancer.register_instances(new_instances)
                 # unhealthy_instances = []
-                logger.info(f"elb_load_balancer: {elb_load_balancer}")
-                # account for botocore.exceptions.ClientError: An error occurred (ValidationError) when calling the
-                # DescribeInstanceHealth operation: LoadBalancer name cannot be longer than 32 characters
-                truncated_elb_load_balancer_name = str(elb_load_balancer)[:32]
-                logger.info(f"truncated_elb_load_balancer_name: {truncated_elb_load_balancer_name}")
-                unhealthy_instances = ElasticLoadBalancerGateway.get_out_of_service_instances(truncated_elb_load_balancer_name)
+                logger.info(f"elb_load_balancer: {elb_load_balancer.load_balancer_name}")
+                elb_load_balancer_name = elb_load_balancer.load_balancer_name
+                unhealthy_instances = ElasticLoadBalancerGateway.get_out_of_service_instances(elb_load_balancer_name)
                 if not unhealthy_instances:
                     logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
                     check_result = "pass"
