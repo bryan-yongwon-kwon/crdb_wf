@@ -313,8 +313,6 @@ def etl_health_check(deployment_env, region, cluster_name):
                 if old_lb_instances:
                     elb_load_balancer.deregister_instances(old_lb_instances)
                 elb_load_balancer.register_instances(new_instances)
-                # unhealthy_instances = []
-                logger.info(f"elb_load_balancer: {elb_load_balancer.load_balancer_name}")
                 elb_load_balancer_name = elb_load_balancer.load_balancer_name
                 unhealthy_instances = ElasticLoadBalancerGateway.get_out_of_service_instances(elb_load_balancer_name)
                 if not unhealthy_instances:
