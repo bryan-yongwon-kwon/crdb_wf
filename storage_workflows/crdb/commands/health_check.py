@@ -628,9 +628,9 @@ def run_health_check_all(deployment_env, region):
     bot_user_oauth_token=os.getenv('BOT-USER-OAUTH-TOKEN')
     logger.info(f"bot_user_oauth_token: {bot_user_oauth_token}")
     # initialize SlackNotification class (use your webhook_url and bearer_token here)
-    slack_notification = SlackNotification(webhook_url=os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST'),
+    slack_notification = SlackNotification(webhook_url=os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB'),
                                            bearer_token=bot_user_oauth_token)
 
     # Send the CSV file as attachment to the Slack channel
-    response = slack_notification.send_to_slack_with_attachment(csv_file_path, base_message, "storage-alert-test")
+    response = slack_notification.send_to_slack_with_attachment(csv_file_path, "CRDB HEALTH REPORT", "storage-alerts-crdb")
     logger.info(f"response from slack: {response}")
