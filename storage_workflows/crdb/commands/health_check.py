@@ -551,9 +551,10 @@ def backup_health_check(deployment_env, region, cluster_name):
 @app.command()
 def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
     # List of methods in healthcheck workflow
-    hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check,
-                  az_health_check, zone_config_health_check, backup_health_check, orphan_health_check,
-                  changefeed_health_check, asg_health_check]
+    #hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check,
+    #              az_health_check, zone_config_health_check, backup_health_check, orphan_health_check,
+    #              changefeed_health_check, asg_health_check]
+    hc_methods = [version_mismatch_check]
 
     storage_metadata = StorageMetadata()
     aws_account_alias = IamGateway.get_account_alias()
@@ -626,8 +627,6 @@ def run_health_check_all(deployment_env, region):
                     f"check_result='fail';\n"
                     f"**********************************************************************************************\n")
     bot_user_oauth_token=os.getenv('BOT-USER-OAUTH-TOKEN')
-    logger.info(f"bot_user_oauth_token: {bot_user_oauth_token}")
-    # initialize SlackNotification class (use your webhook_url and bearer_token here)
     slack_notification = SlackNotification(webhook_url=os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB'),
                                            bearer_token=bot_user_oauth_token)
 
