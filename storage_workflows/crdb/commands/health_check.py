@@ -8,7 +8,7 @@ from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
-from storage_workflows.slack.slack_notification import SlackNotification, send_to_slack
+from storage_workflows.slack.slack_notification import SlackNotification, send_to_slack, generate_csv_file
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
@@ -612,9 +612,14 @@ def run_health_check_all(deployment_env, region):
     for cluster_name in items:
         run_health_check_single(deployment_env, region, cluster_name)
     logger.info("Healthcheck for all all CRDB clusters complete...")
-    # find failed healthchecks and send report to Slack
+    # find failed healthchecks
     failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, check_result='fail')
-    # NOTE: slack file upload is not ready yet
+
+    # TODO: uncomment to use send msg with attachment
+    # header = ["cluster_name", "check_type", "check_result", "check_output"]
+    # Generate CSV file with the failed checks
+    # csv_file_path = generate_csv_file(failed_checks, header)
+
     base_message = (f"**********************************************************************************************\n"
                     f"HEALTH CHECK REPORT\n"
                     f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n"
@@ -624,13 +629,24 @@ def run_health_check_all(deployment_env, region):
     message_chunk = ""
 
     for check in failed_checks:
-        if check.cluster_name == 'test_prod' or check.check_output == 'db_connection_error':  # Skip the checks for test cluster
+        if check.cluster_name == 'test_prod':  # Skip the checks for test cluster
             continue
         new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
         if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
-            send_to_slack("test", base_message + message_chunk)
+            send_to_slack(deployment_env, base_message + message_chunk)
             message_chunk = ""
         message_chunk += new_line
 
     if message_chunk:
-        send_to_slack("test", base_message + message_chunk)
+        send_to_slack(deployment_env, base_message + message_chunk)
+
+    # TODO: troubleshoot sending slack msg with attachments. we get 200 response from slack, but no msg is
+    #   sent to the channel
+    # bot_user_oauth_token=os.getenv('BOT-USER-OAUTH-TOKEN')
+    # slack_notification = SlackNotification(webhook_url=os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB'),
+    #                                       bearer_token=bot_user_oauth_token)
+
+
+    # Send the CSV file as attachment to the Slack channel
+    # response = slack_notification.send_to_slack_with_attachment(csv_file_path, "CRDB HEALTH REPORT", "storage-alerts-crdb")
+    # logger.info(f"response from slack: {response}")
