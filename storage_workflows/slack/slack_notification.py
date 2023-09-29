@@ -82,13 +82,29 @@ class SlackNotification:
             'Authorization': f'Bearer {self.__bearer_token}',
         }
 
+        # Check the bearer token:
+        logger.info(f"Bearer Token: {self.__bearer_token}")
+
+        # Check the file existence:
+        if not os.path.exists(filename):
+            logger.error(f"File {filename} does not exist!")
+            return -1  # Indicate file not found.
+
         with open(filename, 'rb') as f:
             payload = {
                 "channels": f"#{channel}",
                 "file": f,
                 "initial_comment": message,
             }
-            response = requests.post(url, headers=headers, files=payload)
+
+            try:
+                response = requests.post(url, headers=headers, files=payload)
+                # Log the full response for debugging:
+                logger.info(f"Slack Response: {response.text}")
+            except Exception as e:
+                # Log any exception that arises:
+                logger.error(f"Error sending file to Slack: {str(e)}")
+                return -2  # Indicate error in sending file.
 
         return response.status_code
 

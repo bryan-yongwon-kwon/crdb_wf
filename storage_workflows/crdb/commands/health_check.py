@@ -632,4 +632,5 @@ def run_health_check_all(deployment_env, region):
                                            bearer_token=bot_user_oauth_token)
 
     # Send the CSV file as attachment to the Slack channel
-    slack_notification.send_to_slack_with_attachment(csv_file_path, base_message, "storage-alert-test")
+    response = slack_notification.send_to_slack_with_attachment(csv_file_path, base_message, "storage-alert-test")
+    logger.info(f"response from slack: {response}")
