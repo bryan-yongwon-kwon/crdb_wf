@@ -60,7 +60,7 @@ class ElasticLoadBalancerGateway:
         return response['Instances']
 
     @staticmethod
-    def get_out_of_service_instances(load_balancer_name):
+    def get_out_of_service_instances(load_balancer_name: str):
         elastic_load_balancer_client = AwsSessionFactory.elb()
         instances_out_of_service = []
 

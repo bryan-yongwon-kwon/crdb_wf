@@ -26,6 +26,7 @@ class ElasticLoadBalancer:
             if not load_balancers:
                 logger.error("Mode not enabled. ETL load balancer doesn't exist.")
                 raise Exception('No ETL load balancer found!')
+            # logger.info(f"Using load balancer name: {load_balancers}")
         except ClientError as e:
             if e.response['Error']['Code'] == 'LoadBalancerNotFound':
                 return None
@@ -59,3 +60,6 @@ class ElasticLoadBalancer:
     def deregister_instances(self, instances:list):
         ElasticLoadBalancerGateway.deregister_instances_from_load_balancer(self.load_balancer_name, instances)
         self.reload()
+
+    def __repr__(self):
+        return f"<ElasticLoadBalancer(name={self.load_balancer_name}, instances={len(self.instances)})>"
