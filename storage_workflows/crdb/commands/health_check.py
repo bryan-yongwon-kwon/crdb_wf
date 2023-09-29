@@ -625,10 +625,11 @@ def run_health_check_all(deployment_env, region):
                     f"For full report run - SELECT * FROM cluster_health_check WHERE workflow_id={workflow_id} AND "
                     f"check_result='fail';\n"
                     f"**********************************************************************************************\n")
-
+    bot_user_oauth_token=os.getenv('BOT-USER-OAUTH-TOKEN')
+    logger.info(f"bot_user_oauth_token: {bot_user_oauth_token}")
     # initialize SlackNotification class (use your webhook_url and bearer_token here)
     slack_notification = SlackNotification(webhook_url=os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST'),
-                                           bearer_token="xoxb-3764086579-1881097306055-lLF3ASKqs9UfgpSdnGEztpMp")
+                                           bearer_token=bot_user_oauth_token)
 
     # Send the CSV file as attachment to the Slack channel
     slack_notification.send_to_slack_with_attachment(csv_file_path, base_message, "storage-alert-test")
