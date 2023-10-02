@@ -16,6 +16,8 @@ from storage_workflows.metadata_db.storage_metadata.storage_metadata import Stor
 from storage_workflows.crdb.api_gateway.iam_gateway import IamGateway
 from storage_workflows.crdb.api_gateway.ebs_gateway import EBSGateway
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
+from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
+from storage_workflows.crdb.aws.secret import Secret
 
 app = typer.Typer()
 logger = Logger()
@@ -650,3 +652,42 @@ def run_health_check_all(deployment_env, region):
     # Send the CSV file as attachment to the Slack channel
     # response = slack_notification.send_to_slack_with_attachment(csv_file_path, "CRDB HEALTH REPORT", "storage-alerts-crdb")
     # logger.info(f"response from slack: {response}")
+
+
+@app.command()
+def debug_secrets(deployment_env, cluster_name, region):
+    setup_env(deployment_env, region, cluster_name)
+    cluster_name_with_suffix = cluster_name + "-crdb"
+    cluster_name_with_hyphens = cluster_name.replace("_", "-") + "-crdb"  # Declare this here for broader scope
+
+    secret_filters = {
+        'tag-key': ['crdb_cluster_name', 'environment'],
+        'tag-value': [os.getenv('DEPLOYMENT_ENV'), cluster_name_with_suffix],
+        'description': ['!DEPRECATED']
+    }
+
+    secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
+    logger.info(f"secret_list: {secret_list}")
+    # If secret_list is empty, use the cluster_name_with_hyphens to retry
+    if not secret_list:
+        secret_filters['tag-value'][-1] = cluster_name_with_hyphens
+        secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
+
+    # If secret_list is still empty after the retry, raise an error
+    if not secret_list:
+        raise ValueError(
+            f"No secrets found for cluster_name: {cluster_name} or {cluster_name_with_hyphens}")
+
+    return SecretManagerGateway.find_secret(secret_list[0].arn)
+
+def transform_filters(filters):
+    transformed_filters = []
+    for filter_key in filters.keys():
+        for filter_value in filters[filter_key]:
+            transformed_filters.append({
+                'Key': filter_key,
+                'Values': [
+                    filter_value,
+                ]
+            })
+    return transformed_filters
