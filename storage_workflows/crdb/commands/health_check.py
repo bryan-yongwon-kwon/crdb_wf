@@ -667,7 +667,8 @@ def debug_secrets(deployment_env, cluster_name, region):
     }
 
     secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
-    logger.info(f"secret_list: {secret_list}")
+    for secret in secret_list:
+        logger.info(f"Secret Name: {secret.name}, Description: {secret.description}")
     # If secret_list is empty, use the cluster_name_with_hyphens to retry
     if not secret_list:
         secret_filters['tag-value'][-1] = cluster_name_with_hyphens
@@ -678,7 +679,8 @@ def debug_secrets(deployment_env, cluster_name, region):
         raise ValueError(
             f"No secrets found for cluster_name: {cluster_name} or {cluster_name_with_hyphens}")
 
-    return SecretManagerGateway.find_secret(secret_list[0].arn)
+    find_secret_value = SecretManagerGateway.find_secret(secret_list[0].arn)
+    logger.info(f"find_secret_value: {find_secret_value}")
 
 def transform_filters(filters):
     transformed_filters = []
