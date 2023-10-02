@@ -633,12 +633,12 @@ def run_health_check_all(deployment_env, region):
             continue
         new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
         if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
-            send_to_slack(deployment_env, base_message + message_chunk)
+            send_to_slack(deployment_env, base_message + message_chunk, msg_type='hc')
             message_chunk = ""
         message_chunk += new_line
 
     if message_chunk:
-        send_to_slack(deployment_env, base_message + message_chunk)
+        send_to_slack(deployment_env, base_message + message_chunk, msg_type='hc')
 
     # TODO: troubleshoot sending slack msg with attachments. we get 200 response from slack, but no msg is
     #   sent to the channel

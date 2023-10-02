@@ -47,11 +47,16 @@ def generate_csv_file(list_of_values, header_fields):
     return filename
 
 
-def send_to_slack(deployment_env, message):
-    if deployment_env == 'prod':
-        slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_OPERATIONS_LOG')
-    elif deployment_env == 'staging':
+# NOTE: this is used by healthcheck process.
+def send_to_slack(deployment_env, message, msg_type=None):
+    if deployment_env == 'prod' and msg_type == 'hc':
+        slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST')
+    if deployment_env == 'prod' and not msg_type:
+        slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB')
+    elif deployment_env == 'staging' and not msg_type:
         slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
+    elif deployment_env and msg_type == 'op':
+        slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_OPERATIONS_LOG')
     else:
         slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST')
     headers = {
