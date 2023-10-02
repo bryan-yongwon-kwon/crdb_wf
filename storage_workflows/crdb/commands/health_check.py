@@ -668,7 +668,8 @@ def debug_secrets(deployment_env, cluster_name, region):
 
     secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
     for secret in secret_list:
-        logger.info(f"Secret Name: {secret.name}, Description: {secret.description}")
+        secret_value = secret.get_secret_value()
+        logger.info(f"Secret Name: {secret.name}, Description: {secret.description}, Value: {secret_value}")
     # If secret_list is empty, use the cluster_name_with_hyphens to retry
     if not secret_list:
         secret_filters['tag-value'][-1] = cluster_name_with_hyphens
