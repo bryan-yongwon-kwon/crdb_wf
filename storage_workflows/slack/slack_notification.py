@@ -4,6 +4,7 @@ import requests
 import os
 from requests import post
 from storage_workflows.logging.logger import Logger
+from datetime import datetime
 
 logger = Logger()
 
@@ -28,7 +29,8 @@ def generate_csv_file(list_of_values, header_fields):
     filename = self.generate_csv_file(checks, header)
     """
 
-    filename = f"/tmp/{list_of_values}.csv"
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    filename = f"/tmp/failed_checks_{timestamp}.csv"
 
     with open(filename, 'w', newline='') as f:
         writer = csv.writer(f)
@@ -45,11 +47,16 @@ def generate_csv_file(list_of_values, header_fields):
     return filename
 
 
-def send_to_slack(deployment_env, message):
-    if deployment_env == 'prod':
+# NOTE: this is used by healthcheck process.
+def send_to_slack(deployment_env, message, msg_type=None):
+    if deployment_env == 'prod' and msg_type == 'hc':
+        slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST')
+    if deployment_env == 'prod' and not msg_type:
         slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB')
-    elif deployment_env == 'staging':
+    elif deployment_env == 'staging' and not msg_type:
         slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
+    elif deployment_env and msg_type == 'op':
+        slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_OPERATIONS_LOG')
     else:
         slack_webhook_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST')
     headers = {
@@ -75,11 +82,18 @@ class SlackNotification:
         logger.info(response.text)
 
     def send_to_slack_with_attachment(self, filename, message, channel):
-        """Send a file as an attachment to a Slack channel."""
         url = "https://slack.com/api/files.upload"
         headers = {
             'Authorization': f'Bearer {self.__bearer_token}',
         }
+
+        # Check the bearer token:
+        logger.info(f"Bearer Token: {self.__bearer_token}")
+
+        # Check the file existence:
+        if not os.path.exists(filename):
+            logger.error(f"File {filename} does not exist!")
+            return -1  # Indicate file not found.
 
         with open(filename, 'rb') as f:
             payload = {
@@ -87,7 +101,15 @@ class SlackNotification:
                 "file": f,
                 "initial_comment": message,
             }
-            response = requests.post(url, headers=headers, files=payload)
+
+            try:
+                response = requests.post(url, headers=headers, files=payload)
+                # Log the full response for debugging:
+                logger.info(f"Slack Response: {response.text}")
+            except Exception as e:
+                # Log any exception that arises:
+                logger.error(f"Error sending file to Slack: {str(e)}")
+                return -2  # Indicate error in sending file.
 
         return response.status_code
 

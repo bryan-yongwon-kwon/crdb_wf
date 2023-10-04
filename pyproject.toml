@@ -6,7 +6,7 @@ authors = ["Ao Chen <ao.chen@doordash.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.11.5"
 typer = "^0.6.1"
 pytz = "^2022.2.1"
 boto3 = "^1.24.54"
@@ -25,6 +25,7 @@ psycopg2-binary = "^2.9.5"
 paramiko = "^3.1.0"
 sqlalchemy = "^2.0.19"
 sqlalchemy-cockroachdb = "^2.0.1"
+tenacity = "^8.2.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.2"

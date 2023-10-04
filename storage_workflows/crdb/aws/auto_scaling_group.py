@@ -56,10 +56,11 @@ class AutoScalingGroup:
     def instances_not_in_service_exist(self):
         return any(map(lambda instance: not instance.in_service(), self.instances))
     
-    def add_ec2_instances(self, desired_capacity):
+    def add_ec2_instances(self, desired_capacity, autoscale=False):
         asg_instances = self.instances
 
-        if desired_capacity == self.capacity:
+        # STORAGE-7583: skip this check if desired_capacity was set statically
+        if desired_capacity == self.capacity and not autoscale:
             logger.warning("Expected Desired capacity same as existing desired capacity.")
             return
 
@@ -101,3 +102,49 @@ class AutoScalingGroup:
         min_instance_count = min(az_count.values())
 
         return max_instance_count == min_instance_count and len(az_count) == 3
+
+    # STORAGE-7583:  remove instances if scaling down
+    def get_instances_to_terminate(self, num_of_instances_to_terminate):
+        """
+        Get a list of instance IDs to terminate based on the desired number of instances to terminate.
+        Ensure an equal distribution of nodes across availability zones.
+        :param instances_to_terminate: Number of instances to terminate
+        :return: List of instance IDs to terminate
+        """
+        if num_of_instances_to_terminate <= 0:
+            return []
+
+        instance_ids_to_terminate = []
+        instances = self.instances
+
+        az_count = {"us-west-2a": 0, "us-west-2b": 0, "us-west-2c": 0}
+        instances.sort(key=lambda instance: instance.launch_time)
+
+        for instance in instances:
+            az = instance.availability_zone
+            if az in az_count:
+                az_count[az] += 1
+
+        az_list = list(az_count.keys())
+        num_azs = len(az_list)
+        target_termination_count = num_of_instances_to_terminate // num_azs
+        remainder = num_of_instances_to_terminate % num_azs
+
+        for az in az_list:
+            if remainder > 0:
+                termination_count = target_termination_count + 1
+                remainder -= 1
+            else:
+                termination_count = target_termination_count
+
+            for instance in instances:
+                if instance.availability_zone == az and termination_count > 0:
+                    instance_ids_to_terminate.append(instance.instance_id)
+                    az_count[az] -= 1
+                    num_of_instances_to_terminate -= 1
+                    termination_count -= 1
+
+                if num_of_instances_to_terminate == 0:
+                    break
+
+        return instance_ids_to_terminate
