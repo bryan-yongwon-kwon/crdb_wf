@@ -2,11 +2,12 @@ from functools import cached_property
 
 class BaseUser:
 
-    def __init__(self, user_name, user_type, cluster_name, db_name):
+    def __init__(self, user_name, user_type, cluster_name, db_name, password=None):
         self._user_name = user_name
         self._user_type = user_type
         self._cluster_name = cluster_name
         self._db_name = db_name
+        self._password = password
 
     @property
     def cluster_name(self):
@@ -23,3 +24,7 @@ class BaseUser:
     @property
     def db_name(self):
         return self._db_name
+
+    @property
+    def password(self):
+        return self._password

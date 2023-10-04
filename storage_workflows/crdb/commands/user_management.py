@@ -3,7 +3,7 @@ import typer
 from storage_workflows.crdb.api_gateway.s3_gateway import S3Gateway
 from storage_workflows.metadata_db.storage_metadata.storage_metadata import StorageMetadata
 from storage_workflows.logging.logger import Logger
-from storage_workflows.crdb.models.users.sql_user import SqlUser
+from storage_workflows.crdb.models.users.read_only_user import ReadOnlyUser
 from storage_workflows.setup_env import setup_env
 
 
@@ -38,8 +38,8 @@ def create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, 
     storage_metadata = StorageMetadata()
     existing_user = storage_metadata.get_user(cluster_name, region, aws_account, db_name, role_name, deployment_env)
     if existing_user is None:
-        sql_user = SqlUser(user_name, cluster_name=db_name)
-        sql_user.create_user()
+        read_only_user = ReadOnlyUser(user_name, cluster_name=db_name)
+        read_only_user.create_user()
         storage_metadata.insert_user(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                      aws_account=aws_account, database_name=db_name, role_name=role_name,
                                      certificate_path="cert_path")
