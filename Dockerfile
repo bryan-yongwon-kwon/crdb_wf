@@ -43,4 +43,5 @@ ENV PROD_IAM_ROLE=arn:aws:iam::611706558220:role/storage-workflows \
     CHRONOSPHERE_URL="doordash.chronosphere.io" \
     SLACK_WEBHOOK_STORAGE_ALERT_TEST="https://hooks.slack.com/services/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" \
     SLACK_WEBHOOK_STORAGE_ALERTS_CRDB="https://hooks.slack.com/services/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" \
-    SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING="https://hooks.slack.com/services/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"
+    SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING="https://hooks.slack.com/services/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" \
+    SLACK_WEBHOOK_STORAGE_OPERATIONS_LOG="https://hooks.slack.com/services/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"

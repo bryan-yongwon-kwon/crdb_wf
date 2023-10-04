@@ -1,25 +1,24 @@
 import json
 import os
 import typer
-import logging
 from collections import defaultdict
 import psycopg2
-import requests
-import csv
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
-# from storage_workflows.logging.logger import Logger
+from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.setup_env import setup_env
-from storage_workflows.slack.slack_notification import SlackNotification, send_to_slack
+from storage_workflows.slack.slack_notification import SlackNotification, send_to_slack, generate_csv_file
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.elastic_load_balancer import ElasticLoadBalancer
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.metadata_db.storage_metadata.storage_metadata import StorageMetadata
 from storage_workflows.crdb.api_gateway.iam_gateway import IamGateway
+from storage_workflows.crdb.api_gateway.ebs_gateway import EBSGateway
+from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 
 app = typer.Typer()
-logger = logging.getLogger(__name__)
+logger = Logger()
 
 
 @app.command()
@@ -42,27 +41,87 @@ def get_cluster_names(deployment_env, region):
 def asg_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     storage_metadata = StorageMetadata()
-    # Usually an AWS account has one alias, but the response is a list.
-    # Thus, this will return the first alias, or None if there are no aliases.
     aws_account_alias = IamGateway.get_account_alias()
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "asg_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    unhealthy_asg_instances = list(filter(lambda instance: not instance.in_service(), asg.instances))
-    if unhealthy_asg_instances:
-        unhealthy_asg_instance_ids = list(map(lambda instance: instance.instance_id, unhealthy_asg_instances))
-        logger.warning(f"{cluster_name}: Displaying all unhealthy instances for the {cluster_name} cluster:")
-        logger.warning(unhealthy_asg_instance_ids)
+
+    # Debugging info
+    instance_info = [(instance.instance_id, instance.health_status) for instance in asg.instances]
+    info_str = ', '.join([f"ID: {id}, Health: {status}" for id, status in instance_info])
+    logger.info(f"{cluster_name}: Instances: {info_str}")
+
+    # Separate lists for unhealthy and standby instances
+    unhealthy_asg_instances = [instance for instance in asg.instances if instance.health_status == 'Unhealthy']
+    standby_asg_instances = [instance for instance in asg.instances if instance.health_status == 'Standby']
+
+    # Extracting instance_ids from the filtered instances
+    unhealthy_asg_instance_ids = [instance.instance_id for instance in unhealthy_asg_instances]
+    standby_asg_instance_ids = [instance.instance_id for instance in standby_asg_instances]
+
+    if unhealthy_asg_instances or standby_asg_instances:
+        logger.warning(f"{cluster_name}: Displaying all unhealthy instances for the {cluster_name} cluster: "
+                       f"{unhealthy_asg_instance_ids}")
+        if standby_asg_instances:
+            logger.warning(f"{cluster_name}: Displaying all standby instances for the {cluster_name} cluster: "
+                           f"{standby_asg_instance_ids}")
         logger.warning(f"{cluster_name}: Auto Scaling Group name: {asg.name}")
-        # TODO: provide useful output
-        check_output = unhealthy_asg_instance_ids
+        check_output = f"unhealthy_asg_instance_ids: {unhealthy_asg_instance_ids}, standby_asg_instance_ids: {standby_asg_instance_ids}"
         check_result = "fail"
     else:
-        # TODO: provide useful output
         check_output = "asg_health_check_passed"
         check_result = "pass"
         logger.info(f"{cluster_name}: asg_healthcheck_passed")
+
+    # save results to metadatadb
+    storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
+                                         aws_account_name=aws_account_alias, workflow_id=workflow_id,
+                                         check_type=check_type, check_result=check_result,
+                                         check_output=check_output)
+    logger.info(f"{cluster_name}: {check_type} complete")
+
+
+@app.command()
+def volume_mismatch_health_check(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)  # Assuming setup_env is defined somewhere else
+    storage_metadata = StorageMetadata()  # Assuming StorageMetadata is defined somewhere else
+    aws_account_alias = IamGateway.get_account_alias()  # Assuming IamGateway is defined somewhere else
+    workflow_id = os.getenv('WORKFLOW-ID')
+    check_type = "volume_mismatch_health_check"
+
+    logger.info(f"{cluster_name}: starting {check_type}")
+
+    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+
+    all_volumes = []
+    for instance in asg.instances:
+        all_volumes.extend((instance.instance_id, vol) for vol in EBSGateway.get_ebs_volumes_for_instance(instance.instance_id))
+
+    reference_instance_id, reference_volume = all_volumes[0]
+    consistent = True
+    check_output = []  # List to store mismatch data
+
+    for instance_id, volume in all_volumes[1:]:
+        if volume != reference_volume:
+            consistent = False
+            mismatch_data = {
+                "instance_id": instance_id,
+                "ebs_volume_size": volume.size,
+                "ebs_volume_iops": volume.iops,
+                "ebs_volume_throughput": volume.throughput
+            }
+            check_output.append(mismatch_data)
+
+    if consistent:
+        check_output = "ebs_volumes_are_consistent"
+        check_result = "pass"
+        logger.info(f"{cluster_name}: All EBS volumes have the same size, IOPS, and throughput!")
+    else:
+        check_output = str(check_output)
+        check_result = "fail"
+        logger.warning(f"{cluster_name}: Found inconsistencies in EBS volumes.")
+
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -98,7 +157,7 @@ def changefeed_health_check(deployment_env, region, cluster_name):
             check_output = "changefeed_health_check_passed"
             check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
-        #logger.error(f"{cluster_name}: encountered error - {error}")
+        # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
         check_result = "fail"
     # save results to metadatadb
@@ -137,10 +196,12 @@ def orphan_health_check(deployment_env, region, cluster_name):
         # Compare the IP count of AWS instances and CRDB nodes
         if aws_cluster_instance_count != crdb_cluster_instance_count:
             orphan_instances = list(
-                map(lambda instance: {"InstanceId": instance.instance_id, "PrivateIpAddress": instance.private_ip_address},
+                map(lambda instance: {"InstanceId": instance.instance_id,
+                                      "PrivateIpAddress": instance.private_ip_address},
                     filter(lambda instance: instance.private_ip_address not in crdb_node_ips, aws_cluster_instances)))
             logger.warning(f"{cluster_name}: Orphan instances found")
-            logger.warning(f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
+            logger.warning(
+                f"{cluster_name}: AWS instance count is {aws_cluster_instance_count} and CRDB instance count is {crdb_cluster_instance_count}.")
             logger.warning(f"{cluster_name}: Orphan instances are: {orphan_instances}")
             # TODO: provide useful output
             check_output = f"Orphan instances are: {orphan_instances}"
@@ -151,7 +212,7 @@ def orphan_health_check(deployment_env, region, cluster_name):
             check_output = "orphan_health_check_passed"
             check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
-        #logger.error(f"{cluster_name}: encountered error - {error}")
+        # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
         check_result = "fail"
     # save results to metadatadb
@@ -189,7 +250,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
             check_result = "pass"
         connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
-        #logger.error(f"{cluster_name}: encountered error - {error}")
+        # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
         check_result = "fail"
 
@@ -216,51 +277,56 @@ def send_slack_notification(deployment_env, message):
 def etl_health_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     storage_metadata = StorageMetadata()
-    # Usually an AWS account has one alias, but the response is a list.
-    # Thus, this will return the first alias, or None if there are no aliases.
-    aws_account_alias = IamGateway.get_account_alias()
+    aws_account_alias = IamGateway.get_account_alias()  # Assuming this method is defined somewhere in your codebase
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "etl_health_check"
     check_output = "{}"
+
     logger.info(f"{cluster_name}: starting {check_type}")
     if deployment_env == 'staging':
         logger.info(f"{cluster_name}: Staging clusters doesn't have ETL load balancers.")
         return
-    load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
-    if load_balancer is not None:
-        old_lb_instances = load_balancer.instances
+
+    elb_load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
+
+    if elb_load_balancer is not None:
+        elb_instances = elb_load_balancer.instances
+        old_lb_instances = [instance for instance in elb_instances if
+                                    instance.get('InstanceState', {}).get('State') == 'InService']
         old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
         logger.info(f"{cluster_name}: Old instances: {old_instance_id_set}")
-        new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id},
-                                 filter(lambda instance: instance.instance_id not in old_instance_id_set,
-                                        AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances)))
+
+        new_instances = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances
+        filtered_instances = filter(lambda instance: instance.is_healthy, new_instances)
+        new_instances = list(map(lambda instance: {'InstanceId': instance.instance_id}, filtered_instances))
         logger.info(f"{cluster_name}: New instances: {new_instances}")
+
         if not new_instances:
             logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
             check_output = "no_action_needed"
             check_result = "pass"
-            # write results to storage_metadata
-            storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                                 aws_account_name=aws_account_alias, workflow_id=workflow_id,
-                                                 check_type=check_type, check_result=check_result,
-                                                 check_output=check_output)
-            return
-        if load_balancer.register_instances(new_instances):
-            if old_lb_instances:
-                load_balancer.deregister_instances(old_lb_instances)
-            new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
-            lb_instance_list = list(map(lambda instance: instance['InstanceId'], load_balancer.instances))
-            if set(new_instance_list) == set(lb_instance_list):
-                logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
-                check_result = "pass"
-                check_output = "etl_loadbalancer_refreshed"
-            else:
-                check_result = "fail"
-                check_output = "etl_loadbalancer_refresh_failed"
         else:
-            logger.info(f"{cluster_name}: Invalid instance found while registering instances on etl loadbalancer. Skipping...")
-            check_result = "skipped"
-            check_output = "etl_loadbalancer_registration_failed"
+            new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
+            lb_instance_list = list(map(lambda instance: instance['InstanceId'], old_lb_instances))
+
+            if new_instance_list:
+                if old_lb_instances:
+                    elb_load_balancer.deregister_instances(old_lb_instances)
+                elb_load_balancer.register_instances(new_instances)
+                elb_load_balancer_name = elb_load_balancer.load_balancer_name
+                unhealthy_instances = ElasticLoadBalancerGateway.get_out_of_service_instances(elb_load_balancer_name)
+                if not unhealthy_instances:
+                    logger.info(f"{cluster_name}: ETL load balancer refresh completed!")
+                    check_result = "pass"
+                    check_output = "etl_loadbalancer_refreshed"
+                else:
+                    logger.info(f"{cluster_name}: ETL load balancer refresh failed!")
+                    logger.info(f"{cluster_name}: unhealthy_instances are: {unhealthy_instances}")
+                    logger.info(f"{cluster_name}: new_instance_list are: {new_instance_list}")
+                    logger.info(f"{cluster_name}: lb_instance_list are: {lb_instance_list}")
+                    check_result = "fail"
+                    check_output = f"etl_loadbalancer_refresh_failed, OutOfService instances: {unhealthy_instances}"
+
     else:
         logger.info(f"{cluster_name}: ETL load balancer not found. Skipping...")
         check_result = "skipped"
@@ -316,8 +382,9 @@ def version_mismatch_check(deployment_env, region, cluster_name):
             if server_version != major_minor_from_tag:
                 mismatched_nodes.append(node_id)
         if mismatched_nodes:
-            logger.warning(f"{cluster_name}: server version mismatch detected. cluster version is {cluster_ver_response}"
-                           f". cluster upgrade may be incomplete.")
+            logger.warning(
+                f"{cluster_name}: server version mismatch detected. cluster version is {cluster_ver_response}"
+                f". cluster upgrade may be incomplete.")
             logger.warning(f"{cluster_name}: Nodes with IDs {', '.join(map(str, mismatched_nodes))} have server_version"
                            f" not matching the major.minor part of their tag.")
             check_output = str(mismatched_nodes)
@@ -348,7 +415,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
                                                  check_type=check_type, check_result=check_result,
                                                  check_output=check_output)
     except (psycopg2.DatabaseError, ValueError) as error:
-        #logger.error(f"{cluster_name}: encountered error - {error}")
+        # logger.error(f"{cluster_name}: encountered error - {error}")
         check_result = "fail"
         check_output = "db_connection_error"
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -364,7 +431,7 @@ def az_health_check(deployment_env, region, cluster_name):
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
     aws_account_alias = IamGateway.get_account_alias()
-    #logger.info("account_alias: %s", aws_account_alias)
+    # logger.info("account_alias: %s", aws_account_alias)
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "az_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
@@ -484,8 +551,9 @@ def backup_health_check(deployment_env, region, cluster_name):
 @app.command()
 def run_health_check_single(deployment_env, region, cluster_name, workflow_id=None):
     # List of methods in healthcheck workflow
-    hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check, az_health_check, zone_config_health_check,
-                  backup_health_check, orphan_health_check, changefeed_health_check, asg_health_check]
+    hc_methods = [version_mismatch_check, ptr_health_check, etl_health_check,
+                  az_health_check, zone_config_health_check, backup_health_check, orphan_health_check,
+                  changefeed_health_check, asg_health_check]
 
     storage_metadata = StorageMetadata()
     aws_account_alias = IamGateway.get_account_alias()
@@ -544,9 +612,14 @@ def run_health_check_all(deployment_env, region):
     for cluster_name in items:
         run_health_check_single(deployment_env, region, cluster_name)
     logger.info("Healthcheck for all all CRDB clusters complete...")
-    # find failed healthchecks and send report to Slack
+    # find failed healthchecks
     failed_checks = storage_metadata.get_hc_results(workflow_id=workflow_id, check_result='fail')
-    # NOTE: slack file upload is not ready yet
+
+    # TODO: uncomment to use send msg with attachment
+    # header = ["cluster_name", "check_type", "check_result", "check_output"]
+    # Generate CSV file with the failed checks
+    # csv_file_path = generate_csv_file(failed_checks, header)
+
     base_message = (f"**********************************************************************************************\n"
                     f"HEALTH CHECK REPORT\n"
                     f"workflow_id: {workflow_id} - deployment_env: {deployment_env} - region: {region} \n"
@@ -556,14 +629,24 @@ def run_health_check_all(deployment_env, region):
     message_chunk = ""
 
     for check in failed_checks:
-        if check.cluster_name == 'test_prod' or check.check_output == 'db_connection_error':  # Skip the checks for test cluster
+        if check.cluster_name == 'test_prod':  # Skip the checks for test cluster
             continue
         new_line = f"cluster_name: {check.cluster_name}, check_type: {check.check_type}, check_result: {check.check_result}\n"
         if len(base_message + message_chunk + new_line) > 3900:  # Keeping some buffer
-            send_to_slack("test", base_message + message_chunk)
+            send_to_slack(deployment_env, base_message + message_chunk, msg_type='hc')
             message_chunk = ""
         message_chunk += new_line
 
     if message_chunk:
-        send_to_slack("test", base_message + message_chunk)
+        send_to_slack(deployment_env, base_message + message_chunk, msg_type='hc')
 
+    # TODO: troubleshoot sending slack msg with attachments. we get 200 response from slack, but no msg is
+    #   sent to the channel
+    # bot_user_oauth_token=os.getenv('BOT-USER-OAUTH-TOKEN')
+    # slack_notification = SlackNotification(webhook_url=os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB'),
+    #                                       bearer_token=bot_user_oauth_token)
+
+
+    # Send the CSV file as attachment to the Slack channel
+    # response = slack_notification.send_to_slack_with_attachment(csv_file_path, "CRDB HEALTH REPORT", "storage-alerts-crdb")
+    # logger.info(f"response from slack: {response}")
