@@ -33,14 +33,14 @@ def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_accoun
             create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, cluster_name, user_name)
 
 
-def create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, db_name, role_name):
+def create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, db_name, user_name):
     storage_metadata = StorageMetadata()
-    existing_user = storage_metadata.get_user(cluster_name, region, aws_account, db_name, role_name, deployment_env)
+    existing_user = storage_metadata.get_user(cluster_name, region, aws_account, db_name, user_name, deployment_env)
     if existing_user is None:
         read_only_user = ReadOnlyUser(user_name, cluster_name=cluster_name)
         read_only_user.create_user()
         storage_metadata.insert_user(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
-                                     aws_account=aws_account, database_name=db_name, role_name=role_name,
+                                     aws_account=aws_account, database_name=db_name, role_name=user_name,
                                      certificate_path="cert_path")
         logger.info("Successfully created user_name: {0}", user_name)
     else:
