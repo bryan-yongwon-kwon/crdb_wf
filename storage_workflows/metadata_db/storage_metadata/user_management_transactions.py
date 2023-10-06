@@ -30,7 +30,7 @@ def add_user_txn(session: Session, **kwargs):
     return True
 
 
-def get_user_txn(self, cluster_name, region, aws_account, database_name, role_name, deployment_env):
+def get_user_txn(self, session: Session, cluster_name, region, aws_account, database_name, role_name, deployment_env):
     """
     Retrieve user records from the 'user_management' table based on cluster name and role name.
 
