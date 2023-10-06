@@ -661,8 +661,8 @@ def debug_secrets(deployment_env, cluster_name, region):
     cluster_name_with_hyphens = cluster_name.replace("_", "-") + "-crdb"  # Declare this here for broader scope
 
     secret_filters = {
-        'tag-key': ['crdb_cluster_name', 'environment'],
-        'tag-value': [os.getenv('DEPLOYMENT_ENV'), cluster_name_with_suffix],
+        'tag-key': ['crdb_cluster_name', 'cred-type', 'environment'],
+        'tag-value': ['client-public-cert', os.getenv('DEPLOYMENT_ENV'), cluster_name_with_suffix],
         'description': ['!DEPRECATED']
     }
 

@@ -35,16 +35,14 @@ class CrdbConnection:
             secret_filters['tag-value'][-1] = cluster_name_with_hyphens
             secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
 
-        for secret in secret_list:
-            logger.info(f"Secret Name: {secret.name}, Description: {secret.description}, ARN: {secret.arn}")
-
         # If secret_list is still empty after the retry, raise an error
         if not secret_list:
             raise ValueError(
                 f"No secrets found for cluster_name: {cluster_name} or {cluster_name_with_hyphens} with cred_type: "
                 f"{cred_type.value}.")
 
-        return SecretValue(SecretManagerGateway.find_secret(secret_list[0].arn))
+        # return SecretValue(SecretManagerGateway.find_secret(secret_list[0].arn))
+        return SecretManagerGateway.find_secret(secret_list[0].arn)
 
     @staticmethod
     def get_crdb_connection(cluster_name: str, db_name: str = "defaultdb"):
