@@ -687,6 +687,7 @@ def debug_secrets(deployment_env, cluster_name, region):
     find_secret_value = SecretManagerGateway.find_secret(secret_list[0].arn)
     logger.info(f"find_secret_value: {find_secret_value}")
 
+
 def transform_filters(filters):
     transformed_filters = []
     for filter_key in filters.keys():
