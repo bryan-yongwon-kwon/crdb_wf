@@ -12,7 +12,7 @@ class AnalyticUser(BaseUser):
     ALTER_DEFAULT_PRIVS_GRANT_USAGE_ON_TYPES = "USE \"{}\"; ALTER DEFAULT PRIVILEGES FOR ALL ROLES GRANT USAGE ON TYPES TO analytics_exporter;"
 
     def __init__(self, user_name, cluster_name, db_name, password):
-        super().__init__(user_name, "analytics", cluster_name, db_name, password)
+        super().__init__(user_name, "analytics_exporter", cluster_name, db_name, password)
 
     def create_user(self):
 
