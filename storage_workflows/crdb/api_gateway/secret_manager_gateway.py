@@ -43,7 +43,9 @@ class SecretManagerGateway:
             response = secret_manager_aws_client.list_secrets(**request_params)
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == 'ValidationException':
-                raise ValueError(f"Validation error with filters: {filters}") from e
+                # Generate a string representation of the filters for the error message
+                filters_str = ', '.join([f"{f.get('Key')}={f.get('Values')}" for f in filters])
+                raise ValueError(f"Validation error with filters: {filters_str}") from e
             raise
 
         secrets = response.get('SecretList', [])
