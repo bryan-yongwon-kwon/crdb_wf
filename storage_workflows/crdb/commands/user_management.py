@@ -33,7 +33,6 @@ def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_accoun
         for obj in objects:
             content = S3Gateway.read_object_contents(bucket_name=bucket_name, key=obj['Key'])
             user_type, cluster_name, user_name = content.split(':')
-            cluster_name = cluster_name
             logger.info("Read user_type : {0}, cluster_name : {1}, user_name : {2}".format(user_type, cluster_name, user_name))
             os.environ['CLUSTER_NAME'] = cluster_name
             create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, cluster_name, user_name, user_type, password)
