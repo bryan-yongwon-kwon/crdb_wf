@@ -37,8 +37,12 @@ class CrdbConnection:
 
         # If secret_list is empty, use the cluster_name_with_hyphens to retry
         if not secret_list:
-            logger.info(f"could not find secrets with {cluster_name_with_suffix}. retrying with {cluster_name_with_hyphens}")
+            logger.info(f"could not find secrets with {cluster_name_with_suffix} for {cred_type.value}. "
+                        f"retrying with {cluster_name_with_hyphens}")
             secret_filters['tag-value'][-1] = cluster_name_with_hyphens
+            if client:
+                secret_filters['tag-key'].append('client')
+                secret_filters['tag-value'].append(client)
             secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
 
         for secret in secret_list:
