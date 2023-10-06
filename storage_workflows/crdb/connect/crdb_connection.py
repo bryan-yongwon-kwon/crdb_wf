@@ -32,7 +32,7 @@ class CrdbConnection:
 
         # If secret_list is empty, use the cluster_name_with_hyphens to retry
         if not secret_list:
-            secret_filters['tag-value'][-1] = cluster_name_with_hyphens
+            secret_filters['tag-value'][-2] = cluster_name_with_hyphens
             secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
 
         # If secret_list is still empty after the retry, raise an error
