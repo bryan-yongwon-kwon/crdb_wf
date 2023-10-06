@@ -38,7 +38,7 @@ def create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, 
     storage_metadata = StorageMetadata()
     existing_users = storage_metadata.get_user(cluster_name, region, aws_account, db_name, user_name, deployment_env)
     if len(existing_users) == 0:
-        read_only_user = ReadOnlyUser(user_name, cluster_name=cluster_name)
+        read_only_user = ReadOnlyUser(user_name, cluster_name=cluster_name, db_name=cluster_name)
         read_only_user.create_user()
         storage_metadata.insert_user(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                      aws_account=aws_account, database_name=db_name, role_name=user_name,
