@@ -34,7 +34,7 @@ def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_accoun
             content = S3Gateway.read_object_contents(bucket_name=bucket_name, key=obj['Key'])
             user_type, cluster_name, user_name = content.split(':')
             cluster_name = cluster_name
-            logger.info("Read user_type : {0}, cluster_name : {1}, user_name : {2}", user_type, cluster_name, user_name)
+            logger.info("Read user_type : {0}, cluster_name : {1}, user_name : {2}".format(user_type, cluster_name, user_name))
             os.environ['CLUSTER_NAME'] = cluster_name
             create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, cluster_name, user_name, user_type, password)
 
@@ -59,6 +59,6 @@ def create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, 
         storage_metadata.insert_user(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                      aws_account=aws_account, database_name=db_name, role_name=user_name,
                                      certificate_path=None)
-        logger.info("Successfully created user_name: {0}".format(user_name))
+        logger.info("Successfully created user_name: {0} for cluster {1}".format(user_name, cluster_name))
     else:
-        logger.info("User {0} already exists".format(user_name))
+        logger.info("User {0} already exists for cluster {1}".format(user_name, cluster_name))
