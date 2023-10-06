@@ -1,4 +1,4 @@
-import os
+import os, json
 from requests import get, post, cookies
 from storage_workflows.logging.logger import Logger
 from urllib.parse import quote
@@ -13,9 +13,13 @@ class CrdbApiGateway:
         rootpwd = os.getenv('ROOT_PASSWORD')
         encoded_rootpwd = quote(rootpwd)
         response = post("https://{}/api/v2/login/?username=root&password={}".format(CrdbApiGateway.__make_url(), encoded_rootpwd))
-        # DEBUG
-        logger.info(f"response for CrdbApiGateway.login: {response}")
-        return response.json()["session"]
+        try:
+            session = response.json().get("session")
+            return session
+        except json.decoder.JSONDecodeError:
+            logger.error(f"cannot retrieve session token from login: {response}")
+            pass
+
     
     @staticmethod
     def list_nodes(session:str, limit=200, offset=0):
