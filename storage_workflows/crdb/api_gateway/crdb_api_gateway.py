@@ -1,5 +1,5 @@
 import os, json
-from requests import get, post, cookies
+from requests import get, post, cookies, exceptions
 from storage_workflows.logging.logger import Logger
 from urllib.parse import quote
 
@@ -12,13 +12,32 @@ class CrdbApiGateway:
     def login():
         rootpwd = os.getenv('ROOT_PASSWORD')
         encoded_rootpwd = quote(rootpwd)
-        response = post("https://{}/api/v2/login/?username=root&password={}".format(CrdbApiGateway.__make_url(), encoded_rootpwd))
+        url = f"https://{CrdbApiGateway.__make_url()}/api/v2/login/?username=root&password={rootpwd}"
+
         try:
+            response = post(url)
+
+            # Check for 401 Unauthorized
+            if response.status_code == 401:
+                logger.error(f"Login failed with 401 Unauthorized. Message: {response.text}")
+                logger.error(f"url: {url}")
+                return None
+
+            # Check if the response is not 200 OK
+            elif response.status_code != 200:
+                logger.error(f"Login failed with status code {response.status_code}: {response.text}")
+                logger.error(f"url: {url}")
+                return None
+
             session = response.json().get("session")
             return session
+
         except json.decoder.JSONDecodeError:
-            logger.error(f"cannot retrieve session token from login: {response}")
-            pass
+            logger.error(f"Cannot retrieve session token from login url: {url}")
+        except exceptions.RequestException as e:
+            logger.error(f"Request failed: {e}")
+
+        return None
 
     
     @staticmethod
