@@ -30,14 +30,27 @@ class CrdbConnection:
 
         secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
 
+        for secret in secret_list:
+            logger.info(f"printing secret_list for {cluster_name_with_suffix}:")
+            secret_value = secret.get_secret_value()
+            logger.info(f"Secret Name: {secret.name}, Description: {secret.description}, Value: {secret_value}")
+
         # If secret_list is empty, use the cluster_name_with_hyphens to retry
         if not secret_list:
+            logger.info(f"could not find secrets with {cluster_name_with_suffix}. retrying with {cluster_name_with_hyphens}")
             secret_filters['tag-value'][-1] = cluster_name_with_hyphens
             secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
 
         for secret in secret_list:
+            logger.info(f"printing secret_list for {cluster_name_with_hyphens}:")
             secret_value = secret.get_secret_value()
             logger.info(f"Secret Name: {secret.name}, Description: {secret.description}, Value: {secret_value}")
+
+        # If secret_list is still empty after the retry, raise an error
+        if not secret_list:
+            raise ValueError(
+                f"No secrets found for cluster_name: {cluster_name} or {cluster_name_with_hyphens} with cred_type: "
+                f"{cred_type.value}.")
 
         find_secret_value = SecretValue(SecretManagerGateway.find_secret(secret_list[0].arn))
         logger.info(f"find_secret_value: {find_secret_value}")
