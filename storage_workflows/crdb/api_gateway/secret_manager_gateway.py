@@ -30,13 +30,17 @@ class SecretManagerGateway:
 
         secret_manager_aws_client = SecretManagerGateway._get_secret_manager_client()
 
+        request_params = {
+            'Filters': filters,
+            'MaxResults': SecretManagerGateway.PAGINATOR_MAX_RESULT_PER_PAGE,
+            'IncludePlannedDeletion': False
+        }
+
+        if next_token:
+            request_params['NextToken'] = next_token
+
         try:
-            response = secret_manager_aws_client.list_secrets(
-                Filters=filters,
-                MaxResults=SecretManagerGateway.PAGINATOR_MAX_RESULT_PER_PAGE,
-                IncludePlannedDeletion=False,
-                NextToken=next_token
-            )
+            response = secret_manager_aws_client.list_secrets(**request_params)
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == 'ValidationException':
                 raise ValueError(f"Validation error with filters: {filters}") from e
