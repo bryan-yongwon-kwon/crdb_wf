@@ -1,4 +1,7 @@
 from storage_workflows.crdb.factory.aws_session_factory import AwsSessionFactory
+from storage_workflows.logging.logger import Logger
+
+logger = Logger()
 
 
 class S3Gateway:
@@ -40,3 +43,20 @@ class S3Gateway:
 
         return objects, next_page_token
 
+    @staticmethod
+    def read_object_contents(bucket_name, key):
+        # Create an S3 client
+        s3_client = AwsSessionFactory.s3()
+        try:
+            # Get the object data from S3
+            response = s3_client.get_object(Bucket=bucket_name, Key=key)
+
+            # Read and process the contents of the object
+            object_contents = response['Body'].read()
+
+            logger.info(f"Contents of {key}:")
+            logger.info(object_contents.decode('utf-8'))
+            return object_contents.decode('utf-8')
+
+        except Exception as e:
+            logger.error(f"Error processing object {key}: {str(e)}")
