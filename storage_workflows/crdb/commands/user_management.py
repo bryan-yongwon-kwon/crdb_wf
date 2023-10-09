@@ -42,18 +42,19 @@ def create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, 
     storage_metadata = StorageMetadata()
     existing_users = storage_metadata.get_user(cluster_name, region, aws_account, db_name, user_name, deployment_env)
     if len(existing_users) == 0:
-        if user_type == "readonly":
-            user = ReadOnlyUser(user_name, cluster_name=cluster_name, db_name=cluster_name)
-        elif user_type == "dba":
-            user = DbaUser(user_name, cluster_name=cluster_name, db_name=cluster_name)
-        elif user_type == "app":
-            user = AppUser(user_name, cluster_name=cluster_name, db_name=cluster_name)
-        elif user_type == "ui":
-            user = DoorDashUser(user_name, cluster_name=cluster_name, db_name=cluster_name)
-        elif user_type == "mode":
-            user = ModeUser(user_name, cluster_name=cluster_name, db_name=cluster_name, password=password)
-        elif user_type == "analytics_exporter":
-            user = AnalyticUser(user_name, cluster_name=cluster_name, db_name=cluster_name, password=password)
+        match user_type:
+            case "readonly":
+                user = ReadOnlyUser(user_name, cluster_name=cluster_name, db_name=cluster_name)
+            case "dba":
+                user = DbaUser(user_name, cluster_name=cluster_name, db_name=cluster_name)
+            case "app":
+                user = AppUser(user_name, cluster_name=cluster_name, db_name=cluster_name)
+            case "ui":
+                user = DoorDashUser(user_name, cluster_name=cluster_name, db_name=cluster_name)
+            case "mode":
+                user = ModeUser(user_name, cluster_name=cluster_name, db_name=cluster_name, password=password)
+            case "analytics_exporter":
+                user = AnalyticUser(user_name, cluster_name=cluster_name, db_name=cluster_name, password=password)
         user.create_user()
         storage_metadata.insert_user(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                      aws_account=aws_account, database_name=db_name, role_name=user_name,
