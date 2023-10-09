@@ -14,7 +14,7 @@ class ReadOnlyUser(BaseUser):
     ALTER_DEFAULT_PRIVS_ON_FUNCTIONS = "USE \"{}\"; ALTER DEFAULT PRIVILEGES FOR ALL ROLES GRANT EXECUTE ON FUNCTIONS TO \"{}\";"
 
     def __init__(self, user_name, cluster_name, db_name):
-        sql_statements = [self.CREATE_READ_ONLY_ROLE.format(user_name),
+        user_creation_sql_statements = [self.CREATE_READ_ONLY_ROLE.format(user_name),
                           self.GRANT_CONNECT.format(db_name, user_name),
                           self.GRANT_OTHERS.format(db_name, user_name),
                           self.ALTER_DEFAULT_PRIVS_ON_TABLES.format(db_name, user_name),
@@ -22,4 +22,4 @@ class ReadOnlyUser(BaseUser):
                           self.ALTER_DEFAULT_PRIVS_ON_TYPES.format(db_name, user_name),
                           self.ALTER_DEFAULT_PRIVS_ON_FUNCTIONS.format(db_name, user_name)]
 
-        super().__init__(user_name, "read_only", cluster_name, db_name, sql_statements)
+        super().__init__(user_name, "read_only", cluster_name, db_name, user_creation_sql_statements)

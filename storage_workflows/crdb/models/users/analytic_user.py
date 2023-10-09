@@ -12,11 +12,11 @@ class AnalyticUser(BaseUser):
     ALTER_DEFAULT_PRIVS_GRANT_USAGE_ON_TYPES = "USE \"{}\"; ALTER DEFAULT PRIVILEGES FOR ALL ROLES GRANT USAGE ON TYPES TO analytics_exporter;"
 
     def __init__(self, user_name, cluster_name, db_name, password):
-        sql_statements = [self.CREATE_ANALYTICS_ROLE.format(password),
+        user_creation_sql_statements = [self.CREATE_ANALYTICS_ROLE.format(password),
                           self.GRANT_CONNECT_ZONECONFIG.format(db_name),
                           self.GRANT_SELECT.format(db_name),
                           self.ALTER_DEFAULT_PRIVS_GRANT_SELECT_ON_SEQUENCES.format(db_name),
                           self.ALTER_DEFAULT_PRIVS_GRANT_SELECT_ZONECONFIG_ON_TABLES.format(db_name),
                           self.ALTER_DEFAULT_PRIVS_GRANT_USAGE_ON_SCHEMAS.format(db_name),
                           self.ALTER_DEFAULT_PRIVS_GRANT_USAGE_ON_TYPES.format(db_name)]
-        super().__init__(user_name, "analytics_exporter", cluster_name, db_name, sql_statements, sql_statements, password)
+        super().__init__(user_name, "analytics_exporter", cluster_name, db_name, user_creation_sql_statements, password)
