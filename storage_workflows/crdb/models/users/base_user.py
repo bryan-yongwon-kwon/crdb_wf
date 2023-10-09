@@ -8,6 +8,7 @@ class BaseUser:
         self._cluster_name = cluster_name
         self._db_name = db_name
         self._password = password
+        self._sql_statements = sql_statements
 
     @property
     def cluster_name(self):
@@ -28,3 +29,14 @@ class BaseUser:
     @property
     def password(self):
         return self._password
+
+    @property
+    def sql_statements(self):
+        return self._sql_statements
+
+    def create_user(self):
+        connection = CrdbConnection.get_crdb_connection(self.cluster_name)
+        connection.connect()
+        for statement in self.sql_statements:
+            connection.execute_sql(statement, need_fetchall=False, need_connection_close=False)
+        connection.close()
