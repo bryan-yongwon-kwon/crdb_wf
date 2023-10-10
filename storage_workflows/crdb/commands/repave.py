@@ -443,8 +443,9 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
 def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None, autoscale=False):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
+    logger.info(f"persist_instance_ids - autoscale: {autoscale}, instance_ids: {instance_ids}")
 
-    if autoscale:
+    if not autoscale:
         if not instance_ids:
             logger.info(f"scaling up nodes for {cluster_name}. setting old_instance_ids to none.")
             instance_ids = []
