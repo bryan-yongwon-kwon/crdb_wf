@@ -445,8 +445,6 @@ def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None
         instance_ids = []
         metadata_db_operations = MetadataDBOperations()
         metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
-    elif not instance_ids and not autoscale:
-        logger.error(f"received instance_ids for {cluster_name} with no autoscale confirmation. do nothing.")
     elif instance_ids and autoscale:
         logger.info(f"scaling down nodes for {cluster_name}. setting old_instance_ids.")
         metadata_db_operations = MetadataDBOperations()
