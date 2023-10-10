@@ -1,5 +1,4 @@
 from __future__ import annotations
-from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.models.users.base_user import BaseUser
 
 class AppUser(BaseUser):
