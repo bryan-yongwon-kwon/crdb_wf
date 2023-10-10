@@ -2,7 +2,7 @@ from functools import cached_property
 
 class BaseUser:
 
-    def __init__(self, user_name, user_type, cluster_name, db_name, password=None):
+    def __init__(self, user_name, user_type, cluster_name, db_name, user_creation_sql_statements, password=None):
         self._user_name = user_name
         self._user_type = user_type
         self._cluster_name = cluster_name
