@@ -198,8 +198,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
         raise Exception(f"{cluster_name} Instances count in ASG doesn't match nodes count in cluster.")
 
     # STORAGE-7583: also check desired_capacity
-    if (initial_capacity % 3 != 0 or current_capacity % 3 != 0 or desired_capacity % 3 != 0 or
-            not asg.check_equal_az_distribution_in_asg()):
+    if initial_capacity % 3 != 0 or current_capacity % 3 != 0 or desired_capacity % 3 != 0:
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception(f"{cluster_name} Imbalanced cluster, exiting.")
         return
