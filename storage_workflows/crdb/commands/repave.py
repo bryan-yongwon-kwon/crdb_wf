@@ -148,8 +148,10 @@ def copy_crontab(deployment_env, region, cluster_name):
     # STORAGE-7583: do nothing if scaling up
     if instance_ids:
         old_instance_ips = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
+        logger.info(f"{cluster_name} - copy_crontab - old_instance_ips - {old_instance_ips}")
         nodes = Node.get_nodes()
         new_nodes = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))
+        logger.info(f"{cluster_name} - copy_crontab - new_nodes - {new_nodes}")
         new_nodes.sort(key=lambda node: node.id)
         new_node = new_nodes[0]
         logger.info("Copying crontab jobs to new node: {}".format(new_node.id))
@@ -444,13 +446,14 @@ def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None
     metadata_db_operations = MetadataDBOperations()
     logger.info(f"persist_instance_ids - autoscale: {autoscale}, instance_ids: {instance_ids}")
 
-    if not autoscale:
+    if autoscale:
         if not instance_ids:
             logger.info(f"scaling up nodes for {cluster_name}. setting old_instance_ids to none.")
             instance_ids = []
         else:
             logger.info(f"scaling down nodes for {cluster_name}. setting old_instance_ids.")
     else:
+        logger.info(f"{cluster_name} - persist_instance_ids - not a scaling event. persist instance_id from asg.")
         asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
         instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
         logger.info("Instance IDs to be persist: {}".format(instance_ids))
