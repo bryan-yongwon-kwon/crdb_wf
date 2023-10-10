@@ -23,15 +23,15 @@ def create_users_from_s3_objects(deployment_env, region, bucket_name, aws_accoun
     objects, next_page_token = S3Gateway.read_objects_with_pagination(bucket_name)
     #Process the objects in the current page
     for obj in objects:
-        read_s3_object_contents_and_create_user(obj,is_service_account)
+        read_s3_object_contents_and_create_user(obj, aws_account, bucket_name, deployment_env, region, is_service_account)
 
     while next_page_token:
         objects, next_page_token = S3Gateway.read_objects_with_pagination(bucket_name, page_token=next_page_token)
         for obj in objects:
-            read_s3_object_contents_and_create_user(obj,is_service_account)
+            read_s3_object_contents_and_create_user(obj,aws_account, bucket_name, deployment_env, region, is_service_account)
 
 
-def read_s3_object_contents_and_create_user(obj, is_service_account:bool=True):
+def read_s3_object_contents_and_create_user(obj, aws_account, bucket_name, deployment_env, region, is_service_account:bool=True):
     s3_obj_key_name = obj['Key']
     if is_service_account:
         cluster_name = s3_obj_key_name
@@ -41,15 +41,14 @@ def read_s3_object_contents_and_create_user(obj, is_service_account:bool=True):
         for line in s3_obj_lines:
             user_type, db_name, user_name = line.split(':')
             logger.info("Read user_type : {}, db_name : {}, user_name : {}".format(user_type, db_name, user_name))
-            create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, db_name, user_name, user_type,
-                                     password)
+            create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, db_name, user_name, user_type)
     else:
         cluster_name, db_name, user_name = s3_obj_key_name.split('_')  # db_name and user_name not being used from here
         content = S3Gateway.read_object_contents(bucket_name=bucket_name, key=s3_obj_key_name)
         user_type, db_name, user_name = content.split(':')
         logger.info("Read user_type : {}, db_name : {}, user_name : {}".format(user_type, db_name, user_name))
         os.environ['CLUSTER_NAME'] = cluster_name
-        create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, db_name, user_name, user_type, password)
+        create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, db_name, user_name, user_type) #add password here
 
 
 def create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, db_name, user_name, user_type, password=None):
