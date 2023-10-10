@@ -176,12 +176,15 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    logger.info(f"{cluster_name} retrieved following old_instance_ids:" + str(old_instance_ids))
     # STORAGE-7583: repurpose repave workflow to handle cluster scaling
     is_scaling_event = False
     if desired_capacity is None:
+        logger.info(f"{cluster_name} desired_capacity not provided.")
         desired_capacity = 2*len(old_instance_ids)
         initial_capacity = len(old_instance_ids)
     else:
+        logger.info(f"{cluster_name} desired_capacity provided: {desired_capacity}")
         is_scaling_event = True
         desired_capacity = int(desired_capacity)
         initial_capacity = len(asg.instances)
