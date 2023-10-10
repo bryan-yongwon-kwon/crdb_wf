@@ -219,7 +219,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
 
             if instance_ids_to_terminate:
                 # set new old_instance_ids as nodes that are being removed
-                persist_instance_ids(deployment_env, region, cluster_name, instance_ids_to_terminate, autoscale=True)
+                persist_instance_ids_to_terminate(deployment_env, region, cluster_name, instance_ids_to_terminate)
                 logger.info(f"{cluster_name}: upserted {len(instance_ids_to_terminate)} instances as old_instance_ids")
             else:
                 logger.info(f"{cluster_name}: No instances selected for termination.")
@@ -441,23 +441,20 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         logger.info("skipping move_changefeed_coordinator_node. we're adding new nodes.")
 
 @app.command()
-def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None, autoscale=False):
+def persist_instance_ids(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     metadata_db_operations = MetadataDBOperations()
-    logger.info(f"persist_instance_ids - autoscale: {autoscale}, instance_ids: {instance_ids}")
+    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+    instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
+    logger.info("Instance IDs to be persist: {}".format(instance_ids))
+    metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
+    logger.info("Persist completed!")
 
-    if autoscale:
-        if not instance_ids:
-            logger.info(f"scaling up nodes for {cluster_name}. setting old_instance_ids to none.")
-            instance_ids = []
-        else:
-            logger.info(f"scaling down nodes for {cluster_name}. setting old_instance_ids.")
-    else:
-        logger.info(f"{cluster_name} - persist_instance_ids - not a scaling event. persist instance_id from asg.")
-        asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-        instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
-        logger.info("Instance IDs to be persist: {}".format(instance_ids))
 
+def persist_instance_ids_to_terminate(deployment_env, region, cluster_name, instance_ids):
+    setup_env(deployment_env, region, cluster_name)
+    metadata_db_operations = MetadataDBOperations()
+    logger.info("Instance IDs to be persist: {}".format(instance_ids))
     metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
     logger.info("Persist completed!")
 
