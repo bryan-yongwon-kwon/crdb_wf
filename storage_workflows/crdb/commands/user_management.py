@@ -2,6 +2,7 @@ import json
 import os
 import typer
 from storage_workflows.crdb.api_gateway.s3_gateway import S3Gateway
+from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
 from storage_workflows.metadata_db.storage_metadata.storage_metadata import StorageMetadata
 from storage_workflows.logging.logger import Logger
 from storage_workflows.crdb.models.users.app_user import AppUser
@@ -54,10 +55,14 @@ def read_s3_object_contents_and_create_user(obj, aws_account, bucket_name, deplo
 def create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, db_name, user_name, user_type, password=None):
     storage_metadata = StorageMetadata()
     existing_users = storage_metadata.get_user(cluster_name, region, aws_account, db_name, user_name, deployment_env)
+    cert_path = None
     if len(existing_users) == 0:
         match user_type:
             case "readonly":
                 user = ReadOnlyUser(user_name, cluster_name=cluster_name, db_name=db_name)
+                arn = get_user_arn(user_name, deployment_env, cluster_name)
+                arn_stripped = arn[:-7] #remove last 7 chars from arn
+                cert_path = f"https://{region}.console.aws.amazon.com/secretsmanager/secret?name={arn_stripped}&region={region}"
             case "dba":
                 user = DbaUser(user_name, cluster_name=cluster_name, db_name=db_name)
             case "app":
@@ -71,7 +76,29 @@ def create_user_if_not_exist(cluster_name, deployment_env, region, aws_account, 
         user.create_user()
         storage_metadata.insert_user(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                      aws_account=aws_account, database_name=db_name, role_name=user_name,
-                                     certificate_path=None)
+                                     certificate_path=cert_path)
         logger.info("Successfully created user_name: {0} for cluster {1}".format(user_name, cluster_name))
     else:
         logger.info("User {0} already exists for cluster {1}".format(user_name, cluster_name))
+
+
+def get_user_arn(user_name, deployment_env, cluster_name):
+    cluster_name_with_suffix = cluster_name + "-crdb"
+    secret_filters = {'tag-key': ['crdb_cluster_name', 'cred-type', 'environment', 'client'],
+                      'tag-value': [cluster_name_with_suffix, 'client-public-cert', deployment_env, user_name],
+                      'description': ['!DEPRECATED']}
+    secret_list = SecretManagerGateway.list_secrets(transform_filters(secret_filters))
+    return secret_list[0]['ARN']
+
+
+def transform_filters(filters):
+    transformed_filters = []
+    for filter_key in filters.keys():
+        for filter_value in filters[filter_key]:
+            transformed_filters.append({
+                'Key': filter_key,
+                'Values': [
+                    filter_value,
+                ]
+            })
+    return transformed_filters
