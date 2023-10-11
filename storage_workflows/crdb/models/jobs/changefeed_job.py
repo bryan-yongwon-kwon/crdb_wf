@@ -44,19 +44,19 @@ class ChangefeedJob(BaseJob):
     
     def pause(self):
         self.connection.execute_sql(self.PAUSE_JOB_BY_ID_SQL.format(self.id),
-                                    need_commit=True)
+                                    need_commit=True, need_connection_close=False)
 
     def resume(self):
         self.connection.execute_sql(self.RESUME_JOB_BY_ID_SQL.format(self.id),
-                                    need_commit=True)
+                                    need_commit=True, need_connection_close=False)
 
     def remove_coordinator_node(self):
         self.connection.execute_sql(self.REMOVE_COORDINATOR_BY_JOB_ID_SQL.format(self.id),
-                                    need_commit=True)
+                                    need_commit=True, need_connection_close=False)
 
     def get_coordinator_node(self):
         return self.connection.execute_sql(self.GET_COORDINATOR_BY_JOB_ID_SQL.format(self.id),
-                                    need_commit=True, need_fetchone=True)[0]
+                                    need_commit=False, need_fetchone=True, need_connection_close=False)[0]
 
     def wait_for_job_to_pause(self):
         job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
@@ -82,7 +82,7 @@ class ChangefeedJob(BaseJob):
     def get_latest_job_status(job_id, cluster_name):
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        response = connection.execute_sql(BaseJob.GET_JOB_BY_ID_SQL.format(job_id), need_fetchone=True)
+        response = connection.execute_sql(BaseJob.GET_JOB_BY_ID_SQL.format(job_id), need_fetchone=True, need_connection_close=False)
         connection.close()
         job = ChangefeedJob(response, cluster_name)
         return job.status
