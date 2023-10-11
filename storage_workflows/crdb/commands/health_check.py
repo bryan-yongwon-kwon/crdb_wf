@@ -153,32 +153,34 @@ def changefeed_health_check(deployment_env, region, cluster_name):
             changefeed_job_id = job.id
             changefeed_status = job.status
             if changefeed_status == "running" and changefeed_latency > -1800:
-                logger.info(f"PASS: {cluster_name}: Job id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
+                logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
                 pass
             elif changefeed_status == "running" and changefeed_latency <= -1800:
-                logger.info(f"FAIL: {cluster_name}: Job id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
                 check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {changefeed_latency}. RUNNING_STATUS: {job.changefeed_running_status}. ERROR: {job.changefeed_error}")
                 check_result = "fail"
             elif changefeed_status == "running" and changefeed_latency == "NULL":
-                logger.info(f"FAIL: {cluster_name}: Job id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
                 check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {changefeed_latency}. RUNNING_STATUS: {job.changefeed_running_status}. ERROR: {job.changefeed_error}")
                 check_result = "fail"
             elif changefeed_status == "paused":
-                logger.info(f"FAIL: {cluster_name}: Job id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
                 check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {changefeed_latency}. RUNNING_STATUS: {job.changefeed_running_status}. ERROR: {job.changefeed_error}")
                 check_result = "fail"
             elif changefeed_status == "failed":
-                logger.info(f"FAIL: {cluster_name}: Job id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
                 check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {changefeed_latency}. RUNNING_STATUS: {job.changefeed_running_status}. ERROR: {job.changefeed_error}")
                 check_result = "fail"
             else:
-                logger.info(f"ELSE: {cluster_name}: Job id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
+                logger.info(f"ELSE: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
                 pass
     except (psycopg2.DatabaseError, ValueError) as error:
         # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
         check_result = "error"
     # save results to metadatadb
+    if not check_output:
+        check_output = "changefeed_health_check_passed"
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                          check_type=check_type, check_result=check_result, check_output=check_output)
