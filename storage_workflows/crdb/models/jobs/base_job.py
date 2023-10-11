@@ -6,7 +6,7 @@ class BaseJob:
     FIND_ALL_JOBS_BY_TYPE_SQL = "SELECT job_id,job_type,status from crdb_internal.jobs AS OF SYSTEM TIME FOLLOWER_READ_TIMESTAMP() WHERE job_type = '{}' AND ((job_type IS NULL) OR ((job_type NOT IN ('AUTO CREATE STATS', 'AUTO SCHEMA TELEMETRY', 'AUTO SPAN CONFIG RECONCILIATION', 'AUTO SQL STATS COMPACTION')) AND ((finished IS NULL) OR (finished > NOW() - INTERVAL '12h' ))));"
     PAUSE_JOB_BY_ID_SQL = "PAUSE JOB {};"
     RESUME_JOB_BY_ID_SQL = "RESUME JOB {};"
-    GET_JOB_BY_ID_SQL = "SELECT job_id,job_type,status FROM [SHOW JOBS] WHERE job_id='{}';"
+    GET_JOB_BY_ID_SQL = "SELECT job_id,job_type,status FROM crdb_internal.jobs AS OF SYSTEM TIME FOLLOWER_READ_TIMESTAMP() WHERE job_id='{}';"
 
     def __init__(self, job_id, job_type, status, cluster_name):
         self._job_id = job_id
