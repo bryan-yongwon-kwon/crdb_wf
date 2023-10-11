@@ -140,26 +140,39 @@ def changefeed_health_check(deployment_env, region, cluster_name):
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "changefeed_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
+    check_output=[]
+    check_result="pass"
     cluster = Cluster()
     try:
-        unhealthy_changefeed_jobs = list(
-            filter(lambda job: job.status != "running" and job.status != "canceled", cluster.changefeed_jobs))
-        if unhealthy_changefeed_jobs:
-            logger.warning(f"{cluster_name}: Changefeeds Not Running:")
-            # TODO: provide useful output
-            check_output = str(unhealthy_changefeed_jobs)
-            check_result = "fail"
-            for job in unhealthy_changefeed_jobs:
-                logger.warning(f"{cluster_name}: Job id is {job.id}. Status is {job.status}.")
-        else:
-            logger.info(f"{cluster_name}: {check_type} passed")
-            # TODO: provide useful output
-            check_output = "changefeed_health_check_passed"
-            check_result = "pass"
+        list_of_changefeed_jobs = list(cluster.changefeed_jobs)
+        if len(list_of_changefeed_jobs) == 0:
+            logger.info(f"{cluster_name}: No changefeed jobs found.")
+            return
+        for job in list_of_changefeed_jobs:
+            if job.status == "running" and job.changefeed_latency > -3600:
+                check_result = "fail"
+            elif job.status == "running" and job.changefeed_latency <= -3600:
+                logger.info(f"{cluster_name}: Job id {job.id} is running with latency {job.changefeed_latency}.")
+                check_output.append(f"{job.id}: {job.status} latency: {job.changefeed_latency}")
+                check_result = "fail"
+            elif job.status == "running" and job.changefeed_latency == "NULL":
+                logger.info(f"{cluster_name}: Job id {job.id} is running with latency {job.changefeed_latency}.")
+                check_output.append(f"{job.id}: {job.status} latency: {job.changefeed_latency}")
+                check_result = "fail"
+            elif job.status == "paused":
+                logger.info(f"{cluster_name}: Job id {job.id} is paused.")
+                check_output.append(f"{job.id}: {job.status}")
+                check_result = "fail"
+            elif job.status == "failed":
+                logger.info(f"{cluster_name}: Job id {job.id} is failed.")
+                check_output.append(f"{job.id}: {job.status}")
+                check_result = "fail"
+            else:
+                pass
     except (psycopg2.DatabaseError, ValueError) as error:
         # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
-        check_result = "fail"
+        check_result = "error"
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,

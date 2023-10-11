@@ -9,6 +9,7 @@ class ChangefeedJob(BaseJob):
 
     REMOVE_COORDINATOR_BY_JOB_ID_SQL = "UPDATE system.jobs SET claim_session_id = NULL WHERE id = '{}';"
     GET_COORDINATOR_BY_JOB_ID_SQL = "SELECT coordinator_id from crdb_internal.jobs WHERE job_id = '{}';"
+    GET_LATENCY_SQL = "SELECT (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS latency FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = {};"
 
     @staticmethod
     def find_all_changefeed_jobs(cluster_name) -> list[ChangefeedJob]:
@@ -22,6 +23,11 @@ class ChangefeedJob(BaseJob):
         super().__init__(response[0], response[1], response[2], cluster_name)
         self._response = response
         self._cluster_name = cluster_name
+
+    @property
+    def changefeed_latency(self):
+        return self.connection.execute_sql(self.GET_LATENCY_SQL.format(self.id),
+                                    need_commit=True, need_fetchone=True)[0]
     
     def pause(self):
         self.connection.execute_sql(self.PAUSE_JOB_BY_ID_SQL.format(self.id),

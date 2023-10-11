@@ -66,7 +66,8 @@ class CrdbConnection:
                                                     sslcert=self._credential_dir_path + os.getenv(
                                                         'CRDB_PUBLIC_CERT_FILE_NAME'),
                                                     sslkey=self._credential_dir_path + os.getenv(
-                                                        'CRDB_PRIVATE_KEY_FILE_NAME'))
+                                                        'CRDB_PRIVATE_KEY_FILE_NAME'),
+                                                    application_name='operator-service-argo-workflow')
             return conn_pool
         except Exception as error:
             logger.error(error)
@@ -85,6 +86,7 @@ class CrdbConnection:
                 sslrootcert=self._credential_dir_path + os.getenv('CRDB_CA_CERT_FILE_NAME'),
                 sslcert=self._credential_dir_path + os.getenv('CRDB_PUBLIC_CERT_FILE_NAME'),
                 sslkey=self._credential_dir_path + os.getenv('CRDB_PRIVATE_KEY_FILE_NAME'),
+                application_name='operator-service-argo-workflow', # do we have an envar with the actual workflow name?
                 connect_timeout=2  # Set the connection timeout to 2 seconds
             )
             # check for connection error
