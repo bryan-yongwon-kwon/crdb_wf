@@ -46,7 +46,7 @@ class ChangefeedJob(BaseJob):
     @property
     def changefeed_metadata(self):
         changefeed_metadata_response = self.connection.execute_sql(self.GET_CHANGEFEED_METADATA.format(self.id),
-                                    need_commit=False, need_fetchone=True, need_connection_close=False)[0]
+                                    need_commit=False, need_fetchone=True, need_connection_close=False)
         return ChangefeedJob.ChangefeedJobInternalStatus(changefeed_metadata_response)
     
     #job.internal_status.error
