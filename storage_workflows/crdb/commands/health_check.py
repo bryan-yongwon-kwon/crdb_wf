@@ -157,11 +157,12 @@ def changefeed_health_check(deployment_env, region, cluster_name):
                 logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status}")
                 continue
 
-            latency = int(job.changefeed_metadata.latency)
-            running_status = job.changefeed_metadata.running_status
-            error = job.changefeed_metadata.error
-            is_initial_scan_only = job.changefeed_metadata.is_initial_scan_only
-            finished_ago_seconds = job.changefeed_metadata.finished_ago_seconds
+            changefeed_metadata = job.changefeed_metadata
+            latency = int(changefeed_metadata.latency)
+            running_status = changefeed_metadata.running_status
+            error = changefeed_metadata.error
+            is_initial_scan_only = changefeed_metadata.is_initial_scan_only
+            finished_ago_seconds = changefeed_metadata.finished_ago_seconds
             if changefeed_status == "running" and latency > -1800:
                 logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}.")
                 continue
