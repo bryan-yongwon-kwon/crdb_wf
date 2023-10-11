@@ -12,7 +12,7 @@ class ChangefeedJob(BaseJob):
     GET_LATENCY_SQL = "SELECT (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS latency FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
     GET_RUNNING_STATUS_SQL = "SELECT running_status FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
     GET_ERROR_SQL = "SELECT error FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
-    GET_CHANGEFEED_METADATA = "SELECT running_status,error,(((high_water_timestamp/1e9)::INT)-NOW()::INT) AS latency,CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE END AS is_initial_scan_only,(finished::INT-now()::INT) as finished_ago_seconds FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
+    GET_CHANGEFEED_METADATA = "SELECT running_status,error,(((high_water_timestamp/1e9)::INT)-NOW()::INT) AS latency,CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE END AS is_initial_scan_only,(finished::INT-now()::INT) as finished_ago_seconds FROM crdb_internal.jobs AS OF SYSTEM TIME FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
 
     @staticmethod
     def find_all_changefeed_jobs(cluster_name) -> list[ChangefeedJob]:
