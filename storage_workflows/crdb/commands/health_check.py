@@ -148,18 +148,23 @@ def changefeed_health_check(deployment_env, region, cluster_name):
         if len(list_of_changefeed_jobs) == 0:
             logger.info(f"{cluster_name}: No changefeed jobs found.")
             return
+        else:
+            logger.info(f"{cluster_name}: Found {len(list_of_changefeed_jobs)} changefeed jobs.")
         for job in list_of_changefeed_jobs:
-            changefeed_latency = job.changefeed_latency
             changefeed_job_id = job.id
             changefeed_status = job.status
+            if changefeed_status == "succeeded":
+                logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status}")
+                continue
+            changefeed_latency = job.changefeed_latency
             if changefeed_status == "running" and changefeed_latency > -1800:
                 logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
-                pass
+                continue
             elif changefeed_status == "running" and changefeed_latency <= -1800:
                 logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
                 check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {changefeed_latency}. RUNNING_STATUS: {job.changefeed_running_status}. ERROR: {job.changefeed_error}")
                 check_result = "fail"
-            elif changefeed_status == "running" and changefeed_latency == "NULL":
+            elif changefeed_status == "running" and (changefeed_latency == "NULL" or changefeed_latency is None) :
                 logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
                 check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {changefeed_latency}. RUNNING_STATUS: {job.changefeed_running_status}. ERROR: {job.changefeed_error}")
                 check_result = "fail"
@@ -234,7 +239,7 @@ def orphan_health_check(deployment_env, region, cluster_name):
     except (psycopg2.DatabaseError, ValueError) as error:
         # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
-        check_result = "fail"
+        check_result = "error"
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -254,7 +259,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name}: starting {check_type}")
     FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
-                    "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '2d';")
+                    "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '25h';")
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
@@ -272,7 +277,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
     except (psycopg2.DatabaseError, ValueError) as error:
         # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
-        check_result = "fail"
+        check_result = "error"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -436,7 +441,7 @@ def version_mismatch_check(deployment_env, region, cluster_name):
                                                  check_output=check_output)
     except (psycopg2.DatabaseError, ValueError) as error:
         # logger.error(f"{cluster_name}: encountered error - {error}")
-        check_result = "fail"
+        check_result = "error"
         check_output = "db_connection_error"
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                              aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -515,7 +520,7 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
-        check_result = "fail"
+        check_result = "error"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -559,7 +564,7 @@ def backup_health_check(deployment_env, region, cluster_name):
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
-        check_result = "fail"
+        check_result = "error"
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
