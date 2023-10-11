@@ -102,21 +102,21 @@ class ChangefeedJob(BaseJob):
             self._response = response
 
         @property
-        def latency(self):
-            return self.response['latency']
+        def running_status(self):
+            return self.response[0]
 
         @property
         def error(self):
-            return self.response['error']
+            return self.response[1]
 
         @property
-        def running_status(self):
-            return self.response['running_status']
+        def latency(self):
+            return self.response[2]
 
         @property
         def is_initial_scan_only(self):
-            return self.response['is_initial_scan_only']
+            return self.response[3]
 
         @property
         def finished_ago_seconds(self):
-            return self.response['finished_ago_seconds']
+            return self.response[4]
