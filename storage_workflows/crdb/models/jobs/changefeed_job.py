@@ -17,7 +17,8 @@ class ChangefeedJob(BaseJob):
     def find_all_changefeed_jobs(cluster_name) -> list[ChangefeedJob]:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        response = connection.execute_sql(BaseJob.FIND_ALL_JOBS_BY_TYPE_SQL.format('CHANGEFEED'))
+        response = connection.execute_sql(BaseJob.FIND_ALL_JOBS_BY_TYPE_SQL.format('CHANGEFEED'),
+                                          need_connection_close=False)
         connection.close()
         return list(map(lambda job: ChangefeedJob(job, cluster_name), response))
     
@@ -29,17 +30,17 @@ class ChangefeedJob(BaseJob):
     @property
     def changefeed_latency(self):
         return self.connection.execute_sql(self.GET_LATENCY_SQL.format(self.id),
-                                    need_commit=True, need_fetchone=True)[0]
+                                    need_commit=False, need_fetchone=True, need_connection_close=False)[0]
 
     @property
     def changefeed_running_status(self):
         return self.connection.execute_sql(self.GET_RUNNING_STATUS_SQL.format(self.id),
-                                    need_commit=True, need_fetchone=True)[0]
+                                    need_commit=False, need_fetchone=True, need_connection_close=False)[0]
 
     @property
     def changefeed_error(self):
         return self.connection.execute_sql(self.GET_ERROR_SQL.format(self.id),
-                                    need_commit=True, need_fetchone=True)[0]
+                                    need_commit=False, need_fetchone=True, need_connection_close=False)[0]
     
     def pause(self):
         self.connection.execute_sql(self.PAUSE_JOB_BY_ID_SQL.format(self.id),
