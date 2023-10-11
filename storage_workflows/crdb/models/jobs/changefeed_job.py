@@ -100,7 +100,7 @@ class ChangefeedJob(BaseJob):
     class ChangefeedJobInternalStatus:
         def __init__(self, response):
             logger.info("response: {}".format(response))
-            self._response = response[0]
+            self._response = response
 
         @property
         def running_status(self):
