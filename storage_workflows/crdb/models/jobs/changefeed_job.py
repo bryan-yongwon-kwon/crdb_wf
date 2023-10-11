@@ -12,6 +12,7 @@ class ChangefeedJob(BaseJob):
     GET_LATENCY_SQL = "SELECT (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS latency FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
     GET_RUNNING_STATUS_SQL = "SELECT running_status FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
     GET_ERROR_SQL = "SELECT error FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
+    GET_CHANGEFEED_METADATA = "SELECT running_status,error,(((high_water_timestamp/1e9)::INT)-NOW()::INT) AS latency,CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE END AS is_initial_scan_only,(finished::INT-now()::INT) as finished_ago_seconds FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
 
     @staticmethod
     def find_all_changefeed_jobs(cluster_name) -> list[ChangefeedJob]:
@@ -43,11 +44,10 @@ class ChangefeedJob(BaseJob):
                                     need_commit=False, need_fetchone=True, need_connection_close=False)[0]
     
     @property
-    def internal_status(self):
-        internal_status_response = self.connection.execute_sql(self.MERGED_SQL.format(self.id),
+    def changefeed_metadata(self):
+        changefeed_metadata_response = self.connection.execute_sql(self.GET_CHANGEFEED_METADATA.format(self.id),
                                     need_commit=False, need_fetchone=True, need_connection_close=False)[0]
-    
-        return ChangefeedJob.ChangefeedJobInternalStatus(internal_status_response)
+        return ChangefeedJob.ChangefeedJobInternalStatus(changefeed_metadata_response)
     
     #job.internal_status.error
     
@@ -104,7 +104,19 @@ class ChangefeedJob(BaseJob):
         @property
         def latency(self):
             return self.response['latency']
-        
+
         @property
         def error(self):
             return self.response['error']
+
+        @property
+        def running_status(self):
+            return self.response['running_status']
+
+        @property
+        def is_initial_scan_only(self):
+            return self.response['is_initial_scan_only']
+
+        @property
+        def finished_ago_seconds(self):
+            return self.response['finished_ago_seconds']

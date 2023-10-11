@@ -156,28 +156,38 @@ def changefeed_health_check(deployment_env, region, cluster_name):
             if changefeed_status == "succeeded":
                 logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status}")
                 continue
-            changefeed_latency = job.changefeed_latency
-            if changefeed_status == "running" and changefeed_latency > -1800:
-                logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
+
+            latency = job.changefeed_metadata.latency
+            running_status = job.changefeed_metadata.running_status
+            error = job.changefeed_metadata.error
+            is_initial_scan_only = job.changefeed_metadata.is_initial_scan_only
+            finished_ago_seconds = job.changefeed_metadata.finished_ago_seconds
+            if changefeed_status == "running" and latency > -1800:
+                logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}.")
                 continue
-            elif changefeed_status == "running" and changefeed_latency <= -1800:
-                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
-                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {changefeed_latency}. RUNNING_STATUS: {job.changefeed_running_status}. ERROR: {job.changefeed_error}")
+            elif changefeed_status == "running" and latency <= -1800 and is_initial_scan_only is True:
+                logger.info(f"WARN: {cluster_name}: INITIAL_SCAN_ONLY job_id {changefeed_job_id} is {changefeed_status} with latency {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}.")
+                check_output.append(f"WARN: INITIAL_SCAN_ONLY {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
+                continue
+            elif changefeed_status == "running" and latency <= -1800 and is_initial_scan_only is False:
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
+                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
                 check_result = "fail"
-            elif changefeed_status == "running" and (changefeed_latency == "NULL" or changefeed_latency is None) :
-                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
-                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {changefeed_latency}. RUNNING_STATUS: {job.changefeed_running_status}. ERROR: {job.changefeed_error}")
+            elif changefeed_status == "running" and (latency == "NULL" or latency is None) and is_initial_scan_only is False:
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
+                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
                 check_result = "fail"
-            elif changefeed_status == "paused":
-                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
-                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {changefeed_latency}. RUNNING_STATUS: {job.changefeed_running_status}. ERROR: {job.changefeed_error}")
+            elif changefeed_status == "paused" and latency < -300:
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
+                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
                 check_result = "fail"
-            elif changefeed_status == "failed":
-                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
-                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {changefeed_latency}. RUNNING_STATUS: {job.changefeed_running_status}. ERROR: {job.changefeed_error}")
+            elif changefeed_status == "failed" and finished_ago_seconds > (86400*3):
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
+                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}. FINISHED_AGO_SECONDS: {finished_ago_seconds}")
                 check_result = "fail"
             else:
-                logger.info(f"ELSE: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {changefeed_latency}.")
+                logger.info(f"ELSE: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}.")
+                check_output.append(f"ELSE: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}. FINISHED_AGO_SECONDS: {finished_ago_seconds}")
                 pass
     except (psycopg2.DatabaseError, ValueError) as error:
         # logger.error(f"{cluster_name}: encountered error - {error}")
