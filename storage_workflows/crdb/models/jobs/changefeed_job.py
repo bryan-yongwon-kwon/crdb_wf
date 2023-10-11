@@ -42,6 +42,15 @@ class ChangefeedJob(BaseJob):
         return self.connection.execute_sql(self.GET_ERROR_SQL.format(self.id),
                                     need_commit=False, need_fetchone=True, need_connection_close=False)[0]
     
+    @property
+    def internal_status(self):
+        internal_status_response = self.connection.execute_sql(self.MERGED_SQL.format(self.id),
+                                    need_commit=False, need_fetchone=True, need_connection_close=False)[0]
+    
+        return ChangefeedJob.ChangefeedJobInternalStatus(internal_status_response)
+    
+    #job.internal_status.error
+    
     def pause(self):
         self.connection.execute_sql(self.PAUSE_JOB_BY_ID_SQL.format(self.id),
                                     need_commit=True, need_connection_close=False)
@@ -86,3 +95,16 @@ class ChangefeedJob(BaseJob):
         connection.close()
         job = ChangefeedJob(response, cluster_name)
         return job.status
+    
+
+    class ChangefeedJobInternalStatus:
+        def __init__(self, response):
+            self._response = response
+
+        @property
+        def latency(self):
+            return self.response['latency']
+        
+        @property
+        def error(self):
+            return self.response['error']
