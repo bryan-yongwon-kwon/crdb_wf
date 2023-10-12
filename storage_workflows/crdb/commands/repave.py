@@ -148,8 +148,10 @@ def copy_crontab(deployment_env, region, cluster_name):
     # STORAGE-7583: do nothing if scaling up
     if instance_ids:
         old_instance_ips = set(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, instance_ids))
+        logger.info(f"{cluster_name} - copy_crontab - old_instance_ips - {old_instance_ips}")
         nodes = Node.get_nodes()
         new_nodes = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))
+        logger.info(f"{cluster_name} - copy_crontab - new_nodes - {new_nodes}")
         new_nodes.sort(key=lambda node: node.id)
         new_node = new_nodes[0]
         logger.info("Copying crontab jobs to new node: {}".format(new_node.id))
@@ -176,12 +178,15 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    logger.info(f"{cluster_name} retrieved following old_instance_ids:" + str(old_instance_ids))
     # STORAGE-7583: repurpose repave workflow to handle cluster scaling
     is_scaling_event = False
     if desired_capacity is None:
+        logger.info(f"{cluster_name} desired_capacity not provided.")
         desired_capacity = 2*len(old_instance_ids)
         initial_capacity = len(old_instance_ids)
     else:
+        logger.info(f"{cluster_name} desired_capacity provided: {desired_capacity}")
         is_scaling_event = True
         desired_capacity = int(desired_capacity)
         initial_capacity = len(asg.instances)
@@ -195,8 +200,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
         raise Exception(f"{cluster_name} Instances count in ASG doesn't match nodes count in cluster.")
 
     # STORAGE-7583: also check desired_capacity
-    if (initial_capacity % 3 != 0 or current_capacity % 3 != 0 or desired_capacity % 3 != 0 or
-            not asg.check_equal_az_distribution_in_asg()):
+    if initial_capacity % 3 != 0 or current_capacity % 3 != 0 or desired_capacity % 3 != 0:
         logger.error("The number of nodes in this cluster are not balanced.")
         raise Exception(f"{cluster_name} Imbalanced cluster, exiting.")
         return
@@ -215,7 +219,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
 
             if instance_ids_to_terminate:
                 # set new old_instance_ids as nodes that are being removed
-                persist_instance_ids(deployment_env, region, cluster_name, instance_ids_to_terminate, autoscale=True)
+                persist_instance_ids_to_terminate(deployment_env, region, cluster_name, instance_ids_to_terminate)
                 logger.info(f"{cluster_name}: upserted {len(instance_ids_to_terminate)} instances as old_instance_ids")
             else:
                 logger.info(f"{cluster_name}: No instances selected for termination.")
@@ -437,26 +441,21 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         logger.info("skipping move_changefeed_coordinator_node. we're adding new nodes.")
 
 @app.command()
-def persist_instance_ids(deployment_env, region, cluster_name, instance_ids=None, autoscale=False):
+def persist_instance_ids(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    # STORAGE-7583: upsert new instance_ids in downscaling scenario
-    if not instance_ids and autoscale:
-        logger.info(f"scaling up nodes for {cluster_name}. setting old_instance_ids to none.")
-        instance_ids = []
-        metadata_db_operations = MetadataDBOperations()
-        metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
-    elif not instance_ids and not autoscale:
-        logger.error(f"received instance_ids for {cluster_name} with no autoscale confirmation. do nothing.")
-    elif instance_ids and autoscale:
-        logger.info(f"scaling down nodes for {cluster_name}. setting old_instance_ids.")
-        metadata_db_operations = MetadataDBOperations()
-        metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
-    else:
-        asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-        instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
-        logger.info("Instance IDs to be persist: {}".format(instance_ids))
-        metadata_db_operations = MetadataDBOperations()
-        metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
+    metadata_db_operations = MetadataDBOperations()
+    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+    instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
+    logger.info("Instance IDs to be persist: {}".format(instance_ids))
+    metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
+    logger.info("Persist completed!")
+
+
+def persist_instance_ids_to_terminate(deployment_env, region, cluster_name, instance_ids):
+    setup_env(deployment_env, region, cluster_name)
+    metadata_db_operations = MetadataDBOperations()
+    logger.info("Instance IDs to be persist: {}".format(instance_ids))
+    metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
     logger.info("Persist completed!")
 
 

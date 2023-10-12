@@ -16,6 +16,8 @@ from storage_workflows.metadata_db.storage_metadata.storage_metadata import Stor
 from storage_workflows.crdb.api_gateway.iam_gateway import IamGateway
 from storage_workflows.crdb.api_gateway.ebs_gateway import EBSGateway
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
+from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
+from storage_workflows.crdb.aws.secret import Secret
 
 app = typer.Typer()
 logger = Logger()
@@ -199,7 +201,6 @@ def changefeed_health_check(deployment_env, region, cluster_name):
                 check_output.append(f"ELSE: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}. FINISHED_AGO_SECONDS: {finished_ago_seconds}")
                 pass
     except (psycopg2.DatabaseError, ValueError) as error:
-        # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
         check_result = "error"
     # save results to metadatadb
@@ -256,7 +257,6 @@ def orphan_health_check(deployment_env, region, cluster_name):
             check_output = "orphan_health_check_passed"
             check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
-        # logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
         check_result = "error"
     # save results to metadatadb
@@ -294,7 +294,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
             check_result = "pass"
         connection.close()
     except (psycopg2.DatabaseError, ValueError) as error:
-        # logger.error(f"{cluster_name}: encountered error - {error}")
+        logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
         check_result = "error"
 
@@ -475,7 +475,6 @@ def az_health_check(deployment_env, region, cluster_name):
     # Usually an AWS account has one alias, but the response is a list.
     # Thus, this will return the first alias, or None if there are no aliases.
     aws_account_alias = IamGateway.get_account_alias()
-    # logger.info("account_alias: %s", aws_account_alias)
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "az_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
@@ -694,3 +693,4 @@ def run_health_check_all(deployment_env, region):
     # Send the CSV file as attachment to the Slack channel
     # response = slack_notification.send_to_slack_with_attachment(csv_file_path, "CRDB HEALTH REPORT", "storage-alerts-crdb")
     # logger.info(f"response from slack: {response}")
+
