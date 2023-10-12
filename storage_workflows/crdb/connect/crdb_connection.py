@@ -7,6 +7,7 @@ from storage_workflows.crdb.aws.secret_value import SecretValue
 from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
 from storage_workflows.logging.logger import Logger
 from psycopg2 import OperationalError, InterfaceError, ProgrammingError
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 logger = Logger()
 
@@ -68,6 +69,7 @@ class CrdbConnection:
                                                     sslkey=self._credential_dir_path + os.getenv(
                                                         'CRDB_PRIVATE_KEY_FILE_NAME'),
                                                     application_name='operator-service-argo-workflow')
+            conn_pool.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             return conn_pool
         except Exception as error:
             logger.error(error)
@@ -87,9 +89,9 @@ class CrdbConnection:
                 sslcert=self._credential_dir_path + os.getenv('CRDB_PUBLIC_CERT_FILE_NAME'),
                 sslkey=self._credential_dir_path + os.getenv('CRDB_PRIVATE_KEY_FILE_NAME'),
                 application_name='operator-service-argo-workflow', # do we have an envar with the actual workflow name?
-                autocommit=True,
                 connect_timeout=2  # Set the connection timeout to 2 seconds
             )
+            self._connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             # check for connection error
             if self._connection is None:
                 raise ValueError("Connection is not established.")
