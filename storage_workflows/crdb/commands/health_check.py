@@ -28,6 +28,7 @@ def get_cluster_names(deployment_env, region):
     setup_env(deployment_env, region)
     asgs = AutoScalingGroup.find_all_auto_scaling_groups([AutoScalingGroup.build_filter_by_crdb_tag()])
     names = list(map(lambda asg: asg.name.split("_{}-".format(deployment_env))[0], asgs))
+    # names=["parcel_service"]
     names.sort()
     logger.info("Found {} clusters.".format(len(names)))
     logger.info(names)
@@ -142,27 +143,69 @@ def changefeed_health_check(deployment_env, region, cluster_name):
     workflow_id = os.getenv('WORKFLOW-ID')
     check_type = "changefeed_health_check"
     logger.info(f"{cluster_name}: starting {check_type}")
+    check_output=[]
+    check_result="pass"
     cluster = Cluster()
     try:
-        unhealthy_changefeed_jobs = list(
-            filter(lambda job: job.status != "running" and job.status != "canceled", cluster.changefeed_jobs))
-        if unhealthy_changefeed_jobs:
-            logger.warning(f"{cluster_name}: Changefeeds Not Running:")
-            # TODO: provide useful output
-            check_output = str(unhealthy_changefeed_jobs)
-            check_result = "fail"
-            for job in unhealthy_changefeed_jobs:
-                logger.warning(f"{cluster_name}: Job id is {job.id}. Status is {job.status}.")
+        list_of_changefeed_jobs = list(cluster.changefeed_jobs)
+        if len(list_of_changefeed_jobs) == 0:
+            logger.info(f"{cluster_name}: No changefeed jobs found.")
+            return
         else:
-            logger.info(f"{cluster_name}: {check_type} passed")
-            # TODO: provide useful output
-            check_output = "changefeed_health_check_passed"
-            check_result = "pass"
+            logger.info(f"{cluster_name}: Found {len(list_of_changefeed_jobs)} changefeed jobs.")
+        for job in list_of_changefeed_jobs:
+            changefeed_job_id = job.id
+            changefeed_status = job.status
+            if changefeed_status == "succeeded":
+                logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status}")
+                continue
+            elif changefeed_status == "canceled":
+                logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status}")
+                continue
+
+            changefeed_metadata = job.changefeed_metadata
+            latency = changefeed_metadata.latency
+            running_status = changefeed_metadata.running_status
+            error = changefeed_metadata.error
+            is_initial_scan_only = changefeed_metadata.is_initial_scan_only
+            finished_ago_seconds = changefeed_metadata.finished_ago_seconds
+            if changefeed_status == "running" and latency is not None and latency > -1800:
+                logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}.")
+                continue
+            elif changefeed_status == "running" and latency is not None and latency <= -1800 and is_initial_scan_only is True:
+                logger.info(f"WARN: {cluster_name}: INITIAL_SCAN_ONLY job_id {changefeed_job_id} is {changefeed_status} with latency {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}.")
+                check_output.append(f"WARN: INITIAL_SCAN_ONLY {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
+                continue
+            elif changefeed_status == "running" and latency is not None and latency <= -1800 and is_initial_scan_only is False:
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
+                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
+                check_result = "fail"
+            elif changefeed_status == "running" and (latency == "NULL" or latency is None) and is_initial_scan_only is False:
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
+                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
+                check_result = "fail"
+            elif changefeed_status == "paused" and latency is not None and latency < -300:
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
+                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
+                check_result = "fail"
+            elif changefeed_status == "failed" and finished_ago_seconds > (86400*3):
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
+                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}. FINISHED_AGO_SECONDS: {finished_ago_seconds}")
+                check_result = "fail"
+            elif changefeed_status == "running" and "retryable error" in running_status and (latency is None or latency < -300):
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
+                check_output.append(f"FAIL: RETRYABLE ERROR {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
+                check_result = "fail"
+            else:
+                logger.info(f"ELSE: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}.")
+                check_output.append(f"ELSE: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}. FINISHED_AGO_SECONDS: {finished_ago_seconds}")
+                pass
     except (psycopg2.DatabaseError, ValueError) as error:
         check_output = "db_connection_error"
-        check_result = "fail"
-        logger.error(f"{cluster_name}: {check_type} ran into {error}")
+        check_result = "error"
     # save results to metadatadb
+    if not check_output:
+        check_output = "changefeed_health_check_passed"
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
                                          check_type=check_type, check_result=check_result, check_output=check_output)
@@ -215,8 +258,7 @@ def orphan_health_check(deployment_env, region, cluster_name):
             check_result = "pass"
     except (psycopg2.DatabaseError, ValueError) as error:
         check_output = "db_connection_error"
-        check_result = "fail"
-        logger.error(f"{cluster_name}: {error}")
+        check_result = "error"
     # save results to metadatadb
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -236,7 +278,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name}: starting {check_type}")
     FIND_PTR_SQL = ("select (ts/1000000000)::int::timestamp as \"pts timestamp\", now()-(("
                     "ts/1000000000)::int::timestamp) as \"pts age\", *,crdb_internal.cluster_name() from "
-                    "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '2d';")
+                    "system.protected_ts_records where ((ts/1000000000)::int::timestamp) < now() - interval '25h';")
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
@@ -254,7 +296,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
-        check_result = "fail"
+        check_result = "error"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -417,8 +459,8 @@ def version_mismatch_check(deployment_env, region, cluster_name):
                                                  check_type=check_type, check_result=check_result,
                                                  check_output=check_output)
     except (psycopg2.DatabaseError, ValueError) as error:
-        logger.error(f"{cluster_name}: encountered error - {error}")
-        check_result = "fail"
+        # logger.error(f"{cluster_name}: encountered error - {error}")
+        check_result = "error"
         check_output = "db_connection_error"
         storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                              aws_account_name=aws_account_alias, workflow_id=workflow_id,
@@ -496,7 +538,7 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
-        check_result = "fail"
+        check_result = "error"
 
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
@@ -540,7 +582,7 @@ def backup_health_check(deployment_env, region, cluster_name):
     except (psycopg2.DatabaseError, ValueError) as error:
         logger.error(f"{cluster_name}: encountered error - {error}")
         check_output = "db_connection_error"
-        check_result = "fail"
+        check_result = "error"
     # write results to storage_metadata
     storage_metadata.insert_health_check(cluster_name=cluster_name, deployment_env=deployment_env, region=region,
                                          aws_account_name=aws_account_alias, workflow_id=workflow_id,
