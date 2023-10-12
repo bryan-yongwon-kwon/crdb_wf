@@ -9,9 +9,6 @@ class ChangefeedJob(BaseJob):
 
     REMOVE_COORDINATOR_BY_JOB_ID_SQL = "UPDATE system.jobs SET claim_session_id = NULL WHERE id = '{}';"
     GET_COORDINATOR_BY_JOB_ID_SQL = "SELECT coordinator_id from crdb_internal.jobs WHERE job_id = '{}';"
-    GET_LATENCY_SQL = "SELECT (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS latency FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
-    GET_RUNNING_STATUS_SQL = "SELECT running_status FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
-    GET_ERROR_SQL = "SELECT error FROM crdb_internal.jobs WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
     GET_CHANGEFEED_METADATA = "SELECT running_status,error,(((high_water_timestamp/1e9)::INT)-NOW()::INT) AS latency,CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE END AS is_initial_scan_only,(finished::INT-now()::INT) as finished_ago_seconds FROM crdb_internal.jobs AS OF SYSTEM TIME FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
 
     @staticmethod
@@ -27,29 +24,12 @@ class ChangefeedJob(BaseJob):
         super().__init__(response[0], response[1], response[2], cluster_name)
         self._response = response
         self._cluster_name = cluster_name
-
-    @property
-    def changefeed_latency(self):
-        return self.connection.execute_sql(self.GET_LATENCY_SQL.format(self.id),
-                                    need_commit=False, need_fetchone=True, need_connection_close=False)[0]
-
-    @property
-    def changefeed_running_status(self):
-        return self.connection.execute_sql(self.GET_RUNNING_STATUS_SQL.format(self.id),
-                                    need_commit=False, need_fetchone=True, need_connection_close=False)[0]
-
-    @property
-    def changefeed_error(self):
-        return self.connection.execute_sql(self.GET_ERROR_SQL.format(self.id),
-                                    need_commit=False, need_fetchone=True, need_connection_close=False)[0]
     
     @property
     def changefeed_metadata(self):
         changefeed_metadata_response = self.connection.execute_sql(self.GET_CHANGEFEED_METADATA.format(self.id),
                                     need_commit=False, need_fetchone=True, need_connection_close=False, auto_commit=True)
         return ChangefeedJob.ChangefeedJobInternalStatus(changefeed_metadata_response)
-    
-    #job.internal_status.error
     
     def pause(self):
         self.connection.execute_sql(self.PAUSE_JOB_BY_ID_SQL.format(self.id),
