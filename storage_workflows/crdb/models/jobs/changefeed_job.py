@@ -19,7 +19,7 @@ class ChangefeedJob(BaseJob):
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
         response = connection.execute_sql(BaseJob.FIND_ALL_JOBS_BY_TYPE_SQL.format('CHANGEFEED'),
-                                          need_connection_close=False, need_commit=False, autocommit=True)
+                                          need_connection_close=False, need_commit=False, auto_commit=True)
         connection.close()
         return list(map(lambda job: ChangefeedJob(job, cluster_name), response))
     
@@ -46,7 +46,7 @@ class ChangefeedJob(BaseJob):
     @property
     def changefeed_metadata(self):
         changefeed_metadata_response = self.connection.execute_sql(self.GET_CHANGEFEED_METADATA.format(self.id),
-                                    need_commit=False, need_fetchone=True, need_connection_close=False, autocommit=True)
+                                    need_commit=False, need_fetchone=True, need_connection_close=False, auto_commit=True)
         return ChangefeedJob.ChangefeedJobInternalStatus(changefeed_metadata_response)
     
     #job.internal_status.error
