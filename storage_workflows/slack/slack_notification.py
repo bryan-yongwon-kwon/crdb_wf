@@ -104,8 +104,6 @@ class SlackNotification:
 
             try:
                 response = requests.post(url, headers=headers, files=payload)
-                # Log the full response for debugging:
-                logger.info(f"Slack Response: {response.text}")
             except Exception as e:
                 # Log any exception that arises:
                 logger.error(f"Error sending file to Slack: {str(e)}")
