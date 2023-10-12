@@ -99,30 +99,24 @@ class ChangefeedJob(BaseJob):
 
     class ChangefeedJobInternalStatus:
         def __init__(self, response):
-            logger.info("response: {}".format(response))
             self._response = response
 
         @property
         def running_status(self):
-            logger.info("running_status: {}".format(self._response[0]))
             return self._response[0]
 
         @property
         def error(self):
-            logger.info("error: {}".format(self._response[1]))
             return self._response[1]
 
         @property
         def latency(self):
-            logger.info("latency: {}".format(self._response[2]))
             return self._response[2]
 
         @property
         def is_initial_scan_only(self):
-            logger.info("is_initial_scan_only: {}".format(self._response[3]))
             return self._response[3]
 
         @property
         def finished_ago_seconds(self):
-            logger.info("finished_ago_seconds: {}".format(self._response[4]))
             return self._response[4]
