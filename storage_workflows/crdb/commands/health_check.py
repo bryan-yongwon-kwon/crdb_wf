@@ -187,6 +187,10 @@ def changefeed_health_check(deployment_env, region, cluster_name):
                 logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
                 check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}. FINISHED_AGO_SECONDS: {finished_ago_seconds}")
                 check_result = "fail"
+            elif changefeed_status == "running" and "retryable error" in running_status and (latency is None or latency < -300):
+                logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
+                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
+                check_result = "fail"
             else:
                 logger.info(f"ELSE: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}.")
                 check_output.append(f"ELSE: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}. FINISHED_AGO_SECONDS: {finished_ago_seconds}")
