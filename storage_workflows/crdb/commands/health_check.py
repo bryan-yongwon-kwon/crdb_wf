@@ -157,6 +157,9 @@ def changefeed_health_check(deployment_env, region, cluster_name):
             if changefeed_status == "succeeded":
                 logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status}")
                 continue
+            elif changefeed_status == "canceled":
+                logger.info(f"PASS: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status}")
+                continue
 
             changefeed_metadata = job.changefeed_metadata
             latency = changefeed_metadata.latency
