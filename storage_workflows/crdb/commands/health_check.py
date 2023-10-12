@@ -26,7 +26,7 @@ def get_cluster_names(deployment_env, region):
     setup_env(deployment_env, region)
     asgs = AutoScalingGroup.find_all_auto_scaling_groups([AutoScalingGroup.build_filter_by_crdb_tag()])
     names = list(map(lambda asg: asg.name.split("_{}-".format(deployment_env))[0], asgs))
-    names=["parcel_service"]
+    # names=["parcel_service"]
     names.sort()
     logger.info("Found {} clusters.".format(len(names)))
     logger.info(names)
@@ -189,7 +189,7 @@ def changefeed_health_check(deployment_env, region, cluster_name):
                 check_result = "fail"
             elif changefeed_status == "running" and "retryable error" in running_status and (latency is None or latency < -300):
                 logger.info(f"FAIL: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}.")
-                check_output.append(f"FAIL: {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
+                check_output.append(f"FAIL: RETRYABLE ERROR {changefeed_job_id}: {changefeed_status} latency: {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}. RUNNING_STATUS: {running_status}. ERROR: {error}")
                 check_result = "fail"
             else:
                 logger.info(f"ELSE: {cluster_name}: job_id {changefeed_job_id} is {changefeed_status} with latency {latency}. INITIAL_SCAN_ONLY: {is_initial_scan_only}.")
