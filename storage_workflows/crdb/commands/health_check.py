@@ -159,7 +159,7 @@ def changefeed_health_check(deployment_env, region, cluster_name):
                 continue
 
             changefeed_metadata = job.changefeed_metadata
-            latency = int(changefeed_metadata.latency)
+            latency = changefeed_metadata.latency
             running_status = changefeed_metadata.running_status
             error = changefeed_metadata.error
             is_initial_scan_only = changefeed_metadata.is_initial_scan_only
