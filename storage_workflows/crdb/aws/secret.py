@@ -25,6 +25,5 @@ class Secret:
 
     def get_secret_value(self):
         secret_data = SecretManagerGateway.find_secret(self.arn)
-        print(f"Keys in secret_data: {list(secret_data.keys())}")  # Debugging line
         # Assuming the key is 'SecretString', which is common for AWS Secrets Manager
         return secret_data.get('SecretString', 'N/A')
