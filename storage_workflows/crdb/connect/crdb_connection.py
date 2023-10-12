@@ -7,7 +7,6 @@ from storage_workflows.crdb.aws.secret_value import SecretValue
 from storage_workflows.crdb.api_gateway.secret_manager_gateway import SecretManagerGateway
 from storage_workflows.logging.logger import Logger
 from psycopg2 import OperationalError, InterfaceError, ProgrammingError
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 logger = Logger()
 
@@ -69,7 +68,6 @@ class CrdbConnection:
                                                     sslkey=self._credential_dir_path + os.getenv(
                                                         'CRDB_PRIVATE_KEY_FILE_NAME'),
                                                     application_name='operator-service-argo-workflow')
-            conn_pool.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             return conn_pool
         except Exception as error:
             logger.error(error)
@@ -91,7 +89,6 @@ class CrdbConnection:
                 application_name='operator-service-argo-workflow', # do we have an envar with the actual workflow name?
                 connect_timeout=2  # Set the connection timeout to 2 seconds
             )
-            self._connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             # check for connection error
             if self._connection is None:
                 raise ValueError("Connection is not established.")
@@ -103,10 +100,11 @@ class CrdbConnection:
         if self._connection:
             self._connection.close()
 
-    def execute_sql(self, sql: str, need_commit: bool = False, need_fetchall: bool = True, need_fetchone: bool = False, need_connection_close: bool = False):
+    def execute_sql(self, sql: str, need_commit: bool = False, need_fetchall: bool = True, need_fetchone: bool = False, need_connection_close: bool = False, autocommit: bool = False):
         try:
             if self._connection is None:
                 raise ValueError("Connection is not established.")
+            self._connection.autocommit = autocommit
             cursor = self._connection.cursor()
             cursor.execute(sql)
             if need_commit:
