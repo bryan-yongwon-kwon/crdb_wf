@@ -336,9 +336,22 @@ def etl_health_check(deployment_env, region, cluster_name):
     if elb_load_balancer is not None:
         elb_instances = elb_load_balancer.instances
         old_lb_instances = [instance for instance in elb_instances if
-                                    instance.get('InstanceState', {}).get('State') == 'InService']
+                            instance.get('InstanceState', {}).get('State') == 'InService']
         old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
         logger.info(f"{cluster_name}: Old instances: {old_instance_id_set}")
+
+        out_of_service_instances = [instance for instance in elb_instances if
+                                    instance.get('InstanceState', {}).get('State') != 'InService']
+
+        if out_of_service_instances:
+            elb_load_balancer.register_instances(out_of_service_instances)
+            # Post registration, checking their status again
+            refreshed_out_of_service_instances = [instance for instance in out_of_service_instances if
+                                                  instance.get('InstanceState', {}).get('State') != 'InService']
+            if refreshed_out_of_service_instances:
+                logger.warning(f"{cluster_name}: Some old instances remain out of service even after re-registration.")
+            else:
+                logger.info(f"{cluster_name}: All old instances are now InService after re-registration.")
 
         new_instances = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).instances
         filtered_instances = filter(lambda instance: instance.is_healthy, new_instances)
@@ -346,9 +359,13 @@ def etl_health_check(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name}: New instances: {new_instances}")
 
         if not new_instances:
-            logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
-            check_output = "no_action_needed"
-            check_result = "pass"
+            if len(old_lb_instances) == len(elb_instances):  # all old instances are InService
+                check_output = "no_action_needed"
+                check_result = "pass"
+            else:
+                logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
+                check_output = "no_action_needed"
+                check_result = "pass"
         else:
             new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
             lb_instance_list = list(map(lambda instance: instance['InstanceId'], old_lb_instances))
