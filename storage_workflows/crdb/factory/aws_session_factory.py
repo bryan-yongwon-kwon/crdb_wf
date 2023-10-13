@@ -1,22 +1,36 @@
 import boto3
 import os
+import time
 from botocore.exceptions import ClientError
 
 
 class AwsSessionFactory:
+    _cache = {}
+    _cache_expiry = {}
+    CACHE_DURATION = 3500  # Less than an hour to be safe
 
     @staticmethod
     def create_client(service_name):
+        current_time = time.time()
+
+        # Check if client exists in cache and hasn't expired
+        if service_name in AwsSessionFactory._cache and \
+                current_time < AwsSessionFactory._cache_expiry.get(service_name, 0):
+            return AwsSessionFactory._cache[service_name]
+
         try:
             client = boto3.client(service_name,
                                   aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
                                   aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
                                   aws_session_token=os.getenv('AWS_SESSION_TOKEN'),
                                   region_name=os.getenv('REGION'))
-            # Just a dummy call to check token validity.
-            if service_name == 's3':
-                client.list_buckets()
+
+            # Cache the newly created client and set its expiry time
+            AwsSessionFactory._cache[service_name] = client
+            AwsSessionFactory._cache_expiry[service_name] = current_time + AwsSessionFactory.CACHE_DURATION
+
             return client
+
         except ClientError as e:
             if e.response['Error']['Code'] == 'ExpiredToken':
                 AwsSessionFactory.refresh_token()
@@ -26,8 +40,6 @@ class AwsSessionFactory:
 
     @staticmethod
     def refresh_token():
-        # Assuming you have a mechanism to refresh your token and set environment variables.
-        # Here's a simple example using sts. Adjust according to your setup.
         sts_client = boto3.client('sts',
                                   aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
                                   aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
