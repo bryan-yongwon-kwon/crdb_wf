@@ -359,13 +359,9 @@ def etl_health_check(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name}: New instances: {new_instances}")
 
         if not new_instances:
-            if len(old_lb_instances) == len(elb_instances):  # all old instances are InService
-                check_output = "no_action_needed"
-                check_result = "pass"
-            else:
-                logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
-                check_output = "no_action_needed"
-                check_result = "pass"
+            logger.warning(f"{cluster_name}: No new instances, no need to refresh. Step complete.")
+            check_output = "no_action_needed"
+            check_result = "pass"
         else:
             new_instance_list = list(map(lambda instance: instance['InstanceId'], new_instances))
             lb_instance_list = list(map(lambda instance: instance['InstanceId'], old_lb_instances))
