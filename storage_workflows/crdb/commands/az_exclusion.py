@@ -1,4 +1,5 @@
 import typer
+from psycopg2 import ProgrammingError
 from storage_workflows.crdb.commands.health_check import get_cluster_names
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.logging.logger import Logger
@@ -43,15 +44,30 @@ def setup_schema_single_cluster(deployment_env, region, cluster_name):
     logger.info("Starting schema setup for cluster {}.".format(cluster_name))
     connection = CrdbConnection.get_crdb_connection(cluster_name)
     connection.connect()
-    connection.execute_sql(SQL_CREATE_DR_SCHEMA, auto_commit=True)
+    try:
+        connection.execute_sql(SQL_CREATE_DR_SCHEMA, auto_commit=True)
+    except ProgrammingError:
+        logger.info("Schema auto_discovery does not exists.")
     logger.info("Schema auto_discovery created.")
-    connection.execute_sql(SQL_CREATE_NODES_EXCLUSTION_CONFIG_TABLE, auto_commit=True)
+    try:
+        connection.execute_sql(SQL_CREATE_NODES_EXCLUSTION_CONFIG_TABLE, auto_commit=True)
+    except ProgrammingError:
+        logger.info("Table auto_discovery.nodes_exclusion_config does not exists.")
     logger.info("Table auto_discovery.nodes_exclusion_config created.")
-    connection.execute_sql(SQL_CREATE_NODES_TO_EXCLUDE_VIEW, auto_commit=True)
+    try:
+        connection.execute_sql(SQL_CREATE_NODES_TO_EXCLUDE_VIEW, auto_commit=True)
+    except ProgrammingError:
+        logger.info("View auto_discovery.nodes_to_exclude does not exists.")
     logger.info("View auto_discovery.nodes_to_exclude created.")
-    connection.execute_sql(SQL_CREATE_AZS_TO_EXCLUDE_VIEW, auto_commit=True)
+    try:
+        connection.execute_sql(SQL_CREATE_AZS_TO_EXCLUDE_VIEW, auto_commit=True)
+    except ProgrammingError:
+        logger.info("View auto_discovery.azs_to_exclude does not exists.")
     logger.info("View auto_discovery.azs_to_exclude created.")
-    connection.execute_sql(SQL_CREATE_NODES_VIEW, auto_commit=True)
+    try:
+        connection.execute_sql(SQL_CREATE_NODES_VIEW, auto_commit=True)
+    except ProgrammingError:
+        logger.info("View auto_discovery.nodes does not exists.")
     logger.info("View auto_discovery.nodes created.")
     connection.close()
     logger.info("Schema setup done for cluster {}.".format(cluster_name))
