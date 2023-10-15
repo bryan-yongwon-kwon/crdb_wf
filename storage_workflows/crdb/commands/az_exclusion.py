@@ -14,14 +14,14 @@ def get_cluster_names(deployment_env, region):
 
 @app.command()
 def setup_schema_single_cluster(deployment_env, region, cluster_name):
-    SQL_CREATE_DR_SCHEMA = "CREATE SCHEMA IF NOT EXIST auto_discovery AUTHORIZATION root;"
-    SQL_CREATE_NODES_EXCLUSTION_CONFIG_TABLE = "CREATE TABLE IF NOT EXIST auto_discovery.nodes_exclusion_config (azs STRING[], nodes INT[]);"
-    SQL_CREATE_NODES_TO_EXCLUDE_VIEW = '''CREATE VIEW IF NOT EXIST auto_discovery.nodes_to_exclude 
+    SQL_CREATE_DR_SCHEMA = "CREATE SCHEMA IF NOT EXISTS auto_discovery AUTHORIZATION root;"
+    SQL_CREATE_NODES_EXCLUSTION_CONFIG_TABLE = "CREATE TABLE IF NOT EXISTS auto_discovery.nodes_exclusion_config (azs STRING[], nodes INT[]);"
+    SQL_CREATE_NODES_TO_EXCLUDE_VIEW = '''CREATE VIEW IF NOT EXISTS auto_discovery.nodes_to_exclude 
                                           AS SELECT unnest(nodes) AS node_id FROM auto_discovery.nodes_exclusion_config;'''
-    SQL_CREATE_AZS_TO_EXCLUDE_VIEW = '''CREATE VIEW IF NOT EXIST auto_discovery.azs_to_exclude
+    SQL_CREATE_AZS_TO_EXCLUDE_VIEW = '''CREATE VIEW IF NOT EXISTS auto_discovery.azs_to_exclude
                                         AS SELECT unnest(azs) AS az FROM auto_discovery.nodes_exclusion_config;'''
     SQL_CREATE_NODES_VIEW = '''
-    CREATE VIEW IF NOT EXIST auto_discovery.nodes AS (
+    CREATE VIEW IF NOT EXISTS auto_discovery.nodes AS (
         WITH nodes AS (
             SELECT 
                 node_id, 
