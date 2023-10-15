@@ -44,30 +44,15 @@ def setup_schema_single_cluster(deployment_env, region, cluster_name):
     logger.info("Starting schema setup for cluster {}.".format(cluster_name))
     connection = CrdbConnection.get_crdb_connection(cluster_name)
     connection.connect()
-    try:
-        connection.execute_sql(SQL_CREATE_DR_SCHEMA, auto_commit=True)
-    except ProgrammingError:
-        logger.info("Schema auto_discovery does not exists.")
+    connection.execute_sql(SQL_CREATE_DR_SCHEMA, auto_commit=True)
     logger.info("Schema auto_discovery created.")
-    try:
-        connection.execute_sql(SQL_CREATE_NODES_EXCLUSTION_CONFIG_TABLE, auto_commit=True)
-    except ProgrammingError:
-        logger.info("Table auto_discovery.nodes_exclusion_config does not exists.")
+    connection.execute_sql(SQL_CREATE_NODES_EXCLUSTION_CONFIG_TABLE, auto_commit=True)
     logger.info("Table auto_discovery.nodes_exclusion_config created.")
-    try:
-        connection.execute_sql(SQL_CREATE_NODES_TO_EXCLUDE_VIEW, auto_commit=True)
-    except ProgrammingError:
-        logger.info("View auto_discovery.nodes_to_exclude does not exists.")
+    connection.execute_sql(SQL_CREATE_NODES_TO_EXCLUDE_VIEW, auto_commit=True)
     logger.info("View auto_discovery.nodes_to_exclude created.")
-    try:
-        connection.execute_sql(SQL_CREATE_AZS_TO_EXCLUDE_VIEW, auto_commit=True)
-    except ProgrammingError:
-        logger.info("View auto_discovery.azs_to_exclude does not exists.")
+    connection.execute_sql(SQL_CREATE_AZS_TO_EXCLUDE_VIEW, auto_commit=True)
     logger.info("View auto_discovery.azs_to_exclude created.")
-    try:
-        connection.execute_sql(SQL_CREATE_NODES_VIEW, auto_commit=True)
-    except ProgrammingError:
-        logger.info("View auto_discovery.nodes does not exists.")
+    connection.execute_sql(SQL_CREATE_NODES_VIEW, auto_commit=True)
     logger.info("View auto_discovery.nodes created.")
     connection.close()
     logger.info("Schema setup done for cluster {}.".format(cluster_name))
