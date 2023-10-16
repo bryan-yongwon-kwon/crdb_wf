@@ -1,6 +1,6 @@
 import typer
 from psycopg2 import ProgrammingError
-from storage_workflows.crdb.commands.health_check import get_cluster_names
+from storage_workflows.crdb.commands.health_check import get_cluster_names as gen_names
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.logging.logger import Logger
 from storage_workflows.setup_env import setup_env
@@ -11,7 +11,7 @@ logger = Logger()
 @app.command()
 def get_cluster_names(deployment_env, region):
     setup_env(deployment_env, region)
-    get_cluster_names(deployment_env, region)
+    gen_names(deployment_env, region)
 
 @app.command()
 def setup_schema_single_cluster(deployment_env, region, cluster_name):
