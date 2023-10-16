@@ -11,6 +11,12 @@ class ChangefeedJob(BaseJob):
     GET_COORDINATOR_BY_JOB_ID_SQL = "SELECT coordinator_id from crdb_internal.jobs WHERE job_id = '{}';"
     GET_CHANGEFEED_METADATA = "SELECT running_status,error,(((high_water_timestamp/1e9)::INT)-NOW()::INT) AS latency,CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE END AS is_initial_scan_only,(finished::INT-now()::INT) as finished_ago_seconds FROM crdb_internal.jobs AS OF SYSTEM TIME FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
 
+    PAUSE_REQUESTED = "pause-requested"
+    RUNNING = "running"
+    FAILED = "failed"
+    CANCELED = "canceled"
+    ALLOWED_STATUSES = [PAUSE_REQUESTED, RUNNING]
+
     @staticmethod
     def find_all_changefeed_jobs(cluster_name) -> list[ChangefeedJob]:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
@@ -47,15 +53,23 @@ class ChangefeedJob(BaseJob):
         return self.connection.execute_sql(self.GET_COORDINATOR_BY_JOB_ID_SQL.format(self.id),
                                     need_commit=False, need_fetchone=True, need_connection_close=False, auto_commit=True)[0]
 
-    def wait_for_job_to_pause(self):
-        job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
-        while job_status == "pause-requested" or job_status == "running":
-            logger.info("Waiting for job {} to pause.".format(self.id))
-            logger.info("Current job status for job_id {} : {} ".format(self.id, job_status))
+    def wait_for_job_to_pause(self, timeout=300, interval=2):
+        start_time = time.time()
+
+        while True:
+            elapsed_time = time.time() - start_time
+            if elapsed_time > timeout:
+                logger.error("Timeout reached while waiting for job {} to pause.".format(self.id))
+                break
+
             job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
-            time.sleep(2)
-        if job_status == "failed" or job_status == "canceled":
-            logger.warning("Job status for job_id {} : {} ".format(self.id, job_status))
+            if job_status in self.ALLOWED_STATUSES:
+                logger.info("Waiting for job {} to pause. Current status: {}.".format(self.id, job_status))
+                time.sleep(interval)
+            else:
+                if job_status in [self.FAILED, self.CANCELED]:
+                    logger.warning("Job status for job_id {} : {} ".format(self.id, job_status))
+                break
 
     def wait_for_job_to_resume(self):
         job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
