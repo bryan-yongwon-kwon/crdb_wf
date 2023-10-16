@@ -1,6 +1,7 @@
 import boto3
 import os
 import time
+from functools import cache
 from botocore.exceptions import ClientError
 
 
@@ -51,37 +52,46 @@ class AwsSessionFactory:
         os.environ['AWS_SESSION_TOKEN'] = response['Credentials']['SessionToken']
 
     @staticmethod
+    @cache
     def auto_scaling():
         return AwsSessionFactory.create_client('autoscaling')
 
     @staticmethod
+    @cache
     def secret_manager():
         return AwsSessionFactory.create_client('secretsmanager')
 
     @staticmethod
+    @cache
     def sts():
         return AwsSessionFactory.create_client('sts')
 
     @staticmethod
+    @cache
     def ec2():
         return AwsSessionFactory.create_client('ec2')
 
     @staticmethod
+    @cache
     def elb():
         return AwsSessionFactory.create_client('elb')
 
     @staticmethod
+    @cache
     def iam():
         return AwsSessionFactory.create_client('iam')
 
     @staticmethod
+    @cache
     def ebs():
         return AwsSessionFactory.create_client('ebs')
 
     @staticmethod
+    @cache
     def s3():
         return AwsSessionFactory.create_client('s3')
 
     @staticmethod
+    @cache
     def elbv2():
         return AwsSessionFactory.create_client('elbv2')
