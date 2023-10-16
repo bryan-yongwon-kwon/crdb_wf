@@ -74,6 +74,10 @@ class ChangefeedJob(BaseJob):
         response = connection.execute_sql(BaseJob.GET_JOB_BY_ID_SQL.format(job_id),
                                           need_connection_close=False, need_commit=False, auto_commit=True)
         connection.close()
+        # Logging each item in the response
+        for index, item in enumerate(response):
+            logger.info("Item at index {}: {}".format(index, item))
+
         job = ChangefeedJob(response, cluster_name)
         return job.status
     
