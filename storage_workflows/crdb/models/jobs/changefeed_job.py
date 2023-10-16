@@ -16,6 +16,7 @@ class ChangefeedJob(BaseJob):
     FAILED = "failed"
     CANCELED = "canceled"
     ALLOWED_STATUSES = [PAUSE_REQUESTED, RUNNING]
+    UNEXPECTED_STATUSES = [FAILED, CANCELED]
 
     @staticmethod
     def find_all_changefeed_jobs(cluster_name) -> list[ChangefeedJob]:
@@ -71,14 +72,24 @@ class ChangefeedJob(BaseJob):
                     logger.warning("Job status for job_id {} : {} ".format(self.id, job_status))
                 break
 
-    def wait_for_job_to_resume(self):
-        job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
-        while job_status != "running":
-            if job_status == "failed" or job_status == "canceled":
+    def wait_for_job_to_resume(self, timeout=300, interval=2):
+        start_time = time.time()
+
+        while True:
+            elapsed_time = time.time() - start_time
+            if elapsed_time > timeout:
+                logger.error("Timeout reached while waiting for job {} to resume.".format(self.id))
+                break
+
+            job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
+            if job_status == self.RUNNING:
+                break
+            elif job_status in self.UNEXPECTED_STATUSES:
                 logger.error("Changefeed job with id {} has status {}".format(self.id, job_status))
                 raise Exception("Changefeed job failed or canceled.")
-            time.sleep(2)
-            job_status = ChangefeedJob.get_latest_job_status(self.id, self._cluster_name)
+            else:
+                logger.info("Waiting for job {} to resume. Current status: {}.".format(self.id, job_status))
+                time.sleep(interval)
 
     # todo: https://doordash.atlassian.net/browse/STORAGE-7195
     @staticmethod
