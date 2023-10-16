@@ -391,7 +391,8 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
     if old_instance_ids:
         changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
-        for job in changefeed_jobs:
+        valid_changefeed_jobs = [job for job in changefeed_jobs if job.status not in ["failed", "canceled"]]
+        for job in valid_changefeed_jobs:
             logger.info("Pausing changefeed job {}".format(job.id))
             job.pause()
 
