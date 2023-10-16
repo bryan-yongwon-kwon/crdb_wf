@@ -8,7 +8,8 @@ class BackupJob(BaseJob):
     def find_all_backup_jobs(cluster_name) -> list[BackupJob]:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        response = connection.execute_sql(BaseJob.FIND_ALL_JOBS_BY_TYPE_SQL.format('BACKUP'))
+        response = connection.execute_sql(BaseJob.FIND_ALL_JOBS_BY_TYPE_SQL.format('BACKUP'),
+                                          need_connection_close=False, need_commit=False, auto_commit=True)
         connection.close()
         return list(map(lambda job: BackupJob(job, cluster_name), response))
 
