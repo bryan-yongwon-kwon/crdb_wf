@@ -32,12 +32,12 @@ class ChangefeedJob(BaseJob):
         self._response = response
         self._cluster_name = cluster_name
 
-    # STORAGE-7848: debugging changefeed errors
-    # @property
-    # def changefeed_metadata(self):
-    #    changefeed_metadata_response = self.connection.execute_sql(self.GET_CHANGEFEED_METADATA.format(self.id),
-    #                                need_commit=False, need_fetchone=True, need_connection_close=False, auto_commit=True)
-    #    return ChangefeedJob.ChangefeedJobInternalStatus(changefeed_metadata_response)
+
+    @property
+    def changefeed_metadata(self):
+       changefeed_metadata_response = self.connection.execute_sql(self.GET_CHANGEFEED_METADATA.format(self.id),
+                                   need_commit=False, need_fetchone=True, need_connection_close=False, auto_commit=True)
+       return ChangefeedJob.ChangefeedJobInternalStatus(changefeed_metadata_response)
     
     def pause(self):
         self.connection.execute_sql(self.PAUSE_JOB_BY_ID_SQL.format(self.id),
