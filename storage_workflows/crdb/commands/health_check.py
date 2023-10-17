@@ -234,7 +234,8 @@ def orphan_health_check(deployment_env, region, cluster_name):
         find_crdb_node_ip_sql = "select address from crdb_internal.kv_node_status;"
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        crdb_node_ips = connection.execute_sql(find_crdb_node_ip_sql)
+        crdb_node_ips = connection.execute_sql(find_crdb_node_ip_sql, need_connection_close=False, need_commit=False,
+                                               auto_commit=True)
         connection.close()
         crdb_cluster_instance_count = len(crdb_node_ips)
         logger.info(f"{cluster_name} crdb_node_ips: {crdb_node_ips}")
@@ -282,7 +283,7 @@ def ptr_health_check(deployment_env, region, cluster_name):
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        response = connection.execute_sql(FIND_PTR_SQL)
+        response = connection.execute_sql(FIND_PTR_SQL, need_connection_close=False, need_commit=False, auto_commit=True)
         contains_ptr = any(response)
         if contains_ptr:
             logger.warning(f"{cluster_name}: Protected timestamp records found")
@@ -420,9 +421,11 @@ def version_mismatch_check(deployment_env, region, cluster_name):
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        response = connection.execute_sql(crdb_sql_version)
+        response = connection.execute_sql(crdb_sql_version, need_connection_close=False, need_commit=False
+                                          , auto_commit=True)
         connection.connect()
-        cluster_ver_response = connection.execute_sql(crdb_cluster_version)
+        cluster_ver_response = connection.execute_sql(crdb_cluster_version,
+                                          need_connection_close=False, need_commit=False, auto_commit=True)
         connection.close()
         # save sql response
         check_output = response
@@ -537,7 +540,8 @@ def zone_config_health_check(deployment_env, region, cluster_name):
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        response = connection.execute_sql(FIND_ZONE_CONFIG_SQL)
+        response = connection.execute_sql(FIND_ZONE_CONFIG_SQL,
+                                          need_connection_close=False, need_commit=False, auto_commit=True)
         statement = response[0][0]
         if 'num_replicas = 5' in statement:
             logger.info(f"{cluster_name}: The default replication factor is correctly set to 5.")
@@ -577,7 +581,8 @@ def backup_health_check(deployment_env, region, cluster_name):
     try:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        backup_count = connection.execute_sql(get_backup_schedule_count_sql)
+        backup_count = connection.execute_sql(get_backup_schedule_count_sql,
+                                          need_connection_close=False, need_commit=False, auto_commit=True)
         count = backup_count[0][0]
         if count is None:
             logger.info(f"{cluster_name}: Failed to fetch the backup schedule count.")

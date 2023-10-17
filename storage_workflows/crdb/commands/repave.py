@@ -391,17 +391,19 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
     if old_instance_ids:
         changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
-        for job in changefeed_jobs:
+        valid_changefeed_jobs = [job for job in changefeed_jobs if job.status not in ["failed", "canceled"]]
+        for job in valid_changefeed_jobs:
             logger.info("Pausing changefeed job {}".format(job.id))
             job.pause()
 
         #wait for all jobs to pause
-        for job in changefeed_jobs:
+        for job in valid_changefeed_jobs:
+            logger.info("Checking to see if {} is paused".format(job.id))
             job.wait_for_job_to_pause()
 
         logger.info("Paused all changefeed jobs!")
 
-        for job in changefeed_jobs:
+        for job in valid_changefeed_jobs:
             logger.info("Removing coordinator node for job {}".format(job.id))
             job.remove_coordinator_node()
         logger.info("Removed coordinator node for all changefeed jobs!")
@@ -413,7 +415,7 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         old_node_ids = set(map(lambda node: node.id, old_nodes))
         logger.info("Node ids of old nodes" + str(old_node_ids))
 
-        for job in changefeed_jobs:
+        for job in valid_changefeed_jobs:
             logger.info("Resuming changefeed job {}".format(job.id))
             job.resume()
             # wait for job to resume

@@ -39,5 +39,5 @@ class BaseUser:
         connection = CrdbConnection.get_crdb_connection(self.cluster_name)
         connection.connect()
         for statement in self.user_creation_sql_statements:
-            connection.execute_sql(statement, need_fetchall=False, need_connection_close=False)
+            connection.execute_sql(statement, need_connection_close=False, need_commit=False, auto_commit=True)
         connection.close()

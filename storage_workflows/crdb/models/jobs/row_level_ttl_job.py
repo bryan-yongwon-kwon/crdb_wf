@@ -8,7 +8,8 @@ class RowLevelTtlJob(BaseJob):
     def find_all_row_level_ttl_jobs(cluster_name) -> list[RowLevelTtlJob]:
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
-        response = connection.execute_sql(BaseJob.FIND_ALL_JOBS_BY_TYPE_SQL.format('ROW LEVEL TTL'))
+        response = connection.execute_sql(BaseJob.FIND_ALL_JOBS_BY_TYPE_SQL.format('ROW LEVEL TTL'),
+                                          need_connection_close=False, need_commit=False, auto_commit=True)
         connection.close()
         return list(map(lambda job: RowLevelTtlJob(job, cluster_name), response))
 
