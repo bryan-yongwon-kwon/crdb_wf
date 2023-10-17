@@ -84,7 +84,7 @@ def mute_alerts(deployment_env, cluster_name, region='us-west-2'):
     setup_env(deployment_env, region, cluster_name)
     def make_alert_label_matcher(name, type, value):
         return {"name": name, "type": type, "value": value}
-    aws_region = os.environ['REGION']
+    aws_region = region
 
     cluster_name_label_matcher = make_alert_label_matcher("cluster", "EXACT", cluster_name + "_" + deployment_env)
     live_node_count_decreased_label_matcher = make_alert_label_matcher("Description", "EXACT",
