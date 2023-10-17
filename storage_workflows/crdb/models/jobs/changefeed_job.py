@@ -104,8 +104,9 @@ class ChangefeedJob(BaseJob):
         for index, item in enumerate(response):
             logger.info("Item at index {}: {}".format(index, item))
 
-        job = ChangefeedJob(response, cluster_name)
-        return job.status
+        job_status = response[2]
+
+        return job_status
     
 
     class ChangefeedJobInternalStatus:

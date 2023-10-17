@@ -398,6 +398,7 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
 
         #wait for all jobs to pause
         for job in valid_changefeed_jobs:
+            logger.info("Checking to see if {} is paused".format(job.id))
             job.wait_for_job_to_pause()
 
         logger.info("Paused all changefeed jobs!")
