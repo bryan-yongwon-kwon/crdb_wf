@@ -415,7 +415,7 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
         old_node_ids = set(map(lambda node: node.id, old_nodes))
         logger.info("Node ids of old nodes" + str(old_node_ids))
 
-        for job in changefeed_jobs:
+        for job in valid_changefeed_jobs:
             logger.info("Resuming changefeed job {}".format(job.id))
             job.resume()
             # wait for job to resume
