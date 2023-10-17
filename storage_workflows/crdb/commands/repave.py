@@ -79,7 +79,9 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
 
 @app.command()
-def mute_alerts(deployment_env, cluster_name):
+def mute_alerts(deployment_env, cluster_name, region='us-west-2'):
+    # TODO: update workflow template to pass in region for this step
+    setup_env(deployment_env, region, cluster_name)
     def make_alert_label_matcher(name, type, value):
         return {"name": name, "type": type, "value": value}
     aws_region = os.environ['REGION']
