@@ -397,12 +397,12 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
             job.pause()
 
         #wait for all jobs to pause
-        for job in changefeed_jobs:
+        for job in valid_changefeed_jobs:
             job.wait_for_job_to_pause()
 
         logger.info("Paused all changefeed jobs!")
 
-        for job in changefeed_jobs:
+        for job in valid_changefeed_jobs:
             logger.info("Removing coordinator node for job {}".format(job.id))
             job.remove_coordinator_node()
         logger.info("Removed coordinator node for all changefeed jobs!")
