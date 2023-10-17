@@ -3,7 +3,9 @@ import os
 import time
 from functools import cache
 from botocore.exceptions import ClientError
+from storage_workflows.logging.logger import Logger
 
+logger = Logger()
 
 class AwsSessionFactory:
     _cache = {}
@@ -34,6 +36,7 @@ class AwsSessionFactory:
 
         except ClientError as e:
             if e.response['Error']['Code'] == 'ExpiredToken':
+                logger.error(f"ExpiredToken error encountered. Refreshing token.")
                 AwsSessionFactory.refresh_token()
                 return AwsSessionFactory.create_client(service_name)
             else:
