@@ -104,7 +104,7 @@ class ChangefeedJob(BaseJob):
         for index, item in enumerate(response):
             logger.info("Item at index {}: {}".format(index, item))
 
-        job_status = response[2]
+        job_status = response[0][2]
 
         return job_status
     
