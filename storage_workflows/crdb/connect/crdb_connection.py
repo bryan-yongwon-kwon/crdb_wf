@@ -123,7 +123,7 @@ class CrdbConnection:
             self._connection.close()
 
     def execute_sql(self, sql: str, need_commit: bool = False, need_fetchall: bool = True, need_fetchone: bool = False,
-                    need_connection_close: bool = False, auto_commit: bool = True):
+                    need_connection_close: bool = False, auto_commit: bool = False):
         try:
             if self._connection is None:
                 raise ValueError("Connection is not established.")
