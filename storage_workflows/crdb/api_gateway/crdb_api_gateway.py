@@ -1,81 +1,73 @@
 import os
 import json
 from requests import get, post, exceptions
-from requests.cookies import RequestsCookieJar
 from storage_workflows.logging.logger import Logger
 from urllib.parse import quote
+from requests.cookies import RequestsCookieJar
 
 logger = Logger()
-
 
 class CrdbApiGateway:
 
     @staticmethod
-    def login():
+    def login(retries=2):
         rootpwd = os.getenv('ROOT_PASSWORD')
         encoded_rootpwd = quote(rootpwd)
         url = f"https://{CrdbApiGateway.__make_url()}/api/v2/login/?username=root&password={encoded_rootpwd}"
 
-        try:
-            response = post(url)
+        for _ in range(retries + 1): # retries + original attempt
+            try:
+                response = post(url)
 
-            # Check for 401 Unauthorized
-            if response.status_code == 401:
-                logger.error(f"Login failed with 401 Unauthorized. Message: {response.text}")
-                return None
+                if response.status_code == 200 and response.text.strip():
+                    return response.json().get("session")
 
-            # Check if the response is not 200 OK
-            elif response.status_code != 200:
-                logger.error(f"Login failed with status code {response.status_code}: {response.text}")
-                return None
+                # Log the unexpected response
+                logger.warning(f"Unexpected response from login URL {url}: {response.text}")
 
-            # Check for empty response
-            if not response.text.strip():
-                logger.error(f"Empty response received from login url: {url}")
-                return None
+            except (json.decoder.JSONDecodeError, exceptions.RequestException) as e:
+                logger.error(f"Request failed: {e}")
 
-            session = response.json().get("session")
-            return session
-
-        except json.decoder.JSONDecodeError:
-            logger.error(f"Cannot retrieve session token from login url: {url}. Response: {response.text}")
-        except exceptions.RequestException as e:
-            logger.error(f"Request failed: {e}")
-
+        logger.error(f"Login failed after {retries + 1} attempts")
         return None
 
     @staticmethod
-    def list_nodes(session: str, limit=200, offset=0):
-        try:
-            response = get(f"https://{CrdbApiGateway.__make_url()}/api/v2/nodes/?limit={limit}&offset={offset}",
-                           headers={"X-Cockroach-API-Session": session})
+    def list_nodes(session:str, limit=200, offset=0, retries=2):
+        for _ in range(retries + 1):
+            try:
+                response = get(f"https://{CrdbApiGateway.__make_url()}/api/v2/nodes/?limit={limit}&offset={offset}",
+                               headers={"X-Cockroach-API-Session": session})
 
-            # Add a check for the status code here too, if required.
+                if response.status_code == 200 and response.text.strip():
+                    return response.json()
 
-            return response.json()
-        except json.decoder.JSONDecodeError:
-            logger.error(f"Cannot retrieve node list. Response: {response.text}")
-        except exceptions.RequestException as e:
-            logger.error(f"Request failed: {e}")
+                logger.warning(f"Unexpected response from list nodes URL: {response.text}")
 
+            except (json.decoder.JSONDecodeError, exceptions.RequestException) as e:
+                logger.error(f"Request failed: {e}")
+
+        logger.error(f"Failed to retrieve node list after {retries + 1} attempts")
         return {}
 
     @staticmethod
-    def get_node_details_from_endpoint(session: str, node_id: str):
+    def get_node_details_from_endpoint(session:str, node_id:str, retries=2):
         jar = RequestsCookieJar()
         jar.set(name='session', value=session, path='/')
-        try:
-            response = get(f"https://{CrdbApiGateway.__make_url()}/_status/nodes/{node_id}",
-                           cookies=jar)
 
-            # Add a check for the status code here too, if required.
+        for _ in range(retries + 1):
+            try:
+                response = get(f"https://{CrdbApiGateway.__make_url()}/_status/nodes/{node_id}",
+                               cookies=jar)
 
-            return response.json()
-        except json.decoder.JSONDecodeError:
-            logger.error(f"Cannot retrieve details for node {node_id}. Response: {response.text}")
-        except exceptions.RequestException as e:
-            logger.error(f"Request failed: {e}")
+                if response.status_code == 200 and response.text.strip():
+                    return response.json()
 
+                logger.warning(f"Unexpected response from node details URL for node {node_id}: {response.text}")
+
+            except (json.decoder.JSONDecodeError, exceptions.RequestException) as e:
+                logger.error(f"Request failed: {e}")
+
+        logger.error(f"Failed to retrieve details for node {node_id} after {retries + 1} attempts")
         return {}
 
     @staticmethod
