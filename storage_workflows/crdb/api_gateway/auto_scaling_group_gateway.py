@@ -121,3 +121,18 @@ class AutoScalingGroupGateway:
 
             logger.info(f"Status Code: {status_code}")
         return
+
+    @staticmethod
+    def _get_current_asg_instances(asg_name):
+        auto_scaling_client = AwsSessionFactory.auto_scaling()
+        response = auto_scaling_client.describe_auto_scaling_groups(
+            AutoScalingGroupNames=[asg_name]
+        )
+        instances = response['AutoScalingGroups'][0]['Instances']
+        return [instance['InstanceId'] for instance in instances]
+
+    @staticmethod
+    def _get_instance_type_from_launch_template(launch_template_id):
+        ec2_client = AwsSessionFactory.ec2()
+        response = ec2_client.describe_launch_templates(LaunchTemplateIds=[launch_template_id])
+        return response['LaunchTemplates'][0]['LaunchTemplateData']['InstanceType']

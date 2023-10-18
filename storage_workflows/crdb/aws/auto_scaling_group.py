@@ -4,6 +4,8 @@ from storage_workflows.crdb.aws.auto_scaling_group_instance import AutoScalingGr
 from storage_workflows.logging.logger import Logger
 import os
 import time
+from botocore.exceptions import ClientError
+from storage_workflows.crdb.factory.aws_session_factory import AwsSessionFactory
 
 logger = Logger()
 
@@ -37,6 +39,8 @@ class AutoScalingGroup:
 
     def __init__(self, api_response):
         self._api_response = api_response
+        self.launch_template = api_response['LaunchTemplate']
+        self.availability_zones = api_response['AvailabilityZones']
 
     @property
     def instances(self) -> list[AutoScalingGroupInstance]:
@@ -50,44 +54,52 @@ class AutoScalingGroup:
     def name(self):
         return self._api_response['AutoScalingGroupName']
 
+    @property
+    def instance_type(self):
+        launch_template_id = self.launch_template['LaunchTemplateId']
+        return AutoScalingGroupGateway._get_instance_type_from_launch_template(launch_template_id)
+
+    @property
+    def current_instances(self):
+        return AutoScalingGroupGateway._get_current_asg_instances(self.name)
+
     def reload(self, cluster_name:str):
         self._api_response = AutoScalingGroupGateway.describe_auto_scaling_groups([AutoScalingGroup.build_filter_by_cluster_name(cluster_name)])[0]
 
     def instances_not_in_service_exist(self):
         return any(map(lambda instance: not instance.in_service(), self.instances))
-    
-    def add_ec2_instances(self, desired_capacity, autoscale=False):
-        asg_instances = self.instances
 
-        # STORAGE-7583: skip this check if desired_capacity was set statically
+    def add_ec2_instances(self, desired_capacity, autoscale=False):
+        asg_instances = AutoScalingGroupGateway._get_current_asg_instances(self.name)
+
         if desired_capacity == self.capacity and not autoscale:
             logger.warning("Expected Desired capacity same as existing desired capacity.")
             return
 
-        initial_actual_capacity = len(asg_instances)  # sum of all instances irrespective of their state
-        old_instance_ids = set()
-        # Retrieve the existing instance IDs
-        for instance in asg_instances:
-            old_instance_ids.add(instance.instance_id)
+        initial_actual_capacity = len(asg_instances)
+        old_instance_ids = set([instance['InstanceId'] for instance in asg_instances])
 
+        # Check if instance type is available across AZs
+        desired_increase = desired_capacity - self.capacity
+        available_azs = self.get_az_with_available_instances(desired_increase)
+
+        if not available_azs:
+            logger.error("No instance type available in desired AZs.")
+            return
+
+        # Update ASG capacity
         AutoScalingGroupGateway.update_auto_scaling_group_capacity(self.name, desired_capacity)
-        # Wait for the new instances to be added to the Auto Scaling group
-        while True:
-            asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(self.name)[0]["Instances"]
-            actual_capacity = len(asg_instances)
-            new_instance_ids = set()  # Store new instance IDs
-            # Retrieve the instance IDs of the newly added instances
-            for instance in asg_instances:
-                if instance["InstanceId"] not in old_instance_ids and instance["LifecycleState"] == "InService":
-                    new_instance_ids.add(instance["InstanceId"])
-            # Check if all new instances are found
-            if len(new_instance_ids) == actual_capacity - initial_actual_capacity and actual_capacity != initial_actual_capacity:
-                logger.info("All new instances are ready.")
-                break
-            # Wait before checking again
-            time.sleep(10)
 
-        return list(new_instance_ids)
+        # This is just a brief sleep to allow AWS some time for instantiation.
+        time.sleep(10)
+
+        new_asg_instances = AutoScalingGroupGateway._get_current_asg_instances(self.name)
+        new_instance_ids = set([instance['InstanceId'] for instance in new_asg_instances]) - old_instance_ids
+
+        if len(new_instance_ids) != desired_increase:
+            logger.warning("Not all instances were properly instantiated.")
+
+        # TODO: Additional steps to handle these new instances, if necessary.
 
     def check_equal_az_distribution_in_asg(self):
         az_count = {}
@@ -148,3 +160,32 @@ class AutoScalingGroup:
                     break
 
         return instance_ids_to_terminate
+
+    def get_current_az_distribution(self):
+        az_count = {"us-west-2a": 0, "us-west-2b": 0, "us-west-2c": 0}  # You can adjust the AZs based on your needs
+        for instance in self.instances:
+            az = instance['AvailabilityZone']
+            if az in az_count:
+                az_count[az] += 1
+        return az_count
+
+    def get_az_with_available_instances(self, desired_increase: int) -> list:
+        az_count = self.get_current_az_distribution()
+        ec2_client = AwsSessionFactory.ec2()
+        available_azs = []
+
+        for az, count in az_count.items():
+            try:
+                ec2_client.run_instances(
+                    DryRun=True,
+                    InstanceType=self.instance_type,
+                    MaxCount=count + desired_increase,
+                    MinCount=count + desired_increase,
+                    Placement={'AvailabilityZone': az},
+                )
+                available_azs.append(az)
+            except ClientError as e:
+                if "DryRunOperation" not in str(e):
+                    logger.error(f"Failed to check instance availability in {az}: {e}")
+
+        return available_azs
