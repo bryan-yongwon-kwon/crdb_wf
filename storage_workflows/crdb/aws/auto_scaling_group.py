@@ -39,8 +39,6 @@ class AutoScalingGroup:
 
     def __init__(self, api_response):
         self._api_response = api_response
-        self.launch_template = api_response['LaunchTemplate']
-        self.availability_zones = api_response['AvailabilityZones']
 
     @property
     def instances(self) -> list[AutoScalingGroupInstance]:
@@ -53,6 +51,14 @@ class AutoScalingGroup:
     @property
     def name(self):
         return self._api_response['AutoScalingGroupName']
+
+    @property
+    def availability_zone(self):
+        return self._api_response['AvailabilityZone']
+
+    @property
+    def launch_template(self):
+        return self._api_response['LaunchTemplate']
 
     @property
     def instance_type(self):
@@ -163,7 +169,7 @@ class AutoScalingGroup:
     def get_current_az_distribution(self):
         az_count = {"us-west-2a": 0, "us-west-2b": 0, "us-west-2c": 0}  # You can adjust the AZs based on your needs
         for instance in self.instances:
-            az = instance['AvailabilityZone']
+            az = instance.availability_zone  # Use the property method from the AutoScalingGroupInstance class
             if az in az_count:
                 az_count[az] += 1
         return az_count
