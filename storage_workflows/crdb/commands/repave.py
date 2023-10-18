@@ -79,19 +79,38 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
         raise Exception("Instances don't match. ETL load balancer refresh failed!")
 
 @app.command()
-def mute_alerts(deployment_env, cluster_name):
+def mute_alerts(deployment_env, cluster_name, region='us-west-2'):
+    # TODO: update workflow template to pass in region for this step
+    setup_env(deployment_env, region, cluster_name)
     def make_alert_label_matcher(name, type, value):
         return {"name": name, "type": type, "value": value}
-    cluster_name_label_matcher = make_alert_label_matcher("cluster", "EXACT", cluster_name+"_"+deployment_env)
-    live_node_count_changed_label_matcher = make_alert_label_matcher("Description", "EXACT", "The count of live nodes has decreased")
+    aws_region = region
+
+    cluster_name_label_matcher = make_alert_label_matcher("cluster", "EXACT", cluster_name + "_" + deployment_env)
+    live_node_count_decreased_label_matcher = make_alert_label_matcher("Description", "EXACT",
+                                                                       "The count of live nodes has decreased")
+    live_node_count_increased_label_matcher = make_alert_label_matcher("Description", "EXACT",
+                                                                       "The count of live nodes has increased")  # New Matcher
     changefeed_stopped_label_matcher = make_alert_label_matcher("Description", "EXACT", "Changefeed is Stopped")
-    underreplicated_range_label_matcher = make_alert_label_matcher("Description", "EXACT", "Underreplicated Range Detected")
+    underreplicated_range_label_matcher = make_alert_label_matcher("Description", "EXACT",
+                                                                   "Underreplicated Range Detected")
     backup_failed_label_matcher = make_alert_label_matcher("Description", "EXACT", "Incremental or full backup failed.")
+
+    # Create a label matcher for the AWS region
+    region_label_matcher = make_alert_label_matcher("region", "EXACT", aws_region)
+
     slug_list = []
-    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, live_node_count_changed_label_matcher]))
-    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, changefeed_stopped_label_matcher]))
-    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, underreplicated_range_label_matcher]))
-    slug_list.append(ChronosphereApiGateway.create_muting_rule([cluster_name_label_matcher, backup_failed_label_matcher]))
+    slug_list.append(ChronosphereApiGateway.create_muting_rule(
+        [cluster_name_label_matcher, live_node_count_decreased_label_matcher, region_label_matcher]))
+    slug_list.append(ChronosphereApiGateway.create_muting_rule(
+        [cluster_name_label_matcher, live_node_count_increased_label_matcher, region_label_matcher]))  # New Mute Rule
+    slug_list.append(ChronosphereApiGateway.create_muting_rule(
+        [cluster_name_label_matcher, changefeed_stopped_label_matcher, region_label_matcher]))
+    slug_list.append(ChronosphereApiGateway.create_muting_rule(
+        [cluster_name_label_matcher, underreplicated_range_label_matcher, region_label_matcher]))
+    slug_list.append(ChronosphereApiGateway.create_muting_rule(
+        [cluster_name_label_matcher, backup_failed_label_matcher, region_label_matcher]))
+
     output_file = open("/tmp/slugs.json", "w")
     output_file.write(json.dumps(slug_list))
     output_file.close()
