@@ -76,8 +76,7 @@ class AutoScalingGroup:
             logger.warning("Expected Desired capacity same as existing desired capacity.")
             return
 
-        initial_actual_capacity = len(asg_instances)
-        old_instance_ids = set([instance['InstanceId'] for instance in asg_instances])
+        old_instance_ids = set(asg_instances)
 
         # Check if instance type is available across AZs
         desired_increase = desired_capacity - self.capacity
@@ -94,7 +93,7 @@ class AutoScalingGroup:
         time.sleep(10)
 
         new_asg_instances = AutoScalingGroupGateway._get_current_asg_instances(self.name)
-        new_instance_ids = set([instance['InstanceId'] for instance in new_asg_instances]) - old_instance_ids
+        new_instance_ids = set(new_asg_instances) - old_instance_ids
 
         if len(new_instance_ids) != desired_increase:
             logger.warning("Not all instances were properly instantiated.")
