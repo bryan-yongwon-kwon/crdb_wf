@@ -12,6 +12,7 @@ class CrdbApiGateway:
     def login():
         rootpwd = os.getenv('ROOT_PASSWORD')
         encoded_rootpwd = quote(rootpwd)
+        logger.info(f"encoded rootpwd: {encoded_rootpwd}")
         url = f"https://{CrdbApiGateway.__make_url()}/api/v2/login/?username=root&password={encoded_rootpwd}"
 
         try:
