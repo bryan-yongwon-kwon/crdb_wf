@@ -62,13 +62,20 @@ class AutoScalingGroup:
 
     @property
     def instance_type(self):
-        if self.launch_configuration_name:
-            instance_type = AutoScalingGroupGateway._get_instance_type_from_launch_configuration(
-                self.launch_configuration_name)
-            logger.info(f"Instance type derived from LC for ASG {self.name}: {instance_type}")
-            return instance_type
-        else:
-            return None
+        launch_template_id = None
+        launch_configuration_name = self.launch_configuration_name
+
+        # Check if launch_template property contains the necessary data
+        if self.launch_template and 'LaunchTemplateId' in self.launch_template:
+            launch_template_id = self.launch_template['LaunchTemplateId']
+
+        instance_type_value = AutoScalingGroupGateway._get_instance_type_from_launch_configuration_or_template(
+            launch_template_id=launch_template_id,
+            launch_configuration_name=launch_configuration_name
+        )
+
+        logger.info(f"Instance type derived for ASG {self.name}: {instance_type_value}")
+        return instance_type_value
 
     @property
     def current_instances(self):

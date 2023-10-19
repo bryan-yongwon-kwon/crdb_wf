@@ -131,18 +131,35 @@ class AutoScalingGroupGateway:
         instances = response['AutoScalingGroups'][0]['Instances']
         return [instance['InstanceId'] for instance in instances]
 
-    @staticmethod
-    def _get_instance_type_from_launch_configuration(launch_configuration_name):
-        auto_scaling_client = AwsSessionFactory.auto_scaling()
+    def _get_instance_type_from_launch_configuration_or_template(launch_template_id=None,
+                                                                 launch_configuration_name=None):
+        if launch_template_id:
+            ec2_client = AwsSessionFactory.ec2()
+            response = ec2_client.describe_launch_template_versions(
+                LaunchTemplateId=launch_template_id,
+                Versions=['$Latest']
+            )
+            logger.info(f"response for ec2_client.describe_launch_template_versions: {response}")
 
-        # Describe launch configurations
-        response = auto_scaling_client.describe_launch_configurations(
-            LaunchConfigurationNames=[launch_configuration_name]
-        )
-        logger.info(f"response for auto_scaling_client.describe_launch_configurations: {response}")
-        # Extract instance type
-        if 'LaunchConfigurations' in response and len(response['LaunchConfigurations']) > 0:
-            return response['LaunchConfigurations'][0].get('InstanceType')
+            if 'LaunchTemplateVersions' in response and len(response['LaunchTemplateVersions']) > 0:
+                return response['LaunchTemplateVersions'][0]['LaunchTemplateData'].get('InstanceType')
+            else:
+                logger.error(f"No launch template version found with ID: {launch_template_id}")
+                return None
+
+        elif launch_configuration_name:
+            auto_scaling_client = AwsSessionFactory.auto_scaling()
+            response = auto_scaling_client.describe_launch_configurations(
+                LaunchConfigurationNames=[launch_configuration_name]
+            )
+            logger.info(f"response for auto_scaling_client.describe_launch_configurations: {response}")
+
+            if 'LaunchConfigurations' in response and len(response['LaunchConfigurations']) > 0:
+                return response['LaunchConfigurations'][0].get('InstanceType')
+            else:
+                logger.error(f"No launch configuration found with name: {launch_configuration_name}")
+                return None
+
         else:
-            logger.error(f"No launch configuration found with name: {launch_configuration_name}")
+            logger.error("Both LaunchTemplateId and LaunchConfigurationName are missing.")
             return None
