@@ -132,19 +132,17 @@ class AutoScalingGroupGateway:
         return [instance['InstanceId'] for instance in instances]
 
     @staticmethod
-    def _get_instance_type_from_launch_template(launch_template_id):
-        autoscaling_client = AwsSessionFactory.auto_scaling()
+    def _get_instance_type_from_launch_configuration(launch_configuration_name):
+        auto_scaling_client = AwsSessionFactory.auto_scaling()
 
-        # Fetch launch configuration details
-        logger.info("fetching configurations from describe_launch_configurations")
-        configurations = autoscaling_client.describe_launch_configurations(
-            LaunchConfigurationNames=[launch_template_id])
+        # Describe launch configurations
+        response = auto_scaling_client.describe_launch_configurations(
+            LaunchConfigurationNames=[launch_configuration_name]
+        )
 
-        logger.info(f"fetched configurations from describe_launch_configurations: {configurations}")
-
-        if configurations and 'LaunchConfigurations' in configurations:
-            for config in configurations['LaunchConfigurations']:
-                if config['LaunchConfigurationName'] == launch_template_id:
-                    return config['InstanceType']
-
-        raise ValueError(f"No configuration found with the launch template ID: {launch_template_id}")
+        # Extract instance type
+        if 'LaunchConfigurations' in response and len(response['LaunchConfigurations']) > 0:
+            return response['LaunchConfigurations'][0].get('InstanceType')
+        else:
+            logger.error(f"No launch configuration found with name: {launch_configuration_name}")
+            return None

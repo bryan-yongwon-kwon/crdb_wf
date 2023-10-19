@@ -62,12 +62,18 @@ class AutoScalingGroup:
 
     @property
     def instance_type(self):
-        launch_template_id = self.launch_template['LaunchTemplateId']
-        return AutoScalingGroupGateway._get_instance_type_from_launch_template(launch_template_id)
+        if self.launch_configuration_name:
+            return AutoScalingGroupGateway._get_instance_type_from_launch_configuration(self.launch_configuration_name)
+        else:
+            return None
 
     @property
     def current_instances(self):
         return AutoScalingGroupGateway._get_current_asg_instances(self.name)
+
+    @property
+    def launch_configuration_name(self):
+        return self._api_response.get('LaunchConfigurationName', None)
 
     def reload(self, cluster_name:str):
         self._api_response = AutoScalingGroupGateway.describe_auto_scaling_groups([AutoScalingGroup.build_filter_by_cluster_name(cluster_name)])[0]
