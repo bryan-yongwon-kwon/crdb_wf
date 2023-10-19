@@ -58,7 +58,7 @@ class AutoScalingGroup:
 
     @property
     def launch_template(self):
-        return self._api_response['LaunchTemplate']
+        return self._api_response.get('LaunchTemplate', {})
 
     @property
     def instance_type(self):
@@ -197,7 +197,7 @@ class AutoScalingGroup:
         return az_count
 
     def get_image_id_from_launch_template(self):
-        launch_template_id = self.launch_template_id
+        launch_template_id = self.launch_template.get('LaunchTemplateId', None)
 
         if not launch_template_id:
             logger.error("Launch template ID is missing or None.")
