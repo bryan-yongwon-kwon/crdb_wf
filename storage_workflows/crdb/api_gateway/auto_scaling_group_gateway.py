@@ -44,25 +44,39 @@ class AutoScalingGroupGateway:
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             logger.info(f'Auto Scaling group capacity successfully updated to {desired_capacity}.')
         else:
-            logger.error('Error message:', response['ResponseMetadata']['HTTPHeaders']['x-amzn-requestid'])
+            logger.error(f"Error message: {response['ResponseMetadata']['HTTPHeaders']['x-amzn-requestid']}")
             raise Exception('Failed to update Auto Scaling group capacity.')
 
     @staticmethod
     def detach_instance_from_autoscaling_group(instance_ids, autoscaling_group_name):
-        auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
-        # Detach the instance from the Auto Scaling group
-        response = auto_scaling_group_aws_client.detach_instances(
-            InstanceIds=instance_ids,
-            AutoScalingGroupName=autoscaling_group_name,
-            ShouldDecrementDesiredCapacity=True
-        )
+        if not instance_ids or not isinstance(instance_ids, (list, tuple)):
+            logger.error("Error: Invalid instance_ids provided.")
+            raise ValueError("Invalid instance_ids provided. Expected a non-empty list or tuple.")
 
-        # Check the HTTP status code of the response
-        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            activities = response['Activities']
-            AutoScalingGroupGateway.wait_for_activity_completion(activities, auto_scaling_group_aws_client)
-        else:
-            raise Exception("Error: Failed to detach instances from autoscaling group.")
+        asg_client = AwsSessionFactory.auto_scaling()
+
+        try:
+            response = asg_client.enter_standby(
+                AutoScalingGroupName=autoscaling_group_name,
+                InstanceIds=instance_ids,
+                ShouldDecrementDesiredCapacity=True
+            )
+            # Check the HTTP status code of the response
+            if response.get('ResponseMetadata', {}).get('HTTPStatusCode') == 200:
+                activities = response.get('Activities', [])
+                if not activities:
+                    logger.error("Error: Activities list is empty after entering standby.")
+                    return
+                AutoScalingGroupGateway.wait_for_activity_completion(activities, auto_scaling_group_aws_client)
+            else:
+                error_msg = response.get('ResponseMetadata', {}).get('HTTPHeaders', {}).get('x-amzn-requestid',
+                                                                                            'Unknown Error')
+                logger.error(f"Error: Failed to put instances into standby mode. AWS Error: {error_msg}")
+                raise Exception(f"Error: Failed to put instances into standby mode. AWS Error: {error_msg}")
+
+        except Exception as e:
+            logger.error(f"An exception occurred: {str(e)}")
+            raise e
 
     @staticmethod
     def enter_instances_into_standby(asg_name, instance_ids):
