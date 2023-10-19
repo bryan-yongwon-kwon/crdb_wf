@@ -198,18 +198,27 @@ class AutoScalingGroup:
 
     def get_image_id_from_launch_template(self):
         launch_template_id = self.launch_template_id
+
+        if not launch_template_id:
+            logger.error("Launch template ID is missing or None.")
+            return None
+
         ec2_client = AwsSessionFactory.ec2()
 
-        response = ec2_client.describe_launch_template_versions(
-            LaunchTemplateId=launch_template_id,
-            Versions=['$Latest']
-        )
+        try:
+            response = ec2_client.describe_launch_template_versions(
+                LaunchTemplateId=launch_template_id,
+                Versions=['$Latest']
+            )
 
-        if 'LaunchTemplateVersions' in response and len(response['LaunchTemplateVersions']) > 0:
-            return response['LaunchTemplateVersions'][0]['LaunchTemplateData'].get('ImageId')
-
-        logger.error(f"No launch template version found with ID: {launch_template_id}")
-        return None
+            if 'LaunchTemplateVersions' in response and len(response['LaunchTemplateVersions']) > 0:
+                return response['LaunchTemplateVersions'][0]['LaunchTemplateData'].get('ImageId')
+            else:
+                logger.error(f"No launch template version found with ID: {launch_template_id}")
+                return None
+        except Exception as e:
+            logger.error(f"Error fetching launch template version with ID: {launch_template_id}. Error: {str(e)}")
+            return None
 
     def get_az_with_available_instances(self, desired_increase: int) -> list:
         az_count = self.get_current_az_distribution()
