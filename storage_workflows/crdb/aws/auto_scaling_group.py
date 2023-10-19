@@ -63,7 +63,10 @@ class AutoScalingGroup:
     @property
     def instance_type(self):
         if self.launch_configuration_name:
-            return AutoScalingGroupGateway._get_instance_type_from_launch_configuration(self.launch_configuration_name)
+            instance_type = AutoScalingGroupGateway._get_instance_type_from_launch_configuration(
+                self.launch_configuration_name)
+            logger.info(f"Instance type derived from LC for ASG {self.name}: {instance_type}")
+            return instance_type
         else:
             return None
 
@@ -73,7 +76,9 @@ class AutoScalingGroup:
 
     @property
     def launch_configuration_name(self):
-        return self._api_response.get('LaunchConfigurationName', None)
+        lc_name = self._api_response.get('LaunchConfigurationName', None)
+        logger.info(f"LaunchConfigurationName for ASG {self.name}: {lc_name}")
+        return lc_name
 
     def reload(self, cluster_name:str):
         self._api_response = AutoScalingGroupGateway.describe_auto_scaling_groups([AutoScalingGroup.build_filter_by_cluster_name(cluster_name)])[0]
