@@ -133,7 +133,16 @@ class AutoScalingGroupGateway:
 
     @staticmethod
     def _get_instance_type_from_launch_template(launch_template_id):
-        ec2_client = AwsSessionFactory.ec2()
-        response = ec2_client.describe_launch_templates(LaunchTemplateIds=[launch_template_id])
+        autoscaling_client = AwsSessionFactory.auto_scaling()
+        response = autoscaling_client.describe_launch_templates(LaunchTemplateIds=[launch_template_id])
         logger.info(f"_get_instance_type_from_launch_template response: {response}")
+        if 'LaunchTemplateData' not in response['LaunchTemplates'][0]:
+            # Fetch instance details from the auto-scaling group
+            logger.info("fetching instances from describe_auto_scaling_instances")
+            instances = autoscaling_client.describe_auto_scaling_instances(MaxRecords=1)
+            logger.info(f"fetched instances from describe_auto_scaling_instances: {instances}")
+            if instances and 'AutoScalingInstances' in instances:
+                instance = instances['AutoScalingInstances'][0]
+                if instance['LaunchTemplate']['LaunchTemplateId'] == launch_template_id:
+                    return instance['InstanceType']
         return response['LaunchTemplates'][0]['LaunchTemplateData']['InstanceType']
