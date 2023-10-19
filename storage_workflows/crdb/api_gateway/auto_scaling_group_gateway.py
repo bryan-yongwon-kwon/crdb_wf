@@ -139,7 +139,7 @@ class AutoScalingGroupGateway:
         response = auto_scaling_client.describe_launch_configurations(
             LaunchConfigurationNames=[launch_configuration_name]
         )
-
+        logger.info(f"response for auto_scaling_client.describe_launch_configurations: {response}")
         # Extract instance type
         if 'LaunchConfigurations' in response and len(response['LaunchConfigurations']) > 0:
             return response['LaunchConfigurations'][0].get('InstanceType')
