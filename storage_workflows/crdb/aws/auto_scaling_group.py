@@ -87,6 +87,10 @@ class AutoScalingGroup:
         logger.info(f"LaunchConfigurationName for ASG {self.name}: {lc_name}")
         return lc_name
 
+    @property
+    def launch_template_id(self):
+        return self._api_response.get('LaunchTemplate', {}).get('Id')
+
     def reload(self, cluster_name:str):
         self._api_response = AutoScalingGroupGateway.describe_auto_scaling_groups([AutoScalingGroup.build_filter_by_cluster_name(cluster_name)])[0]
 
@@ -185,17 +189,37 @@ class AutoScalingGroup:
         return instance_ids_to_terminate
 
     def get_current_az_distribution(self):
-        az_count = {"us-west-2a": 0, "us-west-2b": 0, "us-west-2c": 0}  # You can adjust the AZs based on your needs
+        az_count = {"us-west-2a": 0, "us-west-2b": 0, "us-west-2c": 0}
         for instance in self.instances:
-            az = instance.availability_zone  # Use the property method from the AutoScalingGroupInstance class
+            az = instance.availability_zone
             if az in az_count:
                 az_count[az] += 1
         return az_count
+
+    def get_image_id_from_launch_template(self):
+        launch_template_id = self.launch_template_id
+        ec2_client = AwsSessionFactory.ec2()
+
+        response = ec2_client.describe_launch_template_versions(
+            LaunchTemplateId=launch_template_id,
+            Versions=['$Latest']
+        )
+
+        if 'LaunchTemplateVersions' in response and len(response['LaunchTemplateVersions']) > 0:
+            return response['LaunchTemplateVersions'][0]['LaunchTemplateData'].get('ImageId')
+
+        logger.error(f"No launch template version found with ID: {launch_template_id}")
+        return None
 
     def get_az_with_available_instances(self, desired_increase: int) -> list:
         az_count = self.get_current_az_distribution()
         ec2_client = AwsSessionFactory.ec2()
         available_azs = []
+        image_id = self.get_image_id_from_launch_template()
+
+        if not image_id:
+            logger.error("Failed to retrieve ImageId from launch template.")
+            return []
 
         for az, count in az_count.items():
             try:
@@ -205,6 +229,7 @@ class AutoScalingGroup:
                     MaxCount=count + desired_increase,
                     MinCount=count + desired_increase,
                     Placement={'AvailabilityZone': az},
+                    ImageId=image_id
                 )
                 available_azs.append(az)
             except ClientError as e:
