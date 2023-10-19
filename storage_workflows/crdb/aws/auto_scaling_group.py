@@ -210,7 +210,7 @@ class AutoScalingGroup:
                 LaunchTemplateId=launch_template_id,
                 Versions=['$Latest']
             )
-
+            logger.info(f"ec2_client.describe_launch_template_versions response: {response}")
             if 'LaunchTemplateVersions' in response and len(response['LaunchTemplateVersions']) > 0:
                 return response['LaunchTemplateVersions'][0]['LaunchTemplateData'].get('ImageId')
             else:

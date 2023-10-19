@@ -128,6 +128,7 @@ class AutoScalingGroupGateway:
         response = auto_scaling_client.describe_auto_scaling_groups(
             AutoScalingGroupNames=[asg_name]
         )
+        logger.info(f"auto_scaling_client.describe_auto_scaling_groups response: {response}")
         instances = response['AutoScalingGroups'][0]['Instances']
         return [instance['InstanceId'] for instance in instances]
 
