@@ -123,7 +123,7 @@ class CrdbConnection:
             self._connection.close()
 
     def execute_sql(self, sql: str, need_commit: bool = False, need_fetchall: bool = True, need_fetchone: bool = False,
-                    need_connection_close: bool = False, auto_commit: bool = False):
+                    need_connection_close: bool = False, auto_commit: bool = True):
         try:
             if self._connection is None:
                 raise ValueError("Connection is not established.")
@@ -144,10 +144,6 @@ class CrdbConnection:
                 return result
         except OperationalError as oe:
             logger.error(f"Operational error: {oe}")
-        except ProgrammingError as pe:
-            logger.error(f"Programming error (e.g., table not found, syntax error): {pe}")
-        except InterfaceError as ie:
-            logger.error(f"Interface error (e.g., bad connection string): {ie}")
         finally:
             if self._connection and need_connection_close:
                 self._connection.close()
