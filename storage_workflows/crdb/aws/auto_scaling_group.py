@@ -90,9 +90,16 @@ class AutoScalingGroup:
         return any(map(lambda instance: not instance.in_service(), self.instances))
 
     def add_ec2_instances(self, desired_capacity, autoscale=False):
+        asg_instances = self.instances
         if desired_capacity == self.capacity and not autoscale:
             logger.warning("Expected Desired capacity same as existing desired capacity.")
             return
+
+        initial_actual_capacity = len(asg_instances)  # sum of all instances irrespective of their state
+        old_instance_ids = set()
+        # Retrieve the existing instance IDs
+        for instance in asg_instances:
+            old_instance_ids.add(instance.instance_id)
 
         # Use a dry run to ensure there's enough capacity for the desired instance type
         if not self.dry_run_check_instance_availability(desired_capacity - self.capacity):
@@ -100,9 +107,23 @@ class AutoScalingGroup:
 
         # Update ASG capacity
         AutoScalingGroupGateway.update_auto_scaling_group_capacity(self.name, desired_capacity)
+        # Wait for the new instances to be added to the Auto Scaling group
+        while True:
+            asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(self.name)[0]["Instances"]
+            actual_capacity = len(asg_instances)
+            new_instance_ids = set()  # Store new instance IDs
+            # Retrieve the instance IDs of the newly added instances
+            for instance in asg_instances:
+                if instance["InstanceId"] not in old_instance_ids and instance["LifecycleState"] == "InService":
+                    new_instance_ids.add(instance["InstanceId"])
+            # Check if all new instances are found
+            if len(new_instance_ids) == actual_capacity - initial_actual_capacity and actual_capacity != initial_actual_capacity:
+                logger.info("All new instances are ready.")
+                break
+            # Wait before checking again
+            time.sleep(10)
 
-        # This is just a brief sleep to allow AWS some time for instantiation.
-        time.sleep(10)
+        return list(new_instance_ids)
 
     def check_equal_az_distribution_in_asg(self):
         az_count = {}
