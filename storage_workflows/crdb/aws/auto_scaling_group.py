@@ -63,15 +63,13 @@ class AutoScalingGroup:
     @property
     def instance_type(self):
         launch_template_id = None
-        launch_configuration_name = self.launch_configuration_name
 
         # Check if launch_template property contains the necessary data
         if self.launch_template and 'LaunchTemplateId' in self.launch_template:
             launch_template_id = self.launch_template['LaunchTemplateId']
 
         instance_type_value = AutoScalingGroupGateway._get_instance_type_from_launch_configuration_or_template(
-            launch_template_id=launch_template_id,
-            launch_configuration_name=launch_configuration_name
+            launch_template_id=launch_template_id
         )
 
         logger.info(f"Instance type derived for ASG {self.name}: {instance_type_value}")
@@ -80,12 +78,6 @@ class AutoScalingGroup:
     @property
     def current_instances(self):
         return AutoScalingGroupGateway._get_current_asg_instances(self.name)
-
-    @property
-    def launch_configuration_name(self):
-        lc_name = self._api_response.get('LaunchConfigurationName', None)
-        logger.info(f"LaunchConfigurationName for ASG {self.name}: {lc_name}")
-        return lc_name
 
     @property
     def launch_template_id(self):
@@ -104,8 +96,7 @@ class AutoScalingGroup:
 
         # Use a dry run to ensure there's enough capacity for the desired instance type
         if not self.dry_run_check_instance_availability(desired_capacity - self.capacity):
-            logger.error("Failed to validate the availability of the desired instance type.")
-            return
+            raise Exception(f"Dry run failed to validate the availability {self.instance_type}")
 
         # Update ASG capacity
         AutoScalingGroupGateway.update_auto_scaling_group_capacity(self.name, desired_capacity)
@@ -225,10 +216,10 @@ class AutoScalingGroup:
                 MinCount=self.capacity + desired_increase,
                 ImageId=image_id
             )
-            return True
         except ClientError as e:
             if 'DryRunOperation' in str(e):
-                pass
+                # successful dry run with DryRun=True will result in this exception
+                return True
             else:
                 raise e
 
