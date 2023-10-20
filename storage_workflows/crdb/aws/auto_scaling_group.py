@@ -213,7 +213,10 @@ class AutoScalingGroup:
         if not image_id:
             logger.error("Failed to retrieve ImageId from launch template.")
             return False
-
+        logger.info(f"dry run self.instance_type: {self.instance_type}")
+        logger.info(f"dry run self.capacity: {self.capacity}")
+        logger.info(f"dry run image_id: {image_id}")
+        logger.info(f"dry run desired_increase: {desired_increase}")
         try:
             ec2_client.run_instances(
                 DryRun=True,
@@ -224,6 +227,8 @@ class AutoScalingGroup:
             )
             return True
         except ClientError as e:
-            if "DryRunOperation" not in str(e):
-                logger.error(f"Failed during dry run for instance type check: {e}")
-                return False
+            if 'DryRunOperation' in str(e):
+                pass
+            else:
+                raise e
+
