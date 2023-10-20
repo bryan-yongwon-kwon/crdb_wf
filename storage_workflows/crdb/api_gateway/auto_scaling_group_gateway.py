@@ -67,7 +67,7 @@ class AutoScalingGroupGateway:
                 if not activities:
                     logger.error("Error: Activities list is empty after entering standby.")
                     return
-                AutoScalingGroupGateway.wait_for_activity_completion(activities, auto_scaling_group_aws_client)
+                AutoScalingGroupGateway.wait_for_activity_completion(activities, asg_client)
             else:
                 error_msg = response.get('ResponseMetadata', {}).get('HTTPHeaders', {}).get('x-amzn-requestid',
                                                                                             'Unknown Error')
