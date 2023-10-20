@@ -29,7 +29,6 @@ logger = Logger()
 
 @app.command()
 def pre_check(deployment_env, region, cluster_name):
-    logger.info(f"{cluster_name} pre_check")
     setup_env(deployment_env, region, cluster_name)
     cluster = Cluster()
     if (cluster.backup_job_is_running()
