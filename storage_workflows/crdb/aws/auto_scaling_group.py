@@ -225,22 +225,39 @@ class AutoScalingGroup:
         if not image_id:
             logger.error("Failed to retrieve ImageId from launch template.")
             return False
+
         logger.info(f"dry run self.instance_type: {self.instance_type}")
         logger.info(f"dry run self.capacity: {self.capacity}")
         logger.info(f"dry run image_id: {image_id}")
         logger.info(f"dry run desired_increase: {desired_increase}")
-        try:
-            ec2_client.run_instances(
-                DryRun=True,
-                InstanceType=self.instance_type,
-                MaxCount=self.capacity + desired_increase,
-                MinCount=self.capacity + desired_increase,
-                ImageId=image_id
-            )
-        except ClientError as e:
-            if 'DryRunOperation' in str(e):
-                # successful dry run with DryRun=True will result in this exception
-                return True
+
+        # Number of retries every 10 minutes for 12 hours is 72 times
+        MAX_RETRIES = 72
+        RETRY_INTERVAL = 10 * 60  # 10 minutes in seconds
+
+        for _ in range(MAX_RETRIES):
+            try:
+                ec2_client.run_instances(
+                    DryRun=True,
+                    InstanceType=self.instance_type,
+                    MaxCount=self.capacity + desired_increase,
+                    MinCount=self.capacity + desired_increase,
+                    ImageId=image_id
+                )
+            except ClientError as e:
+                if 'DryRunOperation' in str(e):
+                    # successful dry run with DryRun=True will result in this exception
+                    return True
+                else:
+                    # Log the exception and wait before retrying
+                    logger.error(
+                        f"Dry run failed with exception: {str(e)}. Retrying in {RETRY_INTERVAL / 60} minutes...")
+                    time.sleep(RETRY_INTERVAL)
+                    continue
             else:
-                raise e
+                # If no exception occurred, break out of the loop
+                break
+
+        # If we've exhausted all our retries, raise an exception
+        raise Exception("Max retries reached. Failed to validate instance availability through dry run.")
 
