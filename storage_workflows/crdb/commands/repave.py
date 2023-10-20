@@ -247,14 +247,18 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
             # STORAGE-7583: we're scaling up. no instance removal needed. reset old_instance_ids in metadata_db.
             persist_instance_ids(deployment_env, region, cluster_name, [], autoscale=True)
         all_new_instance_ids = []
-        # current_capacity = initial_capacity
         while current_capacity < desired_capacity:
-            #current_capacity determines number of nodes in standby + number of nodes in-service
-            #according to asg desired_capacity is the count of number of nodes in-service state only
-            #hence we only set intial_capacity+3 as desired capacity in each loop
-            new_instance_ids = asg.add_ec2_instances(initial_capacity+3, autoscale=True)
-            all_new_instance_ids.append(new_instance_ids)
-            AutoScalingGroupGateway.enter_instances_into_standby(asg.name, new_instance_ids)
+            # current_capacity determines number of nodes in standby + number of nodes in-service
+            # according to asg desired_capacity is the count of number of nodes in-service state only
+            # hence we only set intial_capacity+3 as desired capacity in each loop
+            success = asg.add_ec2_instances(initial_capacity + 3, autoscale=True)
+
+            if not success:
+                logger.error(f"Failed to add new instances for {cluster_name}.")
+                return
+
+            all_new_instance_ids.append(success)
+            AutoScalingGroupGateway.enter_instances_into_standby(asg.name, success)
             cluster.wait_for_hydration(hydration_timeout_mins)
             asg.reload(cluster_name)
             current_capacity = len(asg.instances)
