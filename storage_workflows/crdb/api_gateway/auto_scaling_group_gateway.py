@@ -142,7 +142,6 @@ class AutoScalingGroupGateway:
         response = auto_scaling_client.describe_auto_scaling_groups(
             AutoScalingGroupNames=[asg_name]
         )
-        logger.info(f"auto_scaling_client.describe_auto_scaling_groups response: {response}")
         instances = response['AutoScalingGroups'][0]['Instances']
         return [instance['InstanceId'] for instance in instances]
 
@@ -154,7 +153,6 @@ class AutoScalingGroupGateway:
                 LaunchTemplateId=launch_template_id,
                 Versions=['$Latest']
             )
-            logger.info(f"response for ec2_client.describe_launch_template_versions: {response}")
 
             if 'LaunchTemplateVersions' in response and len(response['LaunchTemplateVersions']) > 0:
                 return response['LaunchTemplateVersions'][0]['LaunchTemplateData'].get('InstanceType')
@@ -167,7 +165,6 @@ class AutoScalingGroupGateway:
             response = auto_scaling_client.describe_launch_configurations(
                 LaunchConfigurationNames=[launch_configuration_name]
             )
-            logger.info(f"response for auto_scaling_client.describe_launch_configurations: {response}")
 
             if 'LaunchConfigurations' in response and len(response['LaunchConfigurations']) > 0:
                 return response['LaunchConfigurations'][0].get('InstanceType')

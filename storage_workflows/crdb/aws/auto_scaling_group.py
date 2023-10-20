@@ -207,7 +207,6 @@ class AutoScalingGroup:
                 LaunchTemplateId=launch_template_id,
                 Versions=['$Latest']
             )
-            logger.info(f"ec2_client.describe_launch_template_versions response: {response}")
             if 'LaunchTemplateVersions' in response and len(response['LaunchTemplateVersions']) > 0:
                 return response['LaunchTemplateVersions'][0]['LaunchTemplateData'].get('ImageId')
             else:
@@ -221,15 +220,6 @@ class AutoScalingGroup:
         """Perform a dry run to check if enough instances of the desired type are available."""
         ec2_client = AwsSessionFactory.ec2()
         image_id = self.get_image_id_from_launch_template()
-
-        if not image_id:
-            logger.error("Failed to retrieve ImageId from launch template.")
-            return False
-
-        logger.info(f"dry run self.instance_type: {self.instance_type}")
-        logger.info(f"dry run self.capacity: {self.capacity}")
-        logger.info(f"dry run image_id: {image_id}")
-        logger.info(f"dry run desired_increase: {desired_increase}")
 
         # Number of retries every 10 minutes for 12 hours is 72 times
         MAX_RETRIES = 72
