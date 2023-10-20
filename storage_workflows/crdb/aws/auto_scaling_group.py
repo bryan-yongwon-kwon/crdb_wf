@@ -102,26 +102,16 @@ class AutoScalingGroup:
             logger.warning("Expected Desired capacity same as existing desired capacity.")
             return
 
-        # Check if instance type is available across AZs
-        desired_increase = desired_capacity - self.capacity
-        az_instance_map = self.get_az_with_available_instances(desired_increase)
-
-        if not az_instance_map:
-            logger.error("Failed to launch the desired number of instances across AZs.")
+        # Use a dry run to ensure there's enough capacity for the desired instance type
+        if not self.dry_run_check_instance_availability(desired_capacity - self.capacity):
+            logger.error("Failed to validate the availability of the desired instance type.")
             return
 
-        # The instances are now already launched in the get_az_with_available_instances method,
-        # so we just need to retrieve their IDs from the az_instance_map
-        new_instance_ids = [instance_id for az, instances in az_instance_map.items() for instance_id in instances]
-
         # Update ASG capacity
-        AutoScalingGroupGateway.update_auto_scaling_group_capacity(self.name, desired_capacity + len(new_instance_ids))
+        AutoScalingGroupGateway.update_auto_scaling_group_capacity(self.name, desired_capacity)
 
         # This is just a brief sleep to allow AWS some time for instantiation.
         time.sleep(10)
-
-        if len(new_instance_ids) != desired_increase:
-            logger.warning("Not all instances were properly instantiated.")
 
     def check_equal_az_distribution_in_asg(self):
         az_count = {}
@@ -215,63 +205,25 @@ class AutoScalingGroup:
             logger.error(f"Error fetching launch template version with ID: {launch_template_id}. Error: {str(e)}")
             return None
 
-    def get_az_with_available_instances(self, desired_increase: int, retry_interval_secs: int = 60,
-                                        timeout_mins: int = 10) -> dict:
-        az_count = self.get_current_az_distribution()
+    def dry_run_check_instance_availability(self, desired_increase):
+        """Perform a dry run to check if enough instances of the desired type are available."""
         ec2_client = AwsSessionFactory.ec2()
-        available_azs = {}
         image_id = self.get_image_id_from_launch_template()
 
         if not image_id:
             logger.error("Failed to retrieve ImageId from launch template.")
-            return {}
-
-        end_time = time.time() + (timeout_mins * 60)
-        while time.time() < end_time:
-            for az, count in az_count.items():
-                try:
-                    ec2_client.run_instances(
-                        DryRun=True,
-                        InstanceType=self.instance_type,
-                        MaxCount=count + desired_increase,
-                        MinCount=count + desired_increase,
-                        Placement={'AvailabilityZone': az},
-                        ImageId=image_id
-                    )
-                    # Launch actual instances after successful dry run
-                    instance_ids = self.launch_instances(az, desired_increase)
-                    if instance_ids:
-                        available_azs[az] = instance_ids
-                except ClientError as e:
-                    if "DryRunOperation" not in str(e):
-                        logger.error(f"Failed to check instance availability in {az}: {e}")
-
-            if available_azs:
-                # If we found AZs that can accommodate the desired increase and successfully launched instances,
-                # break out of the loop
-                break
-
-            # If no AZs found, wait for the retry interval before the next check
-            logger.info(f"No AZs found with desired instance type. Retrying in {retry_interval_secs} seconds...")
-            time.sleep(retry_interval_secs)
-
-        return available_azs
-
-    def launch_instances(self, az: str, desired_increase: int):
-        ec2_client = AwsSessionFactory.ec2()
-        image_id = self.get_image_id_from_launch_template()
+            return False
 
         try:
-            response = ec2_client.run_instances(
+            ec2_client.run_instances(
+                DryRun=True,
                 InstanceType=self.instance_type,
-                MaxCount=desired_increase,
-                MinCount=desired_increase,
-                Placement={'AvailabilityZone': az},
+                MaxCount=self.capacity + desired_increase,
+                MinCount=self.capacity + desired_increase,
                 ImageId=image_id
             )
-            instance_ids = [instance['InstanceId'] for instance in response['Instances']]
-            logger.info(f"Successfully launched {desired_increase} instances in {az}.")
-            return instance_ids
+            return True
         except ClientError as e:
-            logger.error(f"Failed to launch instances in {az}: {e}")
-            return []
+            if "DryRunOperation" not in str(e):
+                logger.error(f"Failed during dry run for instance type check: {e}")
+                return False
