@@ -31,12 +31,9 @@ class CrdbConnection:
         secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
 
         # If secret_list is empty, use the cluster_name_with_hyphens to retry
-        if not secret_list:
-            secret_filters['tag-value'][-1] = cluster_name_with_hyphens
-            if client:
-                secret_filters['tag-key'].append('client')
-                secret_filters['tag-value'].append(client)
-            secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
+        if client and 'client' not in secret_filters['tag-key']:
+            secret_filters['tag-key'].append('client')
+            secret_filters['tag-value'].append(client)
 
         # If secret_list is still empty after the retry, raise an error
         if not secret_list:
