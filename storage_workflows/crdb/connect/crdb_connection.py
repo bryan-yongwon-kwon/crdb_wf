@@ -15,7 +15,7 @@ class CrdbConnection:
 
     @staticmethod
     def get_crdb_connection_secret(cred_type: CredType, cluster_name: str, client: str = "") -> SecretValue:
-        cluster_name_with_suffix = cluster_name.replace("_", "-") + "-crdb"
+        cluster_name_with_suffix = cluster_name.strip().replace("_", "-") + "-crdb"
 
         secret_filters = {
             'tag-key': ['crdb_cluster_name', 'cred-type', 'environment'],
