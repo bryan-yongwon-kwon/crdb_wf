@@ -16,9 +16,9 @@ class CrdbConnection:
     @staticmethod
     def get_crdb_connection_secret(cred_type: CredType, cluster_name: str, client: str = "") -> SecretValue:
         # handle cluster_name with hyphens instead of underscores
-        cluster_names_to_modify = ['url-shortener', 'revenue-platform']
+        cluster_names_to_modify = ['url_shortener', 'revenue_platform']
 
-        if cluster_name in cluster_names_to_modify or cluster_name.startswith('revenue-workflow-'):
+        if cluster_name in cluster_names_to_modify or cluster_name.startswith('revenue_workflow_'):
             cluster_name_with_suffix = cluster_name.strip().replace("_", "-") + "-crdb"
         else:
             cluster_name_with_suffix = cluster_name + "-crdb"
