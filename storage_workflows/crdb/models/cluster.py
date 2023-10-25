@@ -29,9 +29,11 @@ class Cluster:
     
     @property
     def changefeed_jobs(self) -> list[ChangefeedJob]:
+        logger.info("retrieving changefeed_jobs")
         return ChangefeedJob.find_all_changefeed_jobs(self.cluster_name)
     
     def backup_job_is_running(self) -> bool:
+        logger.info("checking for running backups")
         running_backup_jobs = list(filter(lambda job: job.status == 'running',
                                           BackupJob.find_all_backup_jobs(self.cluster_name)))
         contains_running_backup_job = any(running_backup_jobs)
@@ -40,6 +42,7 @@ class Cluster:
         return contains_running_backup_job
     
     def restore_job_is_running(self) -> bool:
+        logger.info("checking for restore running restore job")
         running_restore_jobs = list(filter(lambda job: job.status == 'running',
                                            RestorelJob.find_all_restore_jobs(self.cluster_name)))
         contains_running_restore_job = any(running_restore_jobs)
@@ -48,6 +51,7 @@ class Cluster:
         return contains_running_restore_job
     
     def schema_change_job_is_running(self) -> bool:
+        logger.info("checking for running schema change job")
         running_schema_change_jobs = list(filter(lambda job: job.status == 'running',
                                                  SchemaChangelJob.find_all_schema_change_jobs(self.cluster_name)))
         contains_schema_change_job = any(running_schema_change_jobs)
@@ -56,6 +60,7 @@ class Cluster:
         return contains_schema_change_job
     
     def row_level_ttl_job_is_running(self) -> bool:
+        logger.info("checking for running ttl job")
         running_row_level_ttl_jobs = list(filter(lambda job: job.status == 'running',
                                                  RowLevelTtlJob.find_all_row_level_ttl_jobs(self.cluster_name)))
         contains_row_level_ttl_job = any(running_row_level_ttl_jobs)
@@ -64,6 +69,7 @@ class Cluster:
         return contains_row_level_ttl_job
     
     def paused_changefeed_jobs_exist(self) -> bool:
+        logger.info("checking for paused changefeed jobs")
         paused_changefeed_jobs = list(filter(lambda job: job.status == 'paused',
                                              ChangefeedJob.find_all_changefeed_jobs(self.cluster_name)))
         contains_paused_changefeed_jobs = any(paused_changefeed_jobs)
@@ -72,12 +78,14 @@ class Cluster:
         return contains_paused_changefeed_jobs
     
     def unhealthy_ranges_exist(self) -> bool:
+        logger.info("checking for unhealthy ranges")
         nodes = self.nodes
         unhealthy_ranges_list = map(lambda node: node.overreplicated_ranges+node.unavailable_ranges+node.underreplicated_ranges, nodes)
         total_unhealthy_ranges = reduce(lambda range_count_1, range_count_2: range_count_1+range_count_2, unhealthy_ranges_list)
         return total_unhealthy_ranges > 0
     
     def instances_not_in_service_exist(self) -> bool:
+        logger.info("checking for NotInService instances")
         return AutoScalingGroup.find_auto_scaling_group_by_cluster_name(self.cluster_name).instances_not_in_service_exist()
     
     def decommission_nodes(self, nodes:list[Node]):
