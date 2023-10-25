@@ -136,9 +136,9 @@ class CrdbConnection:
         except OperationalError as oe:
             logger.error(f"Operational error: {oe}")
         except ProgrammingError as pe:
-            logger.error(f"Programming error (e.g., table not found, syntax error): {pe}")
+            logger.error(f"retryable error: {pe}")
         except InterfaceError as ie:
-            logger.error(f"Interface error (e.g., bad connection string): {ie}")
+            logger.error(f"retryable error: {ie}")
         finally:
             if self._connection and need_connection_close:
                 self._connection.close()
