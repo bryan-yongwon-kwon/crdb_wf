@@ -30,6 +30,8 @@ logger = Logger()
 @app.command()
 def pre_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     cluster = Cluster()
     if (cluster.backup_job_is_running()
         or cluster.restore_job_is_running()
@@ -57,6 +59,8 @@ def refresh_etl_load_balancer(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name} Staging clusters doesn't have ETL load balancers.")
         return
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     load_balancer = ElasticLoadBalancer.find_elastic_load_balancer_by_cluster_name(cluster_name)
     old_lb_instances = load_balancer.instances
     old_instance_id_set = set(map(lambda old_instance: old_instance['InstanceId'], old_lb_instances))
@@ -165,6 +169,8 @@ def extend_muting_rules(slugs:str):
 @app.command()
 def copy_crontab(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     metadata_db_operations = MetadataDBOperations()
     instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     # STORAGE-7583: do nothing if scaling up
@@ -197,6 +203,8 @@ def copy_crontab(deployment_env, region, cluster_name):
 def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydration_timeout_mins, desired_capacity=None):
     hydration_timeout_mins = int(hydration_timeout_mins)
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
@@ -271,6 +279,8 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
 @app.command()
 def exit_new_instances_from_standby(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     logger.info(f"{cluster_name} Autoscaling group name is {asg.name}")
     asg_instances = AutoScalingGroupGateway.describe_auto_scaling_groups_by_name(asg.name)[0]["Instances"]
@@ -287,6 +297,8 @@ def exit_new_instances_from_standby(deployment_env, region, cluster_name):
 @app.command()
 def detach_old_instances_from_asg(deployment_env, region, cluster_name, timeout_minus):
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     logger.info(f"{cluster_name} Autoscaling group name is {asg.name}")
     # get instance ids of old nodes
@@ -307,6 +319,8 @@ def detach_old_instances_from_asg(deployment_env, region, cluster_name, timeout_
 @app.command()
 def terminate_instances(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     logger.info(f"{cluster_name} terminating instances")
@@ -323,6 +337,8 @@ def terminate_instances(deployment_env, region, cluster_name):
 def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} stopping old instances")
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     # STORAGE-7583: do nothing if scaling up
@@ -338,6 +354,8 @@ def stop_crdb_on_old_nodes(deployment_env, region, cluster_name):
 def drain_old_nodes(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} draining old nodes")
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     # STORAGE-7583: do nothing if scaling up
@@ -355,6 +373,8 @@ def drain_old_nodes(deployment_env, region, cluster_name):
 def decommission_old_nodes(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} decommission_old_nodes")
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     # STORAGE-7583: do nothing if scaling up
@@ -372,6 +392,8 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} resume_all_paused_changefeeds")
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
     if old_instance_ids:
         changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
@@ -387,6 +409,8 @@ def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
 def pause_all_changefeeds(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} pause_all_changefeeds")
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
     if old_instance_ids:
         changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
@@ -419,6 +443,8 @@ def start_repave_global_change_log(deployment_env, region, cluster_name):
 def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} move_changefeed_coordinator_node")
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
     if old_instance_ids:
         changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
@@ -485,6 +511,8 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
 @app.command()
 def persist_instance_ids(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     metadata_db_operations = MetadataDBOperations()
     asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
     instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
@@ -495,6 +523,8 @@ def persist_instance_ids(deployment_env, region, cluster_name):
 
 def persist_instance_ids_to_terminate(deployment_env, region, cluster_name, instance_ids):
     setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
     metadata_db_operations = MetadataDBOperations()
     logger.info(f"{cluster_name} Instance IDs to be persist: {instance_ids}")
     metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
