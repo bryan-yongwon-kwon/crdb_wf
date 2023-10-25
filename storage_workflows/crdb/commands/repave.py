@@ -442,14 +442,31 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
 
         metadata_db_operations = MetadataDBOperations()
         old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-        old_nodes = [Ec2Instance.find_ec2_instance(instance_id).crdb_node for instance_id in old_instance_ids]
-        old_node_ids = set(node.id for node in old_nodes)
+        old_nodes = list(
+            map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+        old_node_ids = set(map(lambda node: node.id, old_nodes))
+        old_instance_ips = set(
+            map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, old_instance_ids))
         logger.info(f"{cluster_name} Node ids of old nodes" + str(old_node_ids))
+        nodes = Node.get_nodes()
+        new_nodes = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))
+        logger.info(f"{cluster_name} - copy_crontab - new_nodes - {new_nodes}")
+
+        # Index to keep track of the current node to resume job on
+        node_index = 0
+        num_new_nodes = len(new_nodes)
 
         for job in valid_changefeed_jobs:
-            logger.info(f"{cluster_name} Resuming changefeed job {job.id}")
-            job.resume()
-            job.wait_for_job_to_resume()
+            # Get the next node to resume job on
+            target_node = new_nodes[node_index]
+
+            # SSH into the target node to resume the jobs using job.id
+            ssh_client = SSH(target_node.ip_address)
+            ssh_client.connect_to_node()
+
+            # Execute command to resume job using the provided command
+            ssh_client.execute_command(f"crdb sql -e \"resume job {job.id}\"")
+            ssh_client.close_connection()
 
             coordinator_node = job.get_coordinator_node()
             while coordinator_node in old_node_ids:
@@ -460,9 +477,10 @@ def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
 
             logger.info(f"{cluster_name} Coordinator node updated to {coordinator_node}")
 
+            # Move to the next node in a round-robin manner
+            node_index = (node_index + 1) % num_new_nodes
+
         logger.info(f"{cluster_name} Resumed all changefeed jobs!")
-    else:
-        logger.info(f"{cluster_name} skipping move_changefeed_coordinator_node. we're adding new nodes.")
 
 @app.command()
 def persist_instance_ids(deployment_env, region, cluster_name):
