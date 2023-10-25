@@ -185,14 +185,6 @@ class AutoScalingGroup:
 
         return instance_ids_to_terminate
 
-    def get_current_az_distribution(self):
-        az_count = {"us-west-2a": 0, "us-west-2b": 0, "us-west-2c": 0}
-        for instance in self.instances:
-            az = instance.availability_zone
-            if az in az_count:
-                az_count[az] += 1
-        return az_count
-
     def get_image_id_from_launch_template(self):
         launch_template_id = self.launch_template.get('LaunchTemplateId', None)
 
