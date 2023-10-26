@@ -262,7 +262,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
             #current_capacity determines number of nodes in standby + number of nodes in-service
             #according to asg desired_capacity is the count of number of nodes in-service state only
             #hence we only set intial_capacity+3 as desired capacity in each loop
-            new_instance_ids = asg.add_ec2_instances(initial_capacity+3, autoscale=True)
+            new_instance_ids = asg.add_ec2_instances(initial_capacity+3, autoscale=True, deployment_env=deployment_env)
             logger.info(f"{cluster_name} adding instances to asg: {new_instance_ids}")
             all_new_instance_ids.append(new_instance_ids)
             logger.info(f"{cluster_name} set instances to standby")
