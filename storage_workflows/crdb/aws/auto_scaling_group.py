@@ -89,7 +89,7 @@ class AutoScalingGroup:
     def instances_not_in_service_exist(self):
         return any(map(lambda instance: not instance.in_service(), self.instances))
 
-    def add_ec2_instances(self, desired_capacity, autoscale=False):
+    def add_ec2_instances(self, desired_capacity, autoscale=False, deployment_env=None):
         asg_instances = self.instances
         if desired_capacity == self.capacity and not autoscale:
             logger.warning("Expected Desired capacity same as existing desired capacity.")
@@ -102,8 +102,9 @@ class AutoScalingGroup:
             old_instance_ids.add(instance.instance_id)
 
         # Use a dry run to ensure there's enough capacity for the desired instance type
-        if not self.dry_run_check_instance_availability(desired_capacity - self.capacity):
-            raise Exception(f"Dry run failed to validate the availability {self.instance_type}")
+        if deployment_env != 'staging':
+            if not self.dry_run_check_instance_availability(desired_capacity - self.capacity):
+                raise Exception(f"Dry run failed to validate the availability {self.instance_type}")
 
         # Update ASG capacity
         AutoScalingGroupGateway.update_auto_scaling_group_capacity(self.name, desired_capacity)

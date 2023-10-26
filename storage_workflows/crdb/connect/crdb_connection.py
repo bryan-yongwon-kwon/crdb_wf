@@ -15,8 +15,13 @@ class CrdbConnection:
 
     @staticmethod
     def get_crdb_connection_secret(cred_type: CredType, cluster_name: str, client: str = "") -> SecretValue:
-        cluster_name_with_suffix = cluster_name + "-crdb"
-        cluster_name_with_hyphens = cluster_name.replace("_", "-") + "-crdb"  # Declare this here for broader scope
+        # handle cluster_name with hyphens instead of underscores
+        cluster_names_to_modify = ['url_shortener', 'revenue_platform']
+
+        if cluster_name in cluster_names_to_modify or cluster_name.startswith('revenue_workflow_'):
+            cluster_name_with_suffix = cluster_name.strip().replace("_", "-") + "-crdb"
+        else:
+            cluster_name_with_suffix = cluster_name + "-crdb"
 
         secret_filters = {
             'tag-key': ['crdb_cluster_name', 'cred-type', 'environment'],
@@ -30,18 +35,10 @@ class CrdbConnection:
 
         secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
 
-        # If secret_list is empty, use the cluster_name_with_hyphens to retry
-        if not secret_list:
-            secret_filters['tag-value'][-1] = cluster_name_with_hyphens
-            if client:
-                secret_filters['tag-key'].append('client')
-                secret_filters['tag-value'].append(client)
-            secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
-
         # If secret_list is still empty after the retry, raise an error
         if not secret_list:
             raise ValueError(
-                f"No secrets found for cluster_name: {cluster_name} or {cluster_name_with_hyphens} with cred_type: "
+                f"No secrets found for cluster_name: {cluster_name} with cred_type: "
                 f"{cred_type.value}.")
 
         find_secret_value = SecretValue(SecretManagerGateway.find_secret(secret_list[0].arn))
