@@ -256,7 +256,7 @@ def read_and_increase_asg_capacity(deployment_env, region, cluster_name, hydrati
     else:
         if is_scaling_event:
             # STORAGE-7583: we're scaling up. no instance removal needed. reset old_instance_ids in metadata_db.
-            persist_instance_ids(deployment_env, region, cluster_name, [], autoscale=True)
+            persist_instance_ids(deployment_env, region, cluster_name, [])
         all_new_instance_ids = []
         while current_capacity < desired_capacity:
             #current_capacity determines number of nodes in standby + number of nodes in-service
