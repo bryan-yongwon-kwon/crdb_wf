@@ -2,6 +2,7 @@ import os
 import time
 from storage_workflows.crdb.factory.aws_session_factory import AwsSessionFactory
 from storage_workflows.logging.logger import Logger
+from botocore.exceptions import ClientError
 
 
 logger = Logger()
@@ -12,17 +13,24 @@ class AutoScalingGroupGateway:
 
     @staticmethod
     def describe_auto_scaling_groups(filters=[], next_token='') -> list:
-        auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
-        if not next_token:
-            response = auto_scaling_group_aws_client.describe_auto_scaling_groups(Filters=filters, MaxRecords=AutoScalingGroupGateway.PAGINATOR_MAX_RESULT_PER_PAGE)
-        else:
-            response = auto_scaling_group_aws_client.describe_auto_scaling_groups(Filters=filters, 
-                                                               MaxRecords=AutoScalingGroupGateway.PAGINATOR_MAX_RESULT_PER_PAGE,
-                                                               NextToken=next_token)
-        if 'NextToken' in response:
-            response['AutoScalingGroups'].extend(
-                AutoScalingGroupGateway.describe_auto_scaling_groups(filters, response['NextToken']))
-        return response['AutoScalingGroups']
+        try:
+            auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
+            if not next_token:
+                response = auto_scaling_group_aws_client.describe_auto_scaling_groups(Filters=filters, MaxRecords=AutoScalingGroupGateway.PAGINATOR_MAX_RESULT_PER_PAGE)
+            else:
+                response = auto_scaling_group_aws_client.describe_auto_scaling_groups(Filters=filters,
+                                                                   MaxRecords=AutoScalingGroupGateway.PAGINATOR_MAX_RESULT_PER_PAGE,
+                                                                   NextToken=next_token)
+            if 'NextToken' in response:
+                response['AutoScalingGroups'].extend(
+                    AutoScalingGroupGateway.describe_auto_scaling_groups(filters, response['NextToken']))
+            return response['AutoScalingGroups']
+        except ClientError as ce:
+            logger.error(f"AWS ClientError while describing auto scaling groups with filters {filters}: {str(ce)}")
+            raise ce
+        except Exception as e:
+            logger.error(f"General error while describing auto scaling groups with filters {filters}: {str(e)}")
+            raise e
 
     @staticmethod
     def describe_auto_scaling_groups_by_name(asg_name):
