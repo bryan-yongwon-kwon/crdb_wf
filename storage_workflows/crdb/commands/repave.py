@@ -387,7 +387,12 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name} Decommission completed!")
     else:
         logger.info(f"{cluster_name} No nodes to decommission")
-
+    cluster = Cluster()
+    logger.info(f"{cluster_name} Checking for paused changefeed jobs after decommission...")
+    if cluster.paused_changefeed_jobs_exist():
+        raise Exception("Pre run check failed")
+    else:
+        logger.info(f"{cluster_name} Check passed")
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} resume_all_paused_changefeeds")
