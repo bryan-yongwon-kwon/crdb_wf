@@ -1,0 +1,23 @@
+from sqlalchemy import DateTime, Float, BigInteger, String, Integer, Boolean, UUID
+from sqlalchemy.orm import declarative_base, mapped_column, Mapped
+from datetime import datetime
+
+Base = declarative_base()
+
+
+class ChangefeedJobDetails(Base):
+    __tablename__ = "changefeed_job_details"
+
+    workflow_id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    job_id: Mapped[int] = mapped_column(BigInteger)
+    description: Mapped[str] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String)
+    error: Mapped[str] = mapped_column(String)
+    created: Mapped[datetime] = mapped_column(DateTime)
+    started: Mapped[datetime] = mapped_column(DateTime)
+    finished: Mapped[datetime] = mapped_column(DateTime)
+    high_water_timestamp: Mapped[float] = mapped_column(Float)
+    is_initial_scan_only: Mapped[bool] = mapped_column(Boolean, nullable=True)
+    finished_ago_seconds: Mapped[int] = mapped_column(Integer, nullable=True)
+    latency: Mapped[int] = mapped_column(Integer, nullable=True)
+    running_status: Mapped[str] = mapped_column(String, nullable=True)
