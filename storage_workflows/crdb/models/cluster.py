@@ -85,8 +85,28 @@ class Cluster:
         return total_unhealthy_ranges > 0
     
     def instances_not_in_service_exist(self) -> bool:
-        logger.info("checking for NotInService instances")
-        return AutoScalingGroup.find_auto_scaling_group_by_cluster_name(self.cluster_name).instances_not_in_service_exist()
+        logger.info(f"Checking for NotInService instances in ASG associated with cluster: {self.cluster_name}")
+        try:
+            asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(self.cluster_name)
+
+            if not asg:
+                logger.error(f"No ASG found for cluster name: {self.cluster_name}")
+                return False
+
+            not_in_service_instances = [instance for instance in asg.instances if not instance.in_service()]
+
+            if not_in_service_instances:
+                logger.warning(
+                    f"Instances not in service for cluster {self.cluster_name}: "
+                    f"{[instance.instance_id for instance in not_in_service_instances]}")
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(
+                f"Error while checking for NotInService instances in ASG for cluster {self.cluster_name}: {str(e)}")
+            raise e
     
     def decommission_nodes(self, nodes:list[Node]):
         certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self.cluster_name + "/"
