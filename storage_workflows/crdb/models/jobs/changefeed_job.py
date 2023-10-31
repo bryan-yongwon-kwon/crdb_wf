@@ -87,7 +87,7 @@ class ChangefeedJob(BaseJob):
                     workflow_id=workflow_id,
                     job_id=metadata.job_id,
                     description=metadata.description,
-                    status=metadata.running_status,
+                    runnin_status=metadata.running_status,
                     error=metadata.error,
                     latency=metadata.latency,
                     is_initial_scan_only=metadata.is_initial_scan_only,
@@ -100,7 +100,7 @@ class ChangefeedJob(BaseJob):
                     set_=dict(
                         job_id=metadata.job_id,
                         description=metadata.description,
-                        status=metadata.running_status,
+                        running_status=metadata.running_status,
                         error=metadata.error,
                         latency=metadata.latency,
                         is_initial_scan_only=metadata.is_initial_scan_only,
