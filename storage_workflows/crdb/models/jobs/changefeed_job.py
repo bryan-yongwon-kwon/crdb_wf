@@ -109,7 +109,7 @@ class ChangefeedJob(BaseJob):
             metadata_db_session.close()
 
     def __init__(self, response, cluster_name):
-        super().__init__(response[0], response[1], response[2], cluster_name)
+        super().__init__(response[0], response[1], response[2], response[3], response[4], cluster_name)
         self._response = response
         self._cluster_name = cluster_name
 
