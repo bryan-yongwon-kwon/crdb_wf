@@ -8,7 +8,7 @@ class ChangefeedJobDetails(Base):
     __tablename__ = "changefeed_job_details"
 
     workflow_id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True)
-    job_id: Mapped[int] = mapped_column(BigInteger)
+    job_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     description: Mapped[str] = mapped_column(String)
     error: Mapped[str] = mapped_column(String)
     high_water_timestamp: Mapped[float] = mapped_column(Float)

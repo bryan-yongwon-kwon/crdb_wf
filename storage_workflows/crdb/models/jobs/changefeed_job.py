@@ -87,7 +87,7 @@ class ChangefeedJob(BaseJob):
                 )
 
                 upsert_statement = insert_statement.on_conflict_do_update(
-                    index_elements=['workflow_id'],
+                    index_elements=['workflow_id', 'job_id'],
                     set_=dict(
                         job_id=metadata.job_id,
                         description=metadata.description,
