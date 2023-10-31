@@ -59,14 +59,6 @@ class ChangefeedJob(BaseJob):
 
     @staticmethod
     def persist_to_metadata_db(workflow_id, cluster_name):
-        """
-        Retrieve changefeed jobs from the target CockroachDB cluster and
-        persist them into the metadata database.
-        Args:
-        - workflow_id (int): Externally provided workflow identifier.
-        - cluster_name (str): Name of the CockroachDB cluster from which to retrieve job details.
-        """
-
         crdb_workflow_instance = CrdbWorkflows()
         metadata_db_session = crdb_workflow_instance.session_factory()
         connection = CrdbConnection.get_crdb_connection(cluster_name)
@@ -118,7 +110,39 @@ class ChangefeedJob(BaseJob):
             metadata_db_session.rollback()
         finally:
             metadata_db_session.close()
-            connection.close()  # Closing the connection after the operation
+            connection.close()
+
+    @staticmethod
+    def compare_current_to_persisted_metadata(cluster_name):
+        """
+        Compares the current changefeed metadata from CRDB cluster to persisted metadata.
+        Returns the list of paused changefeeds.
+        """
+        # Get current changefeed metadata from CRDB cluster
+        current_metadata = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+
+        # Get persisted changefeed metadata from metadata_db
+        crdb_workflow_instance = CrdbWorkflows()
+        metadata_db_session = crdb_workflow_instance.session_factory()
+        persisted_metadata = metadata_db_session.query(ChangefeedJobDetails).all()
+
+        paused_changefeeds = []
+
+        # Compare current and persisted metadata
+        for current in current_metadata:
+            matching_persisted = next((x for x in persisted_metadata if x.job_id == current.id), None)
+            if matching_persisted:
+                # Check for paused changefeeds
+                if current.status == "paused" and matching_persisted.running_status == "running":
+                    paused_changefeeds.append(current)
+
+        failed_changefeeds = []
+        for current in current_metadata:
+            # Check for failed changefeeds
+            if current.status == "failed":
+                failed_changefeeds.append(current)
+
+        return paused_changefeeds, failed_changefeeds
 
     def __init__(self, response, cluster_name):
         super().__init__(response[0], response[1], response[2], cluster_name)

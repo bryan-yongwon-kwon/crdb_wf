@@ -371,6 +371,7 @@ def drain_old_nodes(deployment_env, region, cluster_name):
     else:
         logger.info(f"{cluster_name} No nodes to drain")
 
+
 @app.command()
 def decommission_old_nodes(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} decommission_old_nodes")
@@ -389,12 +390,19 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name} Decommission completed!")
     else:
         logger.info(f"{cluster_name} No nodes to decommission")
-    cluster = Cluster()
-    logger.info(f"{cluster_name} Checking for paused changefeed jobs after decommission...")
-    if cluster.paused_changefeed_jobs_exist():
+    # Compare current changefeed metadata to persisted metadata and resume any paused changefeeds
+    paused_changefeeds, failed_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(cluster_name)
+
+    for changefeed in paused_changefeeds:
+        changefeed.resume()
+    if len(failed_changefeeds) > 0:
+        raise Exception("Found failed changefeeds after decommission.")
+    if len(paused_changefeeds) > 0:
         raise Exception("Found paused changefeeds after decommission.")
     else:
         logger.info(f"{cluster_name} Check passed")
+
+
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} resume_all_paused_changefeeds")
