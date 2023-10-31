@@ -145,7 +145,6 @@ class ChangefeedJob(BaseJob):
                 # Check for failed changefeeds
                 elif current.status == "failed":
                     failed_changefeeds.append(current)
-                # Check for any other unexpected statuses
                 elif current.status in ChangefeedJob.UNEXPECTED_STATUSES:
                     unexpected_changefeeds.append(current)
 
