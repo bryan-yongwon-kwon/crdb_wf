@@ -2,15 +2,24 @@ from __future__ import annotations
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.models.jobs.base_job import BaseJob
 from storage_workflows.logging.logger import Logger
+from storage_workflows.metadata_db.crdb_workflows.crdb_workflows import CrdbWorkflows
+from storage_workflows.metadata_db.crdb_workflows.tables.changefeed_job_details import ChangefeedJobDetails
+from sqlalchemy.dialects.postgresql import insert
 import time
 
+
 logger = Logger()
+
+
 class ChangefeedJob(BaseJob):
 
     REMOVE_COORDINATOR_BY_JOB_ID_SQL = "UPDATE system.jobs SET claim_session_id = NULL WHERE id = '{}';"
     GET_COORDINATOR_BY_JOB_ID_SQL = "SELECT coordinator_id from crdb_internal.jobs WHERE job_id = '{}';"
-    GET_CHANGEFEED_METADATA = "SELECT running_status,error,(((high_water_timestamp/1e9)::INT)-NOW()::INT) AS latency,CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE END AS is_initial_scan_only,(finished::INT-now()::INT) as finished_ago_seconds FROM crdb_internal.jobs AS OF SYSTEM TIME FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';"
-
+    GET_CHANGEFEED_METADATA = ("SELECT running_status, error, (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS "
+                               "latency, CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE "
+                               "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
+                               "description, high_water_timestamp FROM crdb_internal.jobs AS OF SYSTEM TIME "
+                               "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';")
     PAUSE_REQUESTED = "pause-requested"
     RUNNING = "running"
     FAILED = "failed"
@@ -26,7 +35,79 @@ class ChangefeedJob(BaseJob):
                                           need_connection_close=False, need_commit=False, auto_commit=True)
         connection.close()
         return list(map(lambda job: ChangefeedJob(job, cluster_name), response))
-    
+
+    # todo: https://doordash.atlassian.net/browse/STORAGE-7195
+    @staticmethod
+    def get_latest_job_status(job_id, cluster_name):
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
+        response = connection.execute_sql(BaseJob.GET_JOB_BY_ID_SQL.format(job_id),
+                                          need_connection_close=False, need_commit=False, auto_commit=True)
+        connection.close()
+        # Logging each item in the response
+        for index, item in enumerate(response):
+            logger.info("Item at index {}: {}".format(index, item))
+
+        job_status = response[0][2]
+
+        return job_status
+
+    @staticmethod
+    def persist_to_metadata_db(workflow_id, cluster_name):
+        """
+        Retrieve changefeed jobs from the target CockroachDB cluster and
+        persist them into the metadata database.
+        Args:
+        - workflow_id (int): Externally provided workflow identifier.
+        - cluster_name (str): Name of the CockroachDB cluster from which to retrieve job details.
+        """
+
+        crdb_workflow_instance = CrdbWorkflows()
+        metadata_db_session = crdb_workflow_instance.session_factory()
+
+        try:
+            # Retrieve all changefeed jobs from the target cluster
+            changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+
+            for job in changefeed_jobs:
+                # Get metadata for the job
+                metadata = job.changefeed_metadata
+
+                # Upsert to the metadata_db
+                insert_statement = insert(ChangefeedJobDetails).values(
+                    workflow_id=workflow_id,
+                    job_id=job.id,
+                    description=job.description,
+                    status=job.status,
+                    error=metadata.error,
+                    latency=metadata.latency,
+                    is_initial_scan_only=metadata.is_initial_scan_only,
+                    finished_ago_seconds=metadata.finished_ago_seconds,
+                    high_water_timestamp=job.high_water_timestamp
+                )
+
+                upsert_statement = insert_statement.on_conflict_do_update(
+                    index_elements=['workflow_id'],
+                    set_=dict(
+                        job_id=job.id,
+                        description=job.description,
+                        status=job.status,
+                        error=metadata.error,
+                        latency=metadata.latency,
+                        is_initial_scan_only=metadata.is_initial_scan_only,
+                        finished_ago_seconds=metadata.finished_ago_seconds,
+                        high_water_timestamp=job.high_water_timestamp
+                    )
+                )
+
+                metadata_db_session.execute(upsert_statement)
+            metadata_db_session.commit()
+        except Exception as e:
+            logger.error(f"Error persisting changefeed jobs: {e}")
+            metadata_db_session.rollback()
+        finally:
+            metadata_db_session.close()
+
     def __init__(self, response, cluster_name):
         super().__init__(response[0], response[1], response[2], cluster_name)
         self._response = response
@@ -91,23 +172,6 @@ class ChangefeedJob(BaseJob):
             else:
                 logger.info("Waiting for job {} to resume. Current status: {}.".format(self.id, job_status))
                 time.sleep(interval)
-
-    # todo: https://doordash.atlassian.net/browse/STORAGE-7195
-    @staticmethod
-    def get_latest_job_status(job_id, cluster_name):
-        connection = CrdbConnection.get_crdb_connection(cluster_name)
-        connection.connect()
-        response = connection.execute_sql(BaseJob.GET_JOB_BY_ID_SQL.format(job_id),
-                                          need_connection_close=False, need_commit=False, auto_commit=True)
-        connection.close()
-        # Logging each item in the response
-        for index, item in enumerate(response):
-            logger.info("Item at index {}: {}".format(index, item))
-
-        job_status = response[0][2]
-
-        return job_status
-    
 
     class ChangefeedJobInternalStatus:
         def __init__(self, response):

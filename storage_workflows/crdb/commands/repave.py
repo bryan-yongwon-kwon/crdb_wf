@@ -32,7 +32,9 @@ def pre_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     # handle unusual cluster names with dashes: e.g. url-shortener
     cluster_name = os.environ['CLUSTER_NAME']
+    workflow_id = os.getenv('WORKFLOW-ID')
     cluster = Cluster()
+    ChangefeedJob.persist_to_metadata_db(workflow_id, cluster_name)
     if (cluster.backup_job_is_running()
         or cluster.restore_job_is_running()
         or cluster.schema_change_job_is_running()
