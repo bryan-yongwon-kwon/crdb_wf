@@ -20,7 +20,7 @@ class ChangefeedJob(BaseJob):
                                "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
                                "description, high_water_timestamp FROM crdb_internal.jobs AS OF SYSTEM TIME "
                                "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';")
-    GET_ALL_CHANGEFEED_METADATA = ("SELECT running_status, error, (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS "
+    GET_ALL_CHANGEFEED_METADATA = ("SELECT status, running_status, error, (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS "
                                    "latency, CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE "
                                    "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
                                    "description, high_water_timestamp, job_id FROM crdb_internal.jobs AS OF SYSTEM TIME "
@@ -73,12 +73,18 @@ class ChangefeedJob(BaseJob):
 
             for job_response in changefeed_jobs_response:
                 metadata = ChangefeedJob.ChangefeedJobInternalStatus(job_response)
+
+                # Skip persisting if the job status is CANCELED or FAILED
+                if metadata.status in ChangefeedJob.UNEXPECTED_STATUSES:
+                    continue
+
                 # Upsert to the metadata_db
                 insert_statement = insert(ChangefeedJobDetails).values(
                     workflow_id=workflow_id,
                     job_id=metadata.job_id,
                     description=metadata.description,
                     running_status=metadata.running_status,
+                    status=metadata.status,
                     error=metadata.error,
                     latency=metadata.latency,
                     is_initial_scan_only=metadata.is_initial_scan_only,
@@ -92,6 +98,7 @@ class ChangefeedJob(BaseJob):
                         job_id=metadata.job_id,
                         description=metadata.description,
                         running_status=metadata.running_status,
+                        status=metadata.status,
                         error=metadata.error,
                         latency=metadata.latency,
                         is_initial_scan_only=metadata.is_initial_scan_only,
@@ -124,22 +131,25 @@ class ChangefeedJob(BaseJob):
         persisted_metadata = metadata_db_session.query(ChangefeedJobDetails).all()
 
         paused_changefeeds = []
+        failed_changefeeds = []
+        unexpected_changefeeds = []
 
         # Compare current and persisted metadata
         for current in current_metadata:
             matching_persisted = next((x for x in persisted_metadata if x.job_id == current.id), None)
+
             if matching_persisted:
-                # Check for paused changefeeds
+                # Check for paused changefeeds based on running_status and status columns
                 if current.status == "paused" and matching_persisted.running_status == "running":
                     paused_changefeeds.append(current)
+                # Check for failed changefeeds
+                elif current.status == "failed":
+                    failed_changefeeds.append(current)
+                # Check for any other unexpected statuses
+                elif current.status in ChangefeedJob.UNEXPECTED_STATUSES:
+                    unexpected_changefeeds.append(current)
 
-        failed_changefeeds = []
-        for current in current_metadata:
-            # Check for failed changefeeds
-            if current.status == "failed":
-                failed_changefeeds.append(current)
-
-        return paused_changefeeds, failed_changefeeds
+        return paused_changefeeds, failed_changefeeds, unexpected_changefeeds
 
     def __init__(self, response, cluster_name):
         super().__init__(response[0], response[1], response[2], cluster_name)
@@ -211,39 +221,43 @@ class ChangefeedJob(BaseJob):
             self._response = response
 
         @property
-        def running_status(self):
+        def status(self):
             return self._response[0]
 
         @property
-        def error(self):
+        def running_status(self):
             return self._response[1]
 
         @property
-        def latency(self):
+        def error(self):
             return self._response[2]
 
         @property
-        def is_initial_scan_only(self):
+        def latency(self):
             return self._response[3]
 
         @property
-        def finished_ago_seconds(self):
+        def is_initial_scan_only(self):
             return self._response[4]
 
         @property
-        def description(self):
+        def finished_ago_seconds(self):
             return self._response[5]
 
         @property
-        def high_water_timestamp(self):
+        def description(self):
             return self._response[6]
 
         @property
-        def job_id(self):
+        def high_water_timestamp(self):
             return self._response[7]
 
+        @property
+        def job_id(self):
+            return self._response[8]
+
         def __repr__(self):
-            return (f"<ChangefeedJobInternalStatus(job_id={self.job_id}, description={self.description}, "
+            return (f"<ChangefeedJobInternalStatus(status={self.status}, job_id={self.job_id}, description={self.description}, "
                     f"running_status={self.running_status}, error={self.error}, "
                     f"latency={self.latency}, is_initial_scan_only={self.is_initial_scan_only}, "
                     f"finished_ago_seconds={self.finished_ago_seconds}, high_water_timestamp={self.high_water_timestamp})>")

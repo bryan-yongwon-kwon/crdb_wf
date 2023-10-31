@@ -16,4 +16,5 @@ class ChangefeedJobDetails(Base):
     finished_ago_seconds: Mapped[int] = mapped_column(Integer, nullable=True)
     latency: Mapped[int] = mapped_column(Integer, nullable=True)
     running_status: Mapped[str] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String)
 

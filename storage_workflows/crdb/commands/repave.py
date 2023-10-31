@@ -382,7 +382,8 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     # STORAGE-7583: do nothing if scaling up
     if old_instance_ids:
-        old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+        old_nodes = list(
+            map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
         cluster = Cluster()
         if cluster.unhealthy_ranges_exist():
             raise Exception("Abort decommission, unhealthy ranges exist!")
@@ -390,8 +391,10 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name} Decommission completed!")
     else:
         logger.info(f"{cluster_name} No nodes to decommission")
+
     # Compare current changefeed metadata to persisted metadata and resume any paused changefeeds
-    paused_changefeeds, failed_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(cluster_name)
+    paused_changefeeds, failed_changefeeds, unexpected_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(
+        cluster_name)
 
     for changefeed in paused_changefeeds:
         changefeed.resume()
@@ -399,6 +402,9 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
         raise Exception("Found failed changefeeds after decommission.")
     if len(paused_changefeeds) > 0:
         raise Exception("Found paused changefeeds after decommission.")
+    if len(unexpected_changefeeds) > 0:
+        raise Exception(
+            f"Found changefeeds with unexpected statuses after decommission: {[cf.id for cf in unexpected_changefeeds]}")
     else:
         logger.info(f"{cluster_name} Check passed")
 
