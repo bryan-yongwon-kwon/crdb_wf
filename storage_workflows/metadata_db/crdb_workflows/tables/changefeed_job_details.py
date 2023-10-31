@@ -1,6 +1,5 @@
-from sqlalchemy import DateTime, Float, BigInteger, String, Integer, Boolean, UUID
+from sqlalchemy import Float, BigInteger, String, Integer, Boolean, UUID
 from sqlalchemy.orm import declarative_base, mapped_column, Mapped
-from datetime import datetime
 
 Base = declarative_base()
 
@@ -17,3 +16,4 @@ class ChangefeedJobDetails(Base):
     finished_ago_seconds: Mapped[int] = mapped_column(Integer, nullable=True)
     latency: Mapped[int] = mapped_column(Integer, nullable=True)
     running_status: Mapped[str] = mapped_column(String, nullable=True)
+
