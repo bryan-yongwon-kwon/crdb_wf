@@ -88,21 +88,3 @@ class TestRepave(TestCase):
             pre_check('prod', 'us-west-2', test_cluster_name)
         self.assertEqual(str(context.exception), 'Pre run check failed')
         
-
-    def test_pre_check_restore_jobs_running(self):
-        pass
-
-    def test_pre_check_schema_change_jobs_running(self):
-        pass
-
-    def test_pre_check_row_level_ttl_jobs_running(self):
-        pass
-
-    def test_pre_check_instances_not_in_service_exist(self):
-        pass
-
-    def test_pre_check_paused_changefeed_jobs_exist(self):
-        pass
-
-    def test_pre_check_unhealthy_ranges_exist(self):
-        pass
