@@ -73,9 +73,6 @@ class ChangefeedJob(BaseJob):
 
             for job_response in changefeed_jobs_response:
                 metadata = ChangefeedJob.ChangefeedJobInternalStatus(job_response)
-                # Skip the job if the running_status doesn't contain 'running'
-                if 'running' not in metadata.running_status:
-                    continue
                 # Upsert to the metadata_db
                 insert_statement = insert(ChangefeedJobDetails).values(
                     workflow_id=workflow_id,
