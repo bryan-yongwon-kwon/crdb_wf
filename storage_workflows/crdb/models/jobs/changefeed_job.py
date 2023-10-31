@@ -196,3 +196,10 @@ class ChangefeedJob(BaseJob):
         @property
         def finished_ago_seconds(self):
             return self._response[4]
+
+        def __repr__(self):
+            return (f"<ChangefeedJobInternalStatus(running_status={self.running_status}, "
+                    f"error={self.error}, "
+                    f"latency={self.latency}, "
+                    f"is_initial_scan_only={self.is_initial_scan_only}, "
+                    f"finished_ago_seconds={self.finished_ago_seconds})>")
