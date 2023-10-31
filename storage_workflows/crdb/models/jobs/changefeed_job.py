@@ -66,44 +66,46 @@ class ChangefeedJob(BaseJob):
         - workflow_id (int): Externally provided workflow identifier.
         - cluster_name (str): Name of the CockroachDB cluster from which to retrieve job details.
         """
+
         crdb_workflow_instance = CrdbWorkflows()
         metadata_db_session = crdb_workflow_instance.session_factory()
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
 
         try:
-            # Retrieve all changefeed jobs metadata directly from GET_ALL_CHANGEFEED_METADATA
-            all_changefeed_metadata = connection.execute_sql(ChangefeedJob.GET_ALL_CHANGEFEED_METADATA,
-                                    need_connection_close=False, need_commit=False, auto_commit=True)
+            # Retrieve all changefeed jobs from the target cluster
+            changefeed_jobs_response = connection.execute_sql(ChangefeedJob.GET_ALL_CHANGEFEED_METADATA,
+                                                              need_connection_close=False,
+                                                              need_commit=False,
+                                                              auto_commit=True)
 
-            for metadata in all_changefeed_metadata:
-                # Convert metadata to internal status object for easier access
-                internal_status = ChangefeedJob.ChangefeedJobInternalStatus(metadata)
+            for job_response in changefeed_jobs_response:
+                metadata = ChangefeedJob.ChangefeedJobInternalStatus(job_response)
 
                 # Upsert to the metadata_db
                 insert_statement = insert(ChangefeedJobDetails).values(
                     workflow_id=workflow_id,
-                    job_id=internal_status.job_id,
-                    description=internal_status.description,
-                    status=internal_status.running_status,
-                    error=internal_status.error,
-                    latency=internal_status.latency,
-                    is_initial_scan_only=internal_status.is_initial_scan_only,
-                    finished_ago_seconds=internal_status.finished_ago_seconds,
-                    high_water_timestamp=internal_status.high_water_timestamp
+                    job_id=metadata.job_id,
+                    description=metadata.description,
+                    status=metadata.running_status,
+                    error=metadata.error,
+                    latency=metadata.latency,
+                    is_initial_scan_only=metadata.is_initial_scan_only,
+                    finished_ago_seconds=metadata.finished_ago_seconds,
+                    high_water_timestamp=metadata.high_water_timestamp
                 )
 
                 upsert_statement = insert_statement.on_conflict_do_update(
                     index_elements=['workflow_id'],
                     set_=dict(
-                        job_id=internal_status.job_id,
-                        description=internal_status.description,
-                        status=internal_status.running_status,
-                        error=internal_status.error,
-                        latency=internal_status.latency,
-                        is_initial_scan_only=internal_status.is_initial_scan_only,
-                        finished_ago_seconds=internal_status.finished_ago_seconds,
-                        high_water_timestamp=internal_status.high_water_timestamp
+                        job_id=metadata.job_id,
+                        description=metadata.description,
+                        status=metadata.running_status,
+                        error=metadata.error,
+                        latency=metadata.latency,
+                        is_initial_scan_only=metadata.is_initial_scan_only,
+                        finished_ago_seconds=metadata.finished_ago_seconds,
+                        high_water_timestamp=metadata.high_water_timestamp
                     )
                 )
 
@@ -114,10 +116,10 @@ class ChangefeedJob(BaseJob):
             metadata_db_session.rollback()
         finally:
             metadata_db_session.close()
-            connection.close()
+            connection.close()  # Closing the connection after the operation
 
     def __init__(self, response, cluster_name):
-        super().__init__(response[0], response[1], response[2], response[3], response[4], cluster_name)
+        super().__init__(response[0], response[1], response[2], cluster_name)
         self._response = response
         self._cluster_name = cluster_name
 
