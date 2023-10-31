@@ -1,7 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy_cockroachdb import run_transaction
 from sqlalchemy.orm import sessionmaker
-from storage_workflows.metadata_db.crdb_workflows.transactions import get_instance_ids_txn, upsert_instancer_ids_txn
+from storage_workflows.metadata_db.crdb_workflows.transactions import (get_instance_ids_txn, upsert_instancer_ids_txn,
+                                                                       _get_changefeed_job_details_txn,
+                                                                       _delete_changefeed_job_details_txn,
+                                                                       _insert_changefeed_job_details_txn,
+                                                                       _update_changefeed_job_details_txn)
 from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
 
 class CrdbWorkflows:

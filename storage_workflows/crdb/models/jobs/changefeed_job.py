@@ -20,6 +20,11 @@ class ChangefeedJob(BaseJob):
                                "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
                                "description, high_water_timestamp FROM crdb_internal.jobs AS OF SYSTEM TIME "
                                "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';")
+    GET_ALL_CHANGEFEED_METADATA = ("SELECT running_status, error, (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS "
+                                   "latency, CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE "
+                                   "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
+                                   "description, high_water_timestamp, job_id FROM crdb_internal.jobs AS OF SYSTEM TIME "
+                                   "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED';")
     PAUSE_REQUESTED = "pause-requested"
     RUNNING = "running"
     FAILED = "failed"
@@ -61,42 +66,44 @@ class ChangefeedJob(BaseJob):
         - workflow_id (int): Externally provided workflow identifier.
         - cluster_name (str): Name of the CockroachDB cluster from which to retrieve job details.
         """
-
         crdb_workflow_instance = CrdbWorkflows()
         metadata_db_session = crdb_workflow_instance.session_factory()
+        connection = CrdbConnection.get_crdb_connection(cluster_name)
+        connection.connect()
 
         try:
-            # Retrieve all changefeed jobs from the target cluster
-            changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+            # Retrieve all changefeed jobs metadata directly from GET_ALL_CHANGEFEED_METADATA
+            all_changefeed_metadata = connection.execute_sql(ChangefeedJob.GET_ALL_CHANGEFEED_METADATA,
+                                    need_connection_close=False, need_commit=False, auto_commit=True)
 
-            for job in changefeed_jobs:
-                # Get metadata for the job
-                metadata = job.changefeed_metadata
+            for metadata in all_changefeed_metadata:
+                # Convert metadata to internal status object for easier access
+                internal_status = ChangefeedJob.ChangefeedJobInternalStatus(metadata)
 
                 # Upsert to the metadata_db
                 insert_statement = insert(ChangefeedJobDetails).values(
                     workflow_id=workflow_id,
-                    job_id=job.id,
-                    description=job.description,
-                    status=job.status,
-                    error=metadata.error,
-                    latency=metadata.latency,
-                    is_initial_scan_only=metadata.is_initial_scan_only,
-                    finished_ago_seconds=metadata.finished_ago_seconds,
-                    high_water_timestamp=job.high_water_timestamp
+                    job_id=internal_status.job_id,
+                    description=internal_status.description,
+                    status=internal_status.running_status,
+                    error=internal_status.error,
+                    latency=internal_status.latency,
+                    is_initial_scan_only=internal_status.is_initial_scan_only,
+                    finished_ago_seconds=internal_status.finished_ago_seconds,
+                    high_water_timestamp=internal_status.high_water_timestamp
                 )
 
                 upsert_statement = insert_statement.on_conflict_do_update(
                     index_elements=['workflow_id'],
                     set_=dict(
-                        job_id=job.id,
-                        description=job.description,
-                        status=job.status,
-                        error=metadata.error,
-                        latency=metadata.latency,
-                        is_initial_scan_only=metadata.is_initial_scan_only,
-                        finished_ago_seconds=metadata.finished_ago_seconds,
-                        high_water_timestamp=job.high_water_timestamp
+                        job_id=internal_status.job_id,
+                        description=internal_status.description,
+                        status=internal_status.running_status,
+                        error=internal_status.error,
+                        latency=internal_status.latency,
+                        is_initial_scan_only=internal_status.is_initial_scan_only,
+                        finished_ago_seconds=internal_status.finished_ago_seconds,
+                        high_water_timestamp=internal_status.high_water_timestamp
                     )
                 )
 
@@ -107,6 +114,7 @@ class ChangefeedJob(BaseJob):
             metadata_db_session.rollback()
         finally:
             metadata_db_session.close()
+            connection.close()
 
     def __init__(self, response, cluster_name):
         super().__init__(response[0], response[1], response[2], response[3], response[4], cluster_name)
@@ -197,9 +205,21 @@ class ChangefeedJob(BaseJob):
         def finished_ago_seconds(self):
             return self._response[4]
 
+        @property
+        def description(self):
+            return self._response[5]
+
+        @property
+        def high_water_timestamp(self):
+            return self._response[6]
+
+        @property
+        def job_id(self):
+            return self._response[7]
+
         def __repr__(self):
-            return (f"<ChangefeedJobInternalStatus(running_status={self.running_status}, "
-                    f"error={self.error}, "
-                    f"latency={self.latency}, "
-                    f"is_initial_scan_only={self.is_initial_scan_only}, "
-                    f"finished_ago_seconds={self.finished_ago_seconds})>")
+            return (f"<ChangefeedJobInternalStatus(job_id={self.job_id}, description={self.description}, "
+                    f"running_status={self.running_status}, error={self.error}, "
+                    f"latency={self.latency}, is_initial_scan_only={self.is_initial_scan_only}, "
+                    f"finished_ago_seconds={self.finished_ago_seconds}, high_water_timestamp={self.high_water_timestamp})>")
+
