@@ -39,13 +39,13 @@ class TestRepave(TestCase):
         paused_changefeed_jobs_exist.return_value = False
         unhealthy_ranges_exist.return_value = False
         pre_check('prod', 'us-west-2', test_cluster_name)
-        backup_job_is_running.assert_called_once_with()
-        restore_job_is_running.assert_called_once_with()
-        schema_change_job_is_running.assert_called_once_with()
-        row_level_ttl_job_is_running.assert_called_once_with()
-        instances_not_in_service_exist.assert_called_once_with()
-        paused_changefeed_jobs_exist.assert_called_once_with()
-        unhealthy_ranges_exist.assert_called_once_with()
+        backup_job_is_running.assert_called_once()
+        restore_job_is_running.assert_called_once()
+        schema_change_job_is_running.assert_called_once()
+        row_level_ttl_job_is_running.assert_called_once()
+        instances_not_in_service_exist.assert_called_once()
+        paused_changefeed_jobs_exist.assert_called_once()
+        unhealthy_ranges_exist.assert_called_once()
         logger.info.assert_called_once_with('{} Check passed'.format(test_cluster_name))
     
     @parameterized.expand(["backup_job_is_running", 
