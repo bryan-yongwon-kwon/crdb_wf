@@ -1,8 +1,8 @@
 import os
+from parameterized import parameterized
+from storage_workflows.crdb.commands.repave import pre_check
 from unittest import TestCase
 from unittest.mock import patch, DEFAULT
-from storage_workflows.crdb.commands.repave import pre_check
-from parameterized import parameterized
 
 
 class TestRepave(TestCase):
