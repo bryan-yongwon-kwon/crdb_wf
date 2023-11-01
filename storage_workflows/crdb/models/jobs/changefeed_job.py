@@ -66,10 +66,7 @@ class ChangefeedJob(BaseJob):
 
         try:
             # Retrieve all changefeed jobs from the target cluster
-            changefeed_jobs_response = connection.execute_sql(ChangefeedJob.GET_ALL_CHANGEFEED_METADATA,
-                                                              need_connection_close=False,
-                                                              need_commit=False,
-                                                              auto_commit=True)
+            changefeed_jobs_response = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
 
             for job_response in changefeed_jobs_response:
                 metadata = ChangefeedJob.ChangefeedJobInternalStatus(job_response)
