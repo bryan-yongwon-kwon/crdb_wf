@@ -61,10 +61,10 @@ class ChangefeedJob(BaseJob):
 
         try:
             # Retrieve all changefeed jobs from the target cluster
-            changefeed_jobs_response = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+            changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
 
-            for job_response in changefeed_jobs_response:
-                metadata = ChangefeedJob.ChangefeedJobInternalStatus(job_response)
+            for job in changefeed_jobs:
+                metadata = changefeed_jobs.metadata
 
                 # Skip persisting if the job status is CANCELED or FAILED
                 if metadata.status in ChangefeedJob.UNEXPECTED_STATUSES:

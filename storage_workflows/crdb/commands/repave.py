@@ -35,7 +35,6 @@ def pre_check(deployment_env, region, cluster_name):
     workflow_id = os.getenv('WORKFLOW-ID')
     cluster = Cluster()
     logger.info(f"workflow_id: {workflow_id}")
-    ChangefeedJob.persist_to_metadata_db(workflow_id, cluster_name)
     if (cluster.backup_job_is_running()
         or cluster.restore_job_is_running()
         or cluster.schema_change_job_is_running()
@@ -46,6 +45,7 @@ def pre_check(deployment_env, region, cluster_name):
         raise Exception("Pre run check failed")
     else:
         logger.info(f"{cluster_name} Check passed")
+        ChangefeedJob.persist_to_metadata_db(workflow_id, cluster_name)
 
 
 def get_old_instance_ids(deployment_env, region, cluster_name):
