@@ -129,7 +129,8 @@ class ChangefeedJob(BaseJob):
         crdb_workflow_instance = CrdbWorkflows()
         metadata_db_session = crdb_workflow_instance.session_factory()
         persisted_metadata = metadata_db_session.query(ChangefeedJobDetails).filter_by(workflow_id=workflow_id).all()
-
+        logger.info(f"persisted_metadata: {persisted_metadata}")
+        logger.info(f"current_metadata: {current_metadata}")
         paused_changefeeds = []
         failed_changefeeds = []
         unexpected_changefeeds = []
@@ -147,7 +148,9 @@ class ChangefeedJob(BaseJob):
                     failed_changefeeds.append(current)
                 elif current.status in ChangefeedJob.UNEXPECTED_STATUSES:
                     unexpected_changefeeds.append(current)
-
+        logger.info(f"paused_changefeeds: {paused_changefeeds}")
+        logger.info(f"failed_changefeeds: {failed_changefeeds}")
+        logger.info(f"unexpected_changefeeds: {unexpected_changefeeds}")
         return paused_changefeeds, failed_changefeeds, unexpected_changefeeds
 
     def __init__(self, response, cluster_name):

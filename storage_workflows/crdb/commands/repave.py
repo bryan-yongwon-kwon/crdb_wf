@@ -34,6 +34,7 @@ def pre_check(deployment_env, region, cluster_name):
     cluster_name = os.environ['CLUSTER_NAME']
     workflow_id = os.getenv('WORKFLOW-ID')
     cluster = Cluster()
+    logger.info(f"workflow_id: {workflow_id}")
     ChangefeedJob.persist_to_metadata_db(workflow_id, cluster_name)
     if (cluster.backup_job_is_running()
         or cluster.restore_job_is_running()
@@ -392,7 +393,7 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name} Decommission completed!")
     else:
         logger.info(f"{cluster_name} No nodes to decommission")
-
+    logger.info(f"workflow_id: {workflow_id}")
     # Compare current changefeed metadata to persisted metadata and resume any paused changefeeds
     paused_changefeeds, failed_changefeeds, unexpected_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(
         cluster_name, workflow_id)
