@@ -73,7 +73,7 @@ class ChangefeedJob(BaseJob):
                 # Upsert to the metadata_db
                 insert_statement = insert(ChangefeedJobDetails).values(
                     workflow_id=workflow_id,
-                    job_id=metadata.job_id,
+                    job_id=job.id,
                     description=metadata.description,
                     running_status=metadata.running_status,
                     status=metadata.status,
@@ -87,7 +87,7 @@ class ChangefeedJob(BaseJob):
                 upsert_statement = insert_statement.on_conflict_do_update(
                     index_elements=['workflow_id', 'job_id'],
                     set_=dict(
-                        job_id=metadata.job_id,
+                        job_id=job.id,
                         description=metadata.description,
                         running_status=metadata.running_status,
                         status=metadata.status,
