@@ -148,9 +148,6 @@ class ChangefeedJob(BaseJob):
                     failed_changefeeds.append(current)
                 elif current.status in ChangefeedJob.UNEXPECTED_STATUSES:
                     unexpected_changefeeds.append(current)
-        logger.info(f"paused_changefeeds: {paused_changefeeds}")
-        logger.info(f"failed_changefeeds: {failed_changefeeds}")
-        logger.info(f"unexpected_changefeeds: {unexpected_changefeeds}")
         return paused_changefeeds, failed_changefeeds, unexpected_changefeeds
 
     def __init__(self, response, cluster_name):
