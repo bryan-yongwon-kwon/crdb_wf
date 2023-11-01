@@ -378,6 +378,7 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     # handle unusual cluster names with dashes: e.g. url-shortener
     cluster_name = os.environ['CLUSTER_NAME']
+    workflow_id = os.getenv('WORKFLOW-ID')
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     # STORAGE-7583: do nothing if scaling up
@@ -394,7 +395,7 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
 
     # Compare current changefeed metadata to persisted metadata and resume any paused changefeeds
     paused_changefeeds, failed_changefeeds, unexpected_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(
-        cluster_name)
+        cluster_name, workflow_id)
 
     for changefeed in paused_changefeeds:
         changefeed.resume()

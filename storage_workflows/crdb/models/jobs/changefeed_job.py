@@ -117,7 +117,7 @@ class ChangefeedJob(BaseJob):
             connection.close()
 
     @staticmethod
-    def compare_current_to_persisted_metadata(cluster_name):
+    def compare_current_to_persisted_metadata(cluster_name, workflow_id):
         """
         Compares the current changefeed metadata from CRDB cluster to persisted metadata.
         Returns the list of paused changefeeds.
@@ -128,7 +128,7 @@ class ChangefeedJob(BaseJob):
         # Get persisted changefeed metadata from metadata_db
         crdb_workflow_instance = CrdbWorkflows()
         metadata_db_session = crdb_workflow_instance.session_factory()
-        persisted_metadata = metadata_db_session.query(ChangefeedJobDetails).all()
+        persisted_metadata = metadata_db_session.query(ChangefeedJobDetails).filter_by(workflow_id=workflow_id).all()
 
         paused_changefeeds = []
         failed_changefeeds = []
