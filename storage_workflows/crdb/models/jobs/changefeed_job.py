@@ -18,13 +18,8 @@ class ChangefeedJob(BaseJob):
     GET_CHANGEFEED_METADATA = ("SELECT running_status, error, (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS "
                                "latency, CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE "
                                "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
-                               "description, high_water_timestamp FROM crdb_internal.jobs AS OF SYSTEM TIME "
-                               "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';")
-    GET_ALL_CHANGEFEED_METADATA = ("SELECT status, running_status, error, (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS "
-                                   "latency, CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE "
-                                   "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
-                                   "description, high_water_timestamp, job_id FROM crdb_internal.jobs AS OF SYSTEM TIME "
-                                   "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED';")
+                               "description, high_water_timestamp, status FROM crdb_internal.jobs AS OF SYSTEM TIME "
+                               "FOLLOWER_READ_TIMESTAMP(), status WHERE job_type = 'CHANGEFEED' AND job_id = '{}';")
     PAUSE_REQUESTED = "pause-requested"
     RUNNING = "running"
     FAILED = "failed"
@@ -249,7 +244,7 @@ class ChangefeedJob(BaseJob):
             return self._response[7]
 
         @property
-        def job_id(self):
+        def status(self):
             return self._response[8]
 
         def __repr__(self):
