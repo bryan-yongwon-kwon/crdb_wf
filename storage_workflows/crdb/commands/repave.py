@@ -402,6 +402,9 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
         changefeed.resume()
     # wait for changefeed jobs to resume before checking
     time.sleep(30)
+    # check again after resuming potentially paused jobs
+    paused_changefeeds, failed_changefeeds, unexpected_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(
+        cluster_name, workflow_id)
     if len(failed_changefeeds) > 0:
         raise Exception("Found failed changefeeds after decommission.")
     if len(paused_changefeeds) > 0:
