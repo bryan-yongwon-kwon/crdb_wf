@@ -32,7 +32,10 @@ def pre_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     # handle unusual cluster names with dashes: e.g. url-shortener
     cluster_name = os.environ['CLUSTER_NAME']
+    workflow_id = os.getenv('WORKFLOW-ID')
     cluster = Cluster()
+    logger.info(f"workflow_id: {workflow_id}")
+    ChangefeedJob.persist_to_metadata_db(workflow_id, cluster_name)
     if (cluster.backup_job_is_running()
         or cluster.restore_job_is_running()
         or cluster.schema_change_job_is_running()
@@ -369,17 +372,20 @@ def drain_old_nodes(deployment_env, region, cluster_name):
     else:
         logger.info(f"{cluster_name} No nodes to drain")
 
+
 @app.command()
 def decommission_old_nodes(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} decommission_old_nodes")
     setup_env(deployment_env, region, cluster_name)
     # handle unusual cluster names with dashes: e.g. url-shortener
     cluster_name = os.environ['CLUSTER_NAME']
+    workflow_id = os.getenv('WORKFLOW-ID')
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     # STORAGE-7583: do nothing if scaling up
     if old_instance_ids:
-        old_nodes = list(map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
+        old_nodes = list(
+            map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
         cluster = Cluster()
         if cluster.unhealthy_ranges_exist():
             raise Exception("Abort decommission, unhealthy ranges exist!")
@@ -387,12 +393,29 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name} Decommission completed!")
     else:
         logger.info(f"{cluster_name} No nodes to decommission")
-    cluster = Cluster()
-    logger.info(f"{cluster_name} Checking for paused changefeed jobs after decommission...")
-    if cluster.paused_changefeed_jobs_exist():
+    logger.info(f"workflow_id: {workflow_id}")
+    # Compare current changefeed metadata to persisted metadata and resume any paused changefeeds
+    paused_changefeeds, failed_changefeeds, unexpected_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(
+        cluster_name, workflow_id)
+
+    for changefeed in paused_changefeeds:
+        changefeed.resume()
+    # wait for changefeed jobs to resume before checking
+    time.sleep(30)
+    # check again after resuming potentially paused jobs
+    paused_changefeeds, failed_changefeeds, unexpected_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(
+        cluster_name, workflow_id)
+    if len(failed_changefeeds) > 0:
+        raise Exception("Found failed changefeeds after decommission.")
+    if len(paused_changefeeds) > 0:
         raise Exception("Found paused changefeeds after decommission.")
+    if len(unexpected_changefeeds) > 0:
+        raise Exception(
+            f"Found changefeeds with unexpected statuses after decommission: {[cf.id for cf in unexpected_changefeeds]}")
     else:
         logger.info(f"{cluster_name} Check passed")
+
+
 @app.command()
 def resume_all_paused_changefeeds(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} resume_all_paused_changefeeds")
