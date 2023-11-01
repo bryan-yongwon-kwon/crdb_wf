@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from storage_workflows.metadata_db.crdb_workflows.tables.clusters_info import ClustersInfo
 from storage_workflows.logging.logger import Logger
-from storage_workflows.metadata_db.crdb_workflows.tables.changefeed_job_details import ChangefeedJobDetails
+
 
 logger = Logger()
 
@@ -26,22 +26,3 @@ def upsert_instancer_ids_txn(session: Session, cluster_name:str, deployment_env:
                                                               set_=dict(instance_ids=instance_ids))
     session.execute(upsert_statement)
 
-
-def _insert_changefeed_job_details_txn(session, job_detail):
-    """Insert a new ChangefeedJobDetails record transaction function."""
-    session.add(job_detail)
-
-
-def _get_changefeed_job_details_txn(session, workflow_id):
-    """Retrieve ChangefeedJobDetails record by workflow_id transaction function."""
-    return session.query(ChangefeedJobDetails).filter(ChangefeedJobDetails.workflow_id == workflow_id).one_or_none()
-
-
-def _update_changefeed_job_details_txn(session, workflow_id, updated_data):
-    """Update ChangefeedJobDetails record by workflow_id transaction function."""
-    session.query(ChangefeedJobDetails).filter(ChangefeedJobDetails.workflow_id == workflow_id).update(updated_data)
-
-
-def _delete_changefeed_job_details_txn(session, workflow_id):
-    """Delete ChangefeedJobDetails record by workflow_id transaction function."""
-    session.query(ChangefeedJobDetails).filter(ChangefeedJobDetails.workflow_id == workflow_id).delete()
