@@ -67,9 +67,10 @@ class ChangefeedJob(BaseJob):
             changefeed_jobs_response = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
 
             for job_response in changefeed_jobs_response:
-                logger.info(f"job_response type: {type(job_response)}")  # Should show <class '__main__.ChangefeedJob'>
-                logger.info(f"job_response: {job_response}")  # This will call the __repr__ if it's defined
-                metadata = ChangefeedJob.ChangefeedJobInternalStatus(job_response)
+                metadata = ChangefeedJob.ChangefeedJobInternalStatus((
+                    job_response.status,
+                    job_response.id,
+                    job_response.type))
 
                 # Skip persisting if the job status is CANCELED or FAILED
                 if metadata.status in ChangefeedJob.UNEXPECTED_STATUSES:
