@@ -34,6 +34,9 @@ class ChangefeedJob(BaseJob):
         response = connection.execute_sql(BaseJob.FIND_ALL_JOBS_BY_TYPE_SQL.format('CHANGEFEED'),
                                           need_connection_close=False, need_commit=False, auto_commit=True)
         connection.close()
+        logger.info(f"Returning {len(response)} job(s) from find_all_changefeed_jobs method.")
+        for job in response:
+            logger.info(f"Job: {job}")
         return list(map(lambda job: ChangefeedJob(job, cluster_name), response))
 
     # todo: https://doordash.atlassian.net/browse/STORAGE-7195
