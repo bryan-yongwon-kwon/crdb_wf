@@ -213,48 +213,22 @@ class ChangefeedJob(BaseJob):
                 time.sleep(interval)
 
     class ChangefeedJobInternalStatus:
-        def __init__(self, response):
-            self._response = response
-
-        @property
-        def status(self):
-            return self._response[0]
-
-        @property
-        def running_status(self):
-            return self._response[1]
-
-        @property
-        def error(self):
-            return self._response[2]
-
-        @property
-        def latency(self):
-            return self._response[3]
-
-        @property
-        def is_initial_scan_only(self):
-            return self._response[4]
-
-        @property
-        def finished_ago_seconds(self):
-            return self._response[5]
-
-        @property
-        def description(self):
-            return self._response[6]
-
-        @property
-        def high_water_timestamp(self):
-            return self._response[7]
-
-        @property
-        def job_id(self):
-            return self._response[8]
+        def __init__(self, response_tuple):
+            self.status = response_tuple[0]
+            self.running_status = response_tuple[1]
+            self.error = response_tuple[2]
+            self.latency = response_tuple[3]
+            self.is_initial_scan_only = response_tuple[4]
+            self.finished_ago_seconds = response_tuple[5]
+            self.description = response_tuple[6]
+            self.high_water_timestamp = response_tuple[7]
+            self.job_id = response_tuple[8]
 
         def __repr__(self):
-            return (f"<ChangefeedJobInternalStatus(status={self.status}, job_id={self.job_id}, description={self.description}, "
-                    f"running_status={self.running_status}, error={self.error}, "
-                    f"latency={self.latency}, is_initial_scan_only={self.is_initial_scan_only}, "
-                    f"finished_ago_seconds={self.finished_ago_seconds}, high_water_timestamp={self.high_water_timestamp})>")
+            return (f"<ChangefeedJobInternalStatus(status={self.status}, job_id={self.job_id}, "
+                    f"description={self.description}, running_status={self.running_status}, "
+                    f"error={self.error}, latency={self.latency}, "
+                    f"is_initial_scan_only={self.is_initial_scan_only}, "
+                    f"finished_ago_seconds={self.finished_ago_seconds}, "
+                    f"high_water_timestamp={self.high_water_timestamp})>")
 
