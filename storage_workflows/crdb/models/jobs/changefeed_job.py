@@ -54,8 +54,7 @@ class ChangefeedJob(BaseJob):
 
     @staticmethod
     def persist_to_metadata_db(workflow_id, cluster_name):
-        crdb_workflow_instance = CrdbWorkflows()
-        metadata_db_session = crdb_workflow_instance.session_factory()
+        crdb_workflow_db = CrdbWorkflows()
         connection = CrdbConnection.get_crdb_connection(cluster_name)
         connection.connect()
 
@@ -69,43 +68,20 @@ class ChangefeedJob(BaseJob):
                 # Skip persisting if the job status is CANCELED or FAILED
                 if metadata.status in ChangefeedJob.UNEXPECTED_STATUSES:
                     continue
-
-                # Upsert to the metadata_db
-                insert_statement = insert(ChangefeedJobDetails).values(
-                    workflow_id=workflow_id,
-                    job_id=job.id,
-                    description=metadata.description,
-                    running_status=metadata.running_status,
-                    status=metadata.status,
-                    error=metadata.error,
-                    latency=metadata.latency,
-                    is_initial_scan_only=metadata.is_initial_scan_only,
-                    finished_ago_seconds=metadata.finished_ago_seconds,
-                    high_water_timestamp=metadata.high_water_timestamp
-                )
-
-                upsert_statement = insert_statement.on_conflict_do_update(
-                    index_elements=['workflow_id', 'job_id'],
-                    set_=dict(
-                        job_id=job.id,
-                        description=metadata.description,
-                        running_status=metadata.running_status,
-                        status=metadata.status,
-                        error=metadata.error,
-                        latency=metadata.latency,
-                        is_initial_scan_only=metadata.is_initial_scan_only,
-                        finished_ago_seconds=metadata.finished_ago_seconds,
-                        high_water_timestamp=metadata.high_water_timestamp
-                    )
-                )
-
-                metadata_db_session.execute(upsert_statement)
-            metadata_db_session.commit()
+                crdb_workflow_db.upsert_changefeed_job_details(workflow_id=workflow_id,
+                                                                     job_id=job.id,
+                                                                     description=metadata.description,
+                                                                     error=metadata.error,
+                                                                     high_water_timestamp=metadata.high_water_timestamp,
+                                                                     is_initial_scan_only=metadata.is_initial_scan_only,
+                                                                     finished_ago_seconds=metadata.finished_ago_seconds,
+                                                                     latency=metadata.latency,
+                                                                     running_status=metadata.running_status,
+                                                                     status=metadata.status)
+                
         except Exception as e:
             logger.error(f"Error persisting changefeed jobs: {e}")
-            metadata_db_session.rollback()
         finally:
-            metadata_db_session.close()
             connection.close()
 
     @staticmethod
