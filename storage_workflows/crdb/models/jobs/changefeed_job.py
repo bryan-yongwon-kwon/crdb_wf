@@ -15,16 +15,11 @@ class ChangefeedJob(BaseJob):
 
     REMOVE_COORDINATOR_BY_JOB_ID_SQL = "UPDATE system.jobs SET claim_session_id = NULL WHERE id = '{}';"
     GET_COORDINATOR_BY_JOB_ID_SQL = "SELECT coordinator_id from crdb_internal.jobs WHERE job_id = '{}';"
-    GET_CHANGEFEED_METADATA = ("SELECT running_status, error, (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS "
+    GET_CHANGEFEED_METADATA = ("SELECT status, running_status, error, (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS "
                                "latency, CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE "
                                "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
                                "description, high_water_timestamp FROM crdb_internal.jobs AS OF SYSTEM TIME "
                                "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';")
-    GET_ALL_CHANGEFEED_METADATA = ("SELECT status, running_status, error, (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS "
-                                   "latency, CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE "
-                                   "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
-                                   "description, high_water_timestamp, job_id FROM crdb_internal.jobs AS OF SYSTEM TIME "
-                                   "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED';")
     PAUSE_REQUESTED = "pause-requested"
     RUNNING = "running"
     FAILED = "failed"
@@ -59,59 +54,30 @@ class ChangefeedJob(BaseJob):
 
     @staticmethod
     def persist_to_metadata_db(workflow_id, cluster_name):
-        crdb_workflow_instance = CrdbWorkflows()
-        metadata_db_session = crdb_workflow_instance.session_factory()
-        connection = CrdbConnection.get_crdb_connection(cluster_name)
-        connection.connect()
-
+        crdb_workflow_db = CrdbWorkflows()
         try:
             # Retrieve all changefeed jobs from the target cluster
-            changefeed_jobs_response = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+            changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
 
-            for job_response in changefeed_jobs_response:
-                metadata = ChangefeedJob.ChangefeedJobInternalStatus(job_response)
+            for job in changefeed_jobs:
+                metadata = job.changefeed_metadata
 
                 # Skip persisting if the job status is CANCELED or FAILED
                 if metadata.status in ChangefeedJob.UNEXPECTED_STATUSES:
                     continue
-
-                # Upsert to the metadata_db
-                insert_statement = insert(ChangefeedJobDetails).values(
-                    workflow_id=workflow_id,
-                    job_id=metadata.job_id,
-                    description=metadata.description,
-                    running_status=metadata.running_status,
-                    status=metadata.status,
-                    error=metadata.error,
-                    latency=metadata.latency,
-                    is_initial_scan_only=metadata.is_initial_scan_only,
-                    finished_ago_seconds=metadata.finished_ago_seconds,
-                    high_water_timestamp=metadata.high_water_timestamp
-                )
-
-                upsert_statement = insert_statement.on_conflict_do_update(
-                    index_elements=['workflow_id', 'job_id'],
-                    set_=dict(
-                        job_id=metadata.job_id,
-                        description=metadata.description,
-                        running_status=metadata.running_status,
-                        status=metadata.status,
-                        error=metadata.error,
-                        latency=metadata.latency,
-                        is_initial_scan_only=metadata.is_initial_scan_only,
-                        finished_ago_seconds=metadata.finished_ago_seconds,
-                        high_water_timestamp=metadata.high_water_timestamp
-                    )
-                )
-
-                metadata_db_session.execute(upsert_statement)
-            metadata_db_session.commit()
+                crdb_workflow_db.upsert_changefeed_job_details(workflow_id=workflow_id,
+                                                               job_id=job.id,
+                                                               description=metadata.description,
+                                                               error=metadata.error,
+                                                               high_water_timestamp=metadata.high_water_timestamp,
+                                                               is_initial_scan_only=metadata.is_initial_scan_only,
+                                                               finished_ago_seconds=metadata.finished_ago_seconds,
+                                                               latency=metadata.latency,
+                                                               running_status=metadata.running_status,
+                                                               status=metadata.status)
+                
         except Exception as e:
             logger.error(f"Error persisting changefeed jobs: {e}")
-            metadata_db_session.rollback()
-        finally:
-            metadata_db_session.close()
-            connection.close()
 
     @staticmethod
     def compare_current_to_persisted_metadata(cluster_name, workflow_id):
@@ -247,10 +213,6 @@ class ChangefeedJob(BaseJob):
         @property
         def high_water_timestamp(self):
             return self._response[7]
-
-        @property
-        def job_id(self):
-            return self._response[8]
 
         def __repr__(self):
             return (f"<ChangefeedJobInternalStatus(status={self.status}, job_id={self.job_id}, description={self.description}, "
