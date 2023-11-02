@@ -35,8 +35,6 @@ class ChangefeedJob(BaseJob):
                                           need_connection_close=False, need_commit=False, auto_commit=True)
         connection.close()
         logger.info(f"Returning {len(response)} job(s) from find_all_changefeed_jobs method.")
-        for job in response:
-            logger.info(f"Job: {job}")
         return list(map(lambda job: ChangefeedJob(job, cluster_name), response))
 
     # todo: https://doordash.atlassian.net/browse/STORAGE-7195
@@ -64,7 +62,6 @@ class ChangefeedJob(BaseJob):
 
             for job in changefeed_jobs:
                 metadata = job.changefeed_metadata
-
 
                 # Skip persisting if the job status is CANCELED or FAILED
                 if metadata.status in ChangefeedJob.UNEXPECTED_STATUSES:
