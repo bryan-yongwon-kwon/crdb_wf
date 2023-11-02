@@ -20,11 +20,6 @@ class ChangefeedJob(BaseJob):
                                "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
                                "description, high_water_timestamp FROM crdb_internal.jobs AS OF SYSTEM TIME "
                                "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';")
-    GET_ALL_CHANGEFEED_METADATA = ("SELECT status, running_status, error, (((high_water_timestamp/1e9)::INT)-NOW()::INT) AS "
-                                   "latency, CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE "
-                                   "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
-                                   "description, high_water_timestamp, job_id FROM crdb_internal.jobs AS OF SYSTEM TIME "
-                                   "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED';")
     PAUSE_REQUESTED = "pause-requested"
     RUNNING = "running"
     FAILED = "failed"
@@ -69,6 +64,8 @@ class ChangefeedJob(BaseJob):
             changefeed_jobs_response = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
 
             for job_response in changefeed_jobs_response:
+                logger.info(f"job_response type: {type(job_response)}")  # Should show <class '__main__.ChangefeedJob'>
+                logger.info(f"job_response: {job_response}")  # This will call the __repr__ if it's defined
                 metadata = ChangefeedJob.ChangefeedJobInternalStatus(job_response)
 
                 # Skip persisting if the job status is CANCELED or FAILED
