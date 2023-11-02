@@ -19,7 +19,7 @@ class ChangefeedJob(BaseJob):
                                "latency, CASE WHEN description like '%initial_scan = ''only''%' then TRUE ELSE FALSE "
                                "END AS is_initial_scan_only, (finished::INT-now()::INT) as finished_ago_seconds, "
                                "description, high_water_timestamp, status FROM crdb_internal.jobs AS OF SYSTEM TIME "
-                               "FOLLOWER_READ_TIMESTAMP(), status WHERE job_type = 'CHANGEFEED' AND job_id = '{}';")
+                               "FOLLOWER_READ_TIMESTAMP() WHERE job_type = 'CHANGEFEED' AND job_id = '{}';")
     PAUSE_REQUESTED = "pause-requested"
     RUNNING = "running"
     FAILED = "failed"
