@@ -31,7 +31,7 @@ def generate_traffic(deployment_env, region, cluster_name, min_conn, max_conn,
     conn_pool = crdb_conn.get_connection_pool(min_conn, max_conn)
     logger.info("Connection pool created.")
     create_table(conn_pool)
-    logger.info("Table 'test_cdc' created.")
+    logger.info("Table 'test' created.")
     threads_list = []
     for t_index in range(insert_threads_count):
         thread = threading.Thread(target=insert_traffic, args=(conn_pool, insert_group_count, inserts_per_group, sleep_between_insert_group))
@@ -66,7 +66,7 @@ def create_table(conn_pool: ThreadedConnectionPool):
     conn = conn_pool.getconn()
     try:
         cursor = conn.cursor()
-        create_table_sql = """CREATE TABLE IF NOT EXISTS test_cdc (
+        create_table_sql = """CREATE TABLE IF NOT EXISTS test (
             id UUID NOT NULL DEFAULT gen_random_uuid(),
             name STRING NULL,
             CONSTRAINT "primary" PRIMARY KEY (id ASC),
@@ -74,7 +74,7 @@ def create_table(conn_pool: ThreadedConnectionPool):
         cursor.execute(create_table_sql)
         conn.commit()
     except Exception:
-        raise Exception("Test_cdc table creation failed!")
+        raise Exception("Test table creation failed!")
     finally:
         conn_pool.putconn(conn)
 
@@ -83,7 +83,7 @@ def insert_row(conn_pool: ThreadedConnectionPool):
     try: 
         cursor = conn.cursor()
         name = ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for _ in range(10))
-        sql = "INSERT INTO test_cdc(name) VALUES ('{}');".format(name)
+        sql = "INSERT INTO test(name) VALUES ('{}');".format(name)
         cursor.execute(sql)
         conn.commit()
     except:
@@ -94,12 +94,12 @@ def insert_row(conn_pool: ThreadedConnectionPool):
 def delete_row(conn_pool: ThreadedConnectionPool):
     conn = conn_pool.getconn()
     try:
-        select_sql = "SELECT id FROM test_cdc LIMIT 1;"
+        select_sql = "SELECT id FROM test LIMIT 1;"
         cursor = conn.cursor()
         cursor.execute(select_sql)
         response = cursor.fetchall()
         id = response[0][0]
-        delete_sql = "DELETE FROM test_cdc WHERE id = '{}';".format(id)
+        delete_sql = "DELETE FROM test WHERE id = '{}';".format(id)
         cursor.execute(delete_sql)
         conn.commit()
     except:
