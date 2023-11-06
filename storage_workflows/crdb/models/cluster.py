@@ -8,6 +8,7 @@ from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.aws.ec2_instance import Ec2Instance
 from storage_workflows.crdb.metadata_db.metadata_db_operations import MetadataDBOperations
+from storage_workflows.crdb.models.cluster_setting import ClusterSetting
 from storage_workflows.crdb.models.jobs.backup_job import BackupJob
 from storage_workflows.crdb.models.jobs.changefeed_job import ChangefeedJob
 from storage_workflows.crdb.models.jobs.restore_job import RestorelJob
@@ -40,6 +41,11 @@ class Cluster:
         logger.info("retrieving changefeed_jobs")
         return ChangefeedJob.find_all_changefeed_jobs(self.cluster_name)
     
+    @property
+    def cluster_settings(self) -> list[ClusterSetting]:
+        logger.info("retrieving cluster_settings")
+        return ClusterSetting.find_all_cluster_settings(self.cluster_name)
+    
     def is_avg_cpu_exceed_threshold(self, threshold:float, offest_mins:int) -> bool:
         query = 'min_over_time(avg(sys_cpu_combined_percent_normalized{{job="crdb", cluster="{}_{}", region="{}"}})[{}m:10s]) > bool {}'.format(self.cluster_name, 
                                                                                                                                              self.deployment_env,
@@ -47,6 +53,22 @@ class Cluster:
                                                                                                                                              offest_mins, 
                                                                                                                                              threshold)
         return ChronosphereApiGateway.query_promql_instant(query)['data']['result'][0]['value'][1] == '1'
+    
+    def update_cluster_setting(self, variable:str, value:Any):
+        logger.info("updating cluster setting {}".format(variable))
+        connection = CrdbConnection.get_crdb_connection(self.cluster_name)
+        connection.connect()
+        cluster_setting = ClusterSetting.find_cluster_setting(self.cluster_name, variable)
+        logger.info("current value: {}".format(cluster_setting.value))
+        logger.info("new value: {}".format(value))
+        cluster_setting.set_value(value)
+        logger.info("completed updating cluster setting")
+
+    def get_cluster_setting(self, variable:str) -> ClusterSetting:
+        logger.info("retrieving cluster setting {}".format(variable))
+        cluster_setting = ClusterSetting.find_cluster_setting(self.cluster_name, variable)
+        logger.info("current value: {}".format(cluster_setting.value))
+        return cluster_setting
     
     def backup_job_is_running(self) -> bool:
         logger.info("checking for running backups")
