@@ -379,7 +379,7 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     cluster_name = os.environ['CLUSTER_NAME']
     workflow_id = os.getenv('WORKFLOW-ID')
-    if not handle_old_instances(cluster_name, deployment_env):
+    if not get_old_instances(cluster_name, deployment_env):
         logger.info(f"{cluster_name} No nodes to decommission")
         return
     logger.info(f"workflow_id: {workflow_id}")
@@ -387,7 +387,7 @@ def decommission_old_nodes(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} Check passed")
 
 
-def handle_old_instances(cluster_name, deployment_env):
+def get_old_instances(cluster_name, deployment_env):
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
     if not old_instance_ids:
