@@ -3,7 +3,9 @@ import http.client
 import json
 import os
 from datetime import datetime as dt
+from requests import get
 from storage_workflows.chronosphere.muting_rule_not_found_exception import MutingRuleNotFoundException
+from storage_workflows.chronosphere.prometheus_query_exception import PrometheusQueryException
 from storage_workflows.logging.logger import Logger
 
 logger = Logger()
@@ -11,6 +13,7 @@ logger = Logger()
 class ChronosphereApiGateway():
 
     CHRONOSPHERE_API_TOKEN = os.getenv('CHRONOSPHERE_API_TOKEN')
+    CHRONOSPHERE_PROMETHEUS_URL = os.getenv('CHRONOSPHERE_PROMETHEUS_URL')
     CHRONOSPHERE_URL = os.getenv('CHRONOSPHERE_URL')
 
     @staticmethod
@@ -117,3 +120,12 @@ class ChronosphereApiGateway():
         except MutingRuleNotFoundException:
             return False
         return True
+    
+    @staticmethod
+    def query_promql_instant(promql_query:str) -> dict:
+        headers = {'Authorization': 'Bearer {}'.format(ChronosphereApiGateway.CHRONOSPHERE_API_TOKEN)}
+        params = {'query': promql_query}
+        response = get(ChronosphereApiGateway.CHRONOSPHERE_PROMETHEUS_URL, headers=headers, params=params).json()
+        if response['status'] == 'success':
+            return response
+        raise PrometheusQueryException("Prometheus query failed: {}".format(response))
