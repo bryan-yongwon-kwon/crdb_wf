@@ -3,6 +3,8 @@ import os
 import statistics
 import subprocess
 import time
+from typing import Any
+from chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
 from functools import reduce
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
@@ -24,6 +26,10 @@ class Cluster:
         self.cluster_name = os.getenv('CLUSTER_NAME')
 
     @property
+    def region(self):
+        return os.getenv('REGION')
+
+    @property
     def nodes(self):
         return Node.get_nodes()
     
@@ -31,6 +37,13 @@ class Cluster:
     def changefeed_jobs(self) -> list[ChangefeedJob]:
         logger.info("retrieving changefeed_jobs")
         return ChangefeedJob.find_all_changefeed_jobs(self.cluster_name)
+    
+    def is_avg_cpu_exceed_threshold(self, threshold:float, offest_mins) -> bool:
+        query = 'min_over_time(avg(sys_cpu_combined_percent_normalized{job="crdb", cluster="{}", region="{}"})[{}:10s]) > bool {}'.format(self.cluster_name, 
+                                                                                                                                          self.region, 
+                                                                                                                                          offest_mins, 
+                                                                                                                                          threshold)
+        return ChronosphereApiGateway.query_promql_instant(query)['data']['result'][0]['value'][1] == '1'
     
     def backup_job_is_running(self) -> bool:
         logger.info("checking for running backups")
