@@ -40,8 +40,8 @@ class Cluster:
         logger.info("retrieving changefeed_jobs")
         return ChangefeedJob.find_all_changefeed_jobs(self.cluster_name)
     
-    def is_avg_cpu_exceed_threshold(self, threshold:float, offest_mins) -> bool:
-        query = 'min_over_time(avg(sys_cpu_combined_percent_normalized{{job="crdb", cluster="{}_{}", region="{}"}})[{}:10s]) > bool {}'.format(self.cluster_name, 
+    def is_avg_cpu_exceed_threshold(self, threshold:float, offest_mins:int) -> bool:
+        query = 'min_over_time(avg(sys_cpu_combined_percent_normalized{{job="crdb", cluster="{}_{}", region="{}"}})[{}m:10s]) > bool {}'.format(self.cluster_name, 
                                                                                                                                              self.deployment_env,
                                                                                                                                              self.region, 
                                                                                                                                              offest_mins, 
