@@ -24,6 +24,10 @@ class Cluster:
         self.cluster_name = os.getenv('CLUSTER_NAME')
 
     @property
+    def deployment_env(self):
+        return os.getenv('DEPLOYMENT_ENV')
+
+    @property
     def region(self):
         return os.getenv('REGION')
 
@@ -37,10 +41,11 @@ class Cluster:
         return ChangefeedJob.find_all_changefeed_jobs(self.cluster_name)
     
     def is_avg_cpu_exceed_threshold(self, threshold:float, offest_mins) -> bool:
-        query = 'min_over_time(avg(sys_cpu_combined_percent_normalized{job="crdb", cluster="{}", region="{}"})[{}:10s]) > bool {}'.format(self.cluster_name, 
-                                                                                                                                          self.region, 
-                                                                                                                                          offest_mins, 
-                                                                                                                                          threshold)
+        query = 'min_over_time(avg(sys_cpu_combined_percent_normalized{{job="crdb", cluster="{}_{}", region="{}"}})[{}:10s]) > bool {}'.format(self.cluster_name, 
+                                                                                                                                             self.deployment_env,
+                                                                                                                                             self.region, 
+                                                                                                                                             offest_mins, 
+                                                                                                                                             threshold)
         return ChronosphereApiGateway.query_promql_instant(query)['data']['result'][0]['value'][1] == '1'
     
     def backup_job_is_running(self) -> bool:
