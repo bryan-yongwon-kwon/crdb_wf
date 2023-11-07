@@ -57,6 +57,6 @@ class ClusterSetting:
         SET_CLUSTER_SETTING_SQL = "SET CLUSTER SETTING {} = '{}';".format(self.variable, value)
         connection = CrdbConnection.get_crdb_connection(self.cluster_name)
         connection.connect()
-        connection.execute_sql(SET_CLUSTER_SETTING_SQL, auto_commit=True)
+        connection.execute_sql(SET_CLUSTER_SETTING_SQL, auto_commit=True, need_fetchall=False)
         connection.close()
         self.refresh()
