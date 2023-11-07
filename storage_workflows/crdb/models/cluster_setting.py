@@ -10,7 +10,7 @@ class ClusterSetting:
         connection.connect()
         response = connection.execute_sql(SHOW_ALL_CLUSTER_SETTINGS_SQL)
         connection.close()
-        return list(map(lambda row: ClusterSetting(row), response))
+        return list(map(lambda row: ClusterSetting(row, cluster_name), response))
     
     @staticmethod
     def find_cluster_setting(cluster_name: str, setting_name: str) -> ClusterSetting:
@@ -19,7 +19,7 @@ class ClusterSetting:
         connection.connect()
         response = connection.execute_sql(SHOW_CLUSTER_SETTING_SQL)
         connection.close()
-        return ClusterSetting(response[0])
+        return ClusterSetting(response[0], cluster_name)
     
     def __init__(self, response, cluster_name: str):
         self._response = response
