@@ -36,6 +36,10 @@ class ClusterSetting:
     @property
     def value(self):
         return self._response[1]
+    
+    @property
+    def value_int(self):
+        return int(str(self.value).split(' ')[0])
 
     @property
     def setting_type(self):
@@ -60,3 +64,13 @@ class ClusterSetting:
         connection.execute_sql(SET_CLUSTER_SETTING_SQL, auto_commit=True, need_fetchall=False)
         connection.close()
         self.refresh()
+        
+    def compare_value_with(self, other_value: str) -> int:
+        self_int = self.value_int
+        other_int = int(other_value.split(' ')[0])
+        if self_int == other_int:
+            return 0
+        elif self_int > other_int:
+            return 1
+        else:
+            return -1
