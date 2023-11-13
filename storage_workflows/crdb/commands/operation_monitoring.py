@@ -34,7 +34,7 @@ def check_avg_cpu(deployment_env, region, cluster_name, namespace, workflow_id, 
                                                                                                      recovery_rate.value))
             return
         logger.info("Average CPU usage is above threshold. Start reducing balancing rate.")
-        reduce_rebalance_rate(deployment_env, region, cluster_name)
+        reduce_rebalance_rate(deployment_env, region, cluster_name, namespace, workflow_id, is_test)
         logger.info("Reducing rebalance rate completed. Wait for 5 minutes to check again.")
         time.sleep(300)
         if cluster.is_avg_cpu_exceed_threshold(AVG_CPU_THRESHOLD, OFFSET_MINS):
