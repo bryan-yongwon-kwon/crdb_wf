@@ -46,8 +46,8 @@ def check_avg_cpu(deployment_env, region, cluster_name, namespace, workflow_id, 
                                                                                                      cluster_name,
                                                                                                      rebalance_rate.value,
                                                                                                      recovery_rate.value))
-    else:
-        logger.info("Average CPU usage is below threshold. No action needed.")
+            return
+    logger.info("Average CPU usage is below threshold. No action needed.")
 
 @app.command()
 def reduce_rebalance_rate(deployment_env, region, cluster_name, namespace, workflow_id, is_test):
