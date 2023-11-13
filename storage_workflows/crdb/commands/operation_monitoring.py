@@ -39,6 +39,8 @@ def check_avg_cpu(deployment_env, region, cluster_name, namespace, workflow_id, 
         time.sleep(300)
         if cluster.is_avg_cpu_exceed_threshold(AVG_CPU_THRESHOLD, OFFSET_MINS):
             logger.info("Average CPU usage is still above threshold. Sending Slack notification.")
+            rebalance_rate.refresh()
+            recovery_rate.refresh()
             slack_notification.send_notification(ContentTemplate.get_average_cpu_high_alert_template(namespace,
                                                                                                      workflow_id,
                                                                                                      cluster_name,
