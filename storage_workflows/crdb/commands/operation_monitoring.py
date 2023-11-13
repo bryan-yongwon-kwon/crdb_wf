@@ -14,7 +14,7 @@ SNAPSHOT_RECOVERY_RATE = 'kv.snapshot_recovery.max_rate'
 
 @app.command()
 def check_avg_cpu(deployment_env, region, cluster_name, namespace, workflow_id, is_test:bool):
-    AVG_CPU_THRESHOLD = 0.05 # 50% CPU usage
+    AVG_CPU_THRESHOLD = 0.5 # 50% CPU usage
     OFFSET_MINS = 5 # > threshold for OFFSET_MINS minutes to trigger action
     REBALANCE_RATE_THRESHOLD = '1 MiB' # if below this threshold, should not keep reducing
     setup_env(deployment_env, region, cluster_name)
