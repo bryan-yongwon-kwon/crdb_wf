@@ -63,3 +63,47 @@ class ContentTemplate:
         return {
                     "blocks": results
                 }
+    
+    @staticmethod
+    def get_rebalance_and_recovery_rates_not_match_alert_template(namespace:str,
+                                                                  workflow_id:str,
+                                                                  cluster_name: str,
+                                                                  rebalance_rate: str,
+                                                                  recovery_rate: str) -> dict:
+        workflow_url = "https://argo-workflows.infra-control-plane.doordash.red/workflows/{}/{}?tab=workflow".format(namespace, workflow_id)
+        return {
+                    "blocks": [
+                        {
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": ":exclamation: Rebalance rate and recovery rate are not equal. Please check. \n\n<{}|*Workflow*> \n\n*Cluster Name*: {}\n\n*Current rebalance rate*: {}\n\n*Current recovery rate*: {}".format(workflow_url,
+                                                                                                                                                                                                                                       cluster_name, 
+                                                                                                                                                                                                                                       rebalance_rate, 
+                                                                                                                                                                                                                                       recovery_rate)
+                            }
+                        }
+                    ]
+                }
+    
+    @staticmethod
+    def get_average_cpu_high_alert_template(namespace:str,
+                                            workflow_id:str,
+                                            cluster_name: str,
+                                            rebalance_rate: str,
+                                            recovery_rate: str) -> dict:
+        workflow_url = "https://argo-workflows.infra-control-plane.doordash.red/workflows/{}/{}?tab=workflow".format(namespace, workflow_id)
+        return {
+                    "blocks": [
+                        {
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": ":exclamation: CPU still high after reducing the rebalance rate. Please check. \n\n<{}|*Workflow*> \n\n*Cluster Name*: {}\n\n*Current rebalance rate*: {}\n\n*Current recovery rate*: {}".format(workflow_url,
+                                                                                                                                                                                                                                         cluster_name, 
+                                                                                                                                                                                                                                         rebalance_rate, 
+                                                                                                                                                                                                                                         recovery_rate)
+                            }
+                        }
+                    ]
+                }
