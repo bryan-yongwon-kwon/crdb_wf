@@ -2,6 +2,7 @@ from __future__ import annotations
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
 from storage_workflows.crdb.models.jobs.base_job import BaseJob
 from storage_workflows.logging.logger import Logger
+from storage_workflows.crdb.metadata_db.metadata_db_operations import MetadataDBOperations
 from storage_workflows.metadata_db.crdb_workflows.crdb_workflows import CrdbWorkflows
 from storage_workflows.metadata_db.crdb_workflows.tables.changefeed_job_details import ChangefeedJobDetails
 from sqlalchemy.dialects.postgresql import insert
@@ -55,7 +56,7 @@ class ChangefeedJob(BaseJob):
 
     @staticmethod
     def persist_to_metadata_db(workflow_id, cluster_name):
-        crdb_workflow_db = CrdbWorkflows()
+        metadata_db_operations = MetadataDBOperations()
         try:
             # Retrieve all changefeed jobs from the target cluster
             changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
@@ -66,16 +67,16 @@ class ChangefeedJob(BaseJob):
                 # Skip persisting if the job status is CANCELED or FAILED
                 if metadata.status in ChangefeedJob.UNEXPECTED_STATUSES:
                     continue
-                crdb_workflow_db.upsert_changefeed_job_details(workflow_id=workflow_id,
-                                                               job_id=job.id,
-                                                               description=metadata.description,
-                                                               error=metadata.error,
-                                                               high_water_timestamp=metadata.high_water_timestamp,
-                                                               is_initial_scan_only=metadata.is_initial_scan_only,
-                                                               finished_ago_seconds=metadata.finished_ago_seconds,
-                                                               latency=metadata.latency,
-                                                               running_status=metadata.running_status,
-                                                               status=metadata.status)
+                metadata_db_operations.persist_changefeed_job_details(workflow_id=workflow_id,
+                                                                      job_id=job.id,
+                                                                      description=metadata.description,
+                                                                      error=metadata.error,
+                                                                      high_water_timestamp=metadata.high_water_timestamp,
+                                                                      is_initial_scan_only=metadata.is_initial_scan_only,
+                                                                      finished_ago_seconds=metadata.finished_ago_seconds,
+                                                                      latency=metadata.latency,
+                                                                      running_status=metadata.running_status,
+                                                                      status=metadata.status)
                 
         except Exception as e:
             logger.error(f"Error persisting changefeed jobs: {e}")
@@ -90,10 +91,8 @@ class ChangefeedJob(BaseJob):
         current_metadata = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
 
         # Get persisted changefeed metadata from metadata_db
-        crdb_workflow_instance = CrdbWorkflows()
-        metadata_db_session = crdb_workflow_instance.session_factory()
-        persisted_metadata = metadata_db_session.query(ChangefeedJobDetails).filter_by(workflow_id=workflow_id).all()
-        logger.info(f"persisted_metadata: {persisted_metadata}")
+        metadata_db_operations = MetadataDBOperations()
+        
         logger.info(f"current_metadata: {current_metadata}")
         paused_changefeeds = []
         failed_changefeeds = []
@@ -101,8 +100,8 @@ class ChangefeedJob(BaseJob):
 
         # Compare current and persisted metadata
         for current in current_metadata:
-            matching_persisted = next((x for x in persisted_metadata if x.job_id == current.id), None)
-
+            matching_persisted =  metadata_db_operations.get_changefeed_job_details(workflow_id, current.id)
+            logger.info(f"matching persisted_metadata for {current.id}: {matching_persisted}")
             if matching_persisted:
                 # Check for paused changefeeds based on running_status and status columns
                 if current.status == "paused" and matching_persisted.status == "running":

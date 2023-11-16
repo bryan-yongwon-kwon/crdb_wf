@@ -1,0 +1,2 @@
+class PrometheusQueryException(Exception):
+    pass

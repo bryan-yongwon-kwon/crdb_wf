@@ -71,6 +71,16 @@ def send_to_slack(deployment_env, message, msg_type=None):
 
 class SlackNotification:
 
+    @staticmethod
+    def config_notification(deployment_env, is_test, bearer_token=None):
+        slack_web_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERT_TEST')
+        if not is_test:
+            if deployment_env == 'prod':
+                slack_web_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB')
+            elif deployment_env == 'staging':
+                slack_web_url = os.getenv('SLACK_WEBHOOK_STORAGE_ALERTS_CRDB_STAGING')
+        return SlackNotification(slack_web_url, bearer_token)
+
     def __init__(self, webhook_url, bearer_token=None):
         self.__webhook_url = webhook_url
         self.__bearer_token = bearer_token
