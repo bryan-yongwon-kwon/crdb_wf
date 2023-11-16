@@ -377,43 +377,53 @@ def drain_old_nodes(deployment_env, region, cluster_name):
 def decommission_old_nodes(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} decommission_old_nodes")
     setup_env(deployment_env, region, cluster_name)
-    # handle unusual cluster names with dashes: e.g. url-shortener
     cluster_name = os.environ['CLUSTER_NAME']
     workflow_id = os.getenv('WORKFLOW-ID')
+    if not get_old_instances(cluster_name, deployment_env):
+        logger.info(f"{cluster_name} No nodes to decommission")
+        return
+    logger.info(f"workflow_id: {workflow_id}")
+    check_and_handle_changefeeds(cluster_name, workflow_id)
+    logger.info(f"{cluster_name} Check passed")
+
+
+def get_old_instances(cluster_name, deployment_env):
     metadata_db_operations = MetadataDBOperations()
     old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    # STORAGE-7583: do nothing if scaling up
-    if old_instance_ids:
-        old_nodes = list(
-            map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
-        cluster = Cluster()
-        if cluster.unhealthy_ranges_exist():
-            raise Exception("Abort decommission, unhealthy ranges exist!")
-        cluster.decommission_nodes(old_nodes)
-        logger.info(f"{cluster_name} Decommission completed!")
-    else:
-        logger.info(f"{cluster_name} No nodes to decommission")
-    logger.info(f"workflow_id: {workflow_id}")
-    # Compare current changefeed metadata to persisted metadata and resume any paused changefeeds
-    paused_changefeeds, failed_changefeeds, unexpected_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(
-        cluster_name, workflow_id)
+    if not old_instance_ids:
+        return False
+    old_nodes = [Ec2Instance.find_ec2_instance(instance_id).crdb_node for instance_id in old_instance_ids]
+    decommission_nodes_if_healthy(cluster_name, old_nodes)
+    return True
 
-    for changefeed in paused_changefeeds:
-        changefeed.resume()
-    # wait for changefeed jobs to resume before checking
+
+def decommission_nodes_if_healthy(cluster_name, old_nodes):
+    cluster = Cluster()
+    if cluster.unhealthy_ranges_exist():
+        raise Exception("Abort decommission, unhealthy ranges exist!")
+    cluster.decommission_nodes(old_nodes)
+    logger.info(f"{cluster_name} Decommission completed!")
+
+
+def check_and_handle_changefeeds(cluster_name, workflow_id):
+    check_changefeeds(cluster_name, workflow_id, "initial")
     time.sleep(30)
-    # check again after resuming potentially paused jobs
+    check_changefeeds(cluster_name, workflow_id, "post-resume")
+
+
+def check_changefeeds(cluster_name, workflow_id, stage):
     paused_changefeeds, failed_changefeeds, unexpected_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(
         cluster_name, workflow_id)
-    if len(failed_changefeeds) > 0:
+    if stage == "initial":
+        for changefeed in paused_changefeeds:
+            changefeed.resume()
+    if failed_changefeeds:
         raise Exception("Found failed changefeeds after decommission.")
-    if len(paused_changefeeds) > 0:
+    if paused_changefeeds:
         raise Exception("Found paused changefeeds after decommission.")
-    if len(unexpected_changefeeds) > 0:
+    if unexpected_changefeeds:
         raise Exception(
             f"Found changefeeds with unexpected statuses after decommission: {[cf.id for cf in unexpected_changefeeds]}")
-    else:
-        logger.info(f"{cluster_name} Check passed")
 
 
 @app.command()
@@ -471,70 +481,66 @@ def start_repave_global_change_log(deployment_env, region, cluster_name):
 def move_changefeed_coordinator_node(deployment_env, region, cluster_name):
     logger.info(f"{cluster_name} move_changefeed_coordinator_node")
     setup_env(deployment_env, region, cluster_name)
-    # handle unusual cluster names with dashes: e.g. url-shortener
     cluster_name = os.environ['CLUSTER_NAME']
     old_instance_ids = get_old_instance_ids(deployment_env, region, cluster_name)
-    if old_instance_ids:
-        changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
-        valid_changefeed_jobs = [job for job in changefeed_jobs if job.status not in ["failed", "canceled"]]
 
-        for job in valid_changefeed_jobs:
-            logger.info(f"{cluster_name} Pausing changefeed job {job.id}")
-            job.pause()
+    if not old_instance_ids:
+        return
 
-        for job in valid_changefeed_jobs:
-            logger.info(f"{cluster_name} Checking to see if {job.id} is paused")
-            job.wait_for_job_to_pause()
+    changefeed_jobs = ChangefeedJob.find_all_changefeed_jobs(cluster_name)
+    valid_changefeed_jobs = [job for job in changefeed_jobs if job.status not in ["failed", "canceled"]]
 
-        logger.info(f"{cluster_name} Paused all changefeed jobs!")
+    # Pause all jobs at once
+    for job in valid_changefeed_jobs:
+        logger.info(f"{cluster_name} Pausing changefeed job {job.id}")
+        job.pause()
 
-        for job in valid_changefeed_jobs:
-            logger.info(f"{cluster_name} Removing coordinator node for job {job.id}")
+    # Check pause status
+    for job in valid_changefeed_jobs:
+        logger.info(f"{cluster_name} Checking to see if {job.id} is paused")
+        job.wait_for_job_to_pause()
+
+    logger.info(f"{cluster_name} Paused all changefeed jobs!")
+
+    metadata_db_operations = MetadataDBOperations()
+    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
+    old_nodes = [Ec2Instance.find_ec2_instance(instance_id).crdb_node for instance_id in old_instance_ids]
+    old_node_ids = set(node.id for node in old_nodes)
+    nodes = Node.get_nodes()
+    new_nodes = [node for node in nodes if
+                 node.ip_address not in [Ec2Instance.find_ec2_instance(instance_id).private_ip_address for instance_id
+                                         in old_instance_ids]]
+
+    node_index = 0
+    num_new_nodes = len(new_nodes)
+
+    for job in valid_changefeed_jobs:
+        target_node = new_nodes[node_index]
+        ssh_client = SSH(target_node.ip_address)
+        ssh_client.connect_to_node()
+
+        # Try assigning the coordinator directly, or isolating the environment as discussed above
+        # Then, resume the job
+        ssh_client.execute_command(f"crdb sql -e \"resume job {job.id}\"")
+        ssh_client.close_connection()
+
+        coordinator_node = job.get_coordinator_node()
+        retries = 3  # or any desired number
+        while coordinator_node in old_node_ids and retries:
+            logger.info(f"{cluster_name} Coordinator node is {coordinator_node}. It's an old node.")
             job.remove_coordinator_node()
-
-        logger.info(f"{cluster_name} Removed coordinator node for all changefeed jobs!")
-
-        metadata_db_operations = MetadataDBOperations()
-        old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-        old_nodes = list(
-            map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).crdb_node, old_instance_ids))
-        old_node_ids = set(map(lambda node: node.id, old_nodes))
-        old_instance_ips = set(
-            map(lambda instance_id: Ec2Instance.find_ec2_instance(instance_id).private_ip_address, old_instance_ids))
-        logger.info(f"{cluster_name} Node ids of old nodes" + str(old_node_ids))
-        nodes = Node.get_nodes()
-        new_nodes = list(filter(lambda node: node.ip_address not in old_instance_ips, nodes))
-        logger.info(f"{cluster_name} - copy_crontab - new_nodes - {new_nodes}")
-
-        # Index to keep track of the current node to resume job on
-        node_index = 0
-        num_new_nodes = len(new_nodes)
-
-        for job in valid_changefeed_jobs:
-            # Get the next node to resume job on
-            target_node = new_nodes[node_index]
-
-            # SSH into the target node to resume the jobs using job.id
-            ssh_client = SSH(target_node.ip_address)
-            ssh_client.connect_to_node()
-
-            # Execute command to resume job using the provided command
-            ssh_client.execute_command(f"crdb sql -e \"resume job {job.id}\"")
-            ssh_client.close_connection()
-
+            time.sleep(10)
             coordinator_node = job.get_coordinator_node()
-            while coordinator_node in old_node_ids:
-                logger.info(f"{cluster_name} Coordinator node is {coordinator_node}. It's an old node.")
-                job.remove_coordinator_node()
-                time.sleep(10)
-                coordinator_node = job.get_coordinator_node()
+            retries -= 1
 
-            logger.info(f"{cluster_name} Coordinator node updated to {coordinator_node}")
+        if coordinator_node in old_node_ids:
+            logger.error(f"Failed to move coordinator node for job {job.id}")
+            continue  # or take other corrective measures
 
-            # Move to the next node in a round-robin manner
-            node_index = (node_index + 1) % num_new_nodes
+        logger.info(f"{cluster_name} Coordinator node updated to {coordinator_node}")
+        node_index = (node_index + 1) % num_new_nodes
 
-        logger.info(f"{cluster_name} Resumed all changefeed jobs!")
+    logger.info(f"{cluster_name} Resumed all changefeed jobs!")
 
 @app.command()
 def persist_instance_ids(deployment_env, region, cluster_name):

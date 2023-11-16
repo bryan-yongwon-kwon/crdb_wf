@@ -35,6 +35,7 @@ class ChangefeedJob(BaseJob):
         response = connection.execute_sql(BaseJob.FIND_ALL_JOBS_BY_TYPE_SQL.format('CHANGEFEED'),
                                           need_connection_close=False, need_commit=False, auto_commit=True)
         connection.close()
+        logger.info(f"Returning {len(response)} job(s) from find_all_changefeed_jobs method.")
         return list(map(lambda job: ChangefeedJob(job, cluster_name), response))
 
     # todo: https://doordash.atlassian.net/browse/STORAGE-7195
@@ -214,8 +215,10 @@ class ChangefeedJob(BaseJob):
             return self._response[7]
 
         def __repr__(self):
-            return (f"<ChangefeedJobInternalStatus(status={self.status}, job_id={self.job_id}, description={self.description}, "
-                    f"running_status={self.running_status}, error={self.error}, "
-                    f"latency={self.latency}, is_initial_scan_only={self.is_initial_scan_only}, "
-                    f"finished_ago_seconds={self.finished_ago_seconds}, high_water_timestamp={self.high_water_timestamp})>")
+            return (f"<ChangefeedJobInternalStatus(status={self.status}, job_id={self.job_id}, "
+                    f"description={self.description}, running_status={self.running_status}, "
+                    f"error={self.error}, latency={self.latency}, "
+                    f"is_initial_scan_only={self.is_initial_scan_only}, "
+                    f"finished_ago_seconds={self.finished_ago_seconds}, "
+                    f"high_water_timestamp={self.high_water_timestamp})>")
 
