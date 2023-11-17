@@ -36,7 +36,7 @@ def run_debug_doctor(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     nodes = Node.get_nodes()
     if nodes:
-        nodes[0].check_table_descriptor_corruption(cluster_name)
+        nodes[0].check_table_descriptor_corruption()
     else:
         logger.error("No nodes found in the cluster.")
 
