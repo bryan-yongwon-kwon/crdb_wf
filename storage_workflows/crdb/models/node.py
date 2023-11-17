@@ -195,7 +195,7 @@ class Node:
         try:
             # Pass the deployment environment to the download_debug_zip method
             self.ssh_client.download_debug_zip(self.ip_address, self.cluster_name, date, self.deployment_env)
-            analysis_result = self.ssh_client.analyze_debug_zip(self.ip_address, self.cluster_name, date)
+            analysis_result = self.ssh_client.analyze_debug_zip(self.ip_address, self.cluster_name, date, self.deployment_env)
 
             # Check the analysis result and raise an exception if needed
             if "No problems found" not in analysis_result:

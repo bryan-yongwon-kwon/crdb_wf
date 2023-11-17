@@ -134,12 +134,13 @@ class SSH:
         else:
             logger.error("Instance type not supported for binary download.")
 
-    def analyze_debug_zip(self, first_node: str, cluster_name: str, date: str):
+    def analyze_debug_zip(self, first_node: str, cluster_name: str, date: str, deployment_env: str):
+        formatted_cluster_name = cluster_name.replace('_', '-') + '-' + deployment_env
         logger.info("Extracting and analyzing debug zip for cluster: {}".format(cluster_name))
-        remote_debug_path = f"/data/crdb/crdb_support/{cluster_name}-{date}"
+        remote_debug_path = f"/data/crdb/crdb_support/{formatted_cluster_name}-{date}"
         analyze_command = f"""
         mkdir -p {remote_debug_path}; 
-        unzip /data/crdb/crdb_support/{cluster_name}-{date}.zip -d {remote_debug_path};
+        unzip /data/crdb/crdb_support/{formatted_cluster_name}-{date}.zip -d {remote_debug_path};
         crdb debug doctor examine zipdir {remote_debug_path}/debug;
         """
         stdin, stdout, stderr = self.execute_command(analyze_command)
