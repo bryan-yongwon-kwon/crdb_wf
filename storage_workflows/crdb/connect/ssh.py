@@ -149,6 +149,7 @@ class SSH:
         if errors:
             raise Exception(f"Error analyzing debug zip: {errors}")
 
+        logger.info(f"checking output: {output}")
         # Check if 'No problems found' is in the output
         if not any("No problems found" in line for line in output):
             raise Exception("Analysis of debug zip indicates problems.")
