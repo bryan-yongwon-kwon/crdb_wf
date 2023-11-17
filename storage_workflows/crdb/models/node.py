@@ -195,7 +195,7 @@ class Node:
         try:
             self.ssh_client.download_debug_zip(self.ip_address, self.cluster_name, date, self.deployment_env)
             self.ssh_client.analyze_debug_zip(self.ip_address, self.cluster_name, date, self.deployment_env)
-            self.ssh_client.cleanup_debug_zip(self.ip_address, self.cluster_name, date)
+            self.ssh_client.cleanup_debug_zip(self.ip_address, self.cluster_name, date, self.deployment_env)
 
         finally:
             self.ssh_client.close_connection()

@@ -157,9 +157,10 @@ class SSH:
         logger.info("Debug zip analysis completed successfully.")
         return output
 
-    def cleanup_debug_zip(self, first_node: str, cluster_name: str, date: str):
+    def cleanup_debug_zip(self, first_node: str, cluster_name: str, date: str, deployment_env: str):
         logger.info("Cleaning up debug zip for cluster: {}".format(cluster_name))
-        cleanup_command = f"rm -rf /data/crdb/crdb_support/{cluster_name}-{date} /data/crdb/crdb_support/{cluster_name}-{date}.zip"
+        formatted_cluster_name = cluster_name.replace('_', '-') + '-' + deployment_env
+        cleanup_command = f"rm -rf /data/crdb/crdb_support/{formatted_cluster_name}-{date} /data/crdb/crdb_support/{formatted_cluster_name}-{date}.zip"
         stdin, stdout, stderr = self.execute_command(cleanup_command)
         errors = stderr.readlines()
         if errors:
