@@ -1,5 +1,6 @@
 import os
 import stat
+import datetime
 from io import StringIO
 from functools import cached_property
 from paramiko import SSHClient,RSAKey
@@ -95,6 +96,10 @@ class SSH:
 
     def download_debug_zip(self, first_node: str, cluster_name: str, date: str):
         logger.info("Downloading and creating debug zip for cluster: {}".format(cluster_name))
+
+        # Define date_from and date_until (modify as needed for your use case)
+        date_from = (datetime.datetime.now() - datetime.timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+        date_until = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # Determine instance type for selecting the correct binary
         instance_type_command = "ec2metadata | grep 'instance-type:' | awk '{print $2}'"
