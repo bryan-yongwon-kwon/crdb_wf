@@ -58,6 +58,10 @@ class Node:
         return os.getenv('CLUSTER_NAME')
 
     @property
+    def deployment_env(self):
+        return os.getenv('DEPLOYMENT_ENV')
+
+    @property
     def id(self):
         return self.api_response['node_id']
     
@@ -185,14 +189,12 @@ class Node:
         """
         Checks for table descriptor corruption in this node.
         """
-        # Assuming that a method or property to get the current date is available
-        # For example, a simple way to get a formatted date string is:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
 
         self.ssh_client.connect_to_node()
         try:
-            # Download and analyze the debug zip
-            self.ssh_client.download_debug_zip(self.ip_address, self.cluster_name, date)
+            # Pass the deployment environment to the download_debug_zip method
+            self.ssh_client.download_debug_zip(self.ip_address, self.cluster_name, date, self.deployment_env)
             analysis_result = self.ssh_client.analyze_debug_zip(self.ip_address, self.cluster_name, date)
 
             # Check the analysis result and raise an exception if needed

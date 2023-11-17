@@ -94,8 +94,11 @@ class SSH:
             raise Exception(error)
         return lines
 
-    def download_debug_zip(self, first_node: str, cluster_name: str, date: str):
+    def download_debug_zip(self, first_node: str, cluster_name: str, date: str, deployment_env: str):
         logger.info("Downloading and creating debug zip for cluster: {}".format(cluster_name))
+
+        # Format cluster_name for the debug zip command
+        formatted_cluster_name = cluster_name.replace('_', '-') + '-' + deployment_env
 
         # Define date_from and date_until (modify as needed for your use case)
         date_from = (datetime.datetime.now() - datetime.timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
@@ -119,7 +122,7 @@ class SSH:
             cd /root/.cockroach-certs; 
             wget {binary_url}; 
             tar xvf $(basename {binary_url});
-            ./$(basename {binary_url} .tgz)/cockroach debug zip /data/crdb/crdb_support/{cluster_name}-{date}.zip --host :26256 --exclude-files=* --files-from="{date_from}" --files-until="{date_until}" --cluster-name {cluster_name};
+            ./$(basename {binary_url} .tgz)/cockroach debug zip /data/crdb/crdb_support/{cluster_name}-{date}.zip --host :26256 --exclude-files=* --files-from="{date_from}" --files-until="{date_until}" --cluster-name {formatted_cluster_name};
             """
             stdin, stdout, stderr = self.execute_command(download_command)
             errors = stderr.readlines()
