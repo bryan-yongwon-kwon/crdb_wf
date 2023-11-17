@@ -93,3 +93,63 @@ class SSH:
             raise Exception(error)
         return lines
 
+    def download_debug_zip(self, first_node: str, cluster_name: str, date: str):
+        logger.info("Downloading and creating debug zip for cluster: {}".format(cluster_name))
+
+        # Determine instance type for selecting the correct binary
+        instance_type_command = "ec2metadata | grep 'instance-type:' | awk '{print $2}'"
+        stdin, stdout, stderr = self.execute_command(instance_type_command)
+        instance_type_output = stdout.readlines()
+        instance_type = instance_type_output[0].strip() if instance_type_output else ""
+
+        # Select the binary URL based on instance type
+        binary_url = ""
+        if "m6i." in instance_type or "m5." in instance_type or "r5." in instance_type:
+            binary_url = "https://binaries.cockroachdb.com/cockroach-v23.2.0-alpha.6.linux-amd64.tgz"
+        elif "m6g." in instance_type or "m7g." in instance_type:
+            binary_url = "https://binaries.cockroachdb.com/cockroach-v23.2.0-alpha.6.linux-arm64.tgz"
+
+        if binary_url:
+            download_command = f"""
+            cd /root/.cockroach-certs; 
+            wget {binary_url}; 
+            tar xvf $(basename {binary_url});
+            ./$(basename {binary_url} .tgz)/cockroach debug zip /data/crdb/crdb_support/{cluster_name}-{date}.zip --host :26256 --exclude-files=* --files-from="{date_from}" --files-until="{date_until}" --cluster-name {cluster_name};
+            """
+            stdin, stdout, stderr = self.execute_command(download_command)
+            errors = stderr.readlines()
+            if errors:
+                raise Exception(f"Error downloading debug zip: {errors}")
+            logger.info("Downloaded and created debug zip successfully.")
+        else:
+            logger.error("Instance type not supported for binary download.")
+
+    def analyze_debug_zip(self, first_node: str, cluster_name: str, date: str):
+        logger.info("Extracting and analyzing debug zip for cluster: {}".format(cluster_name))
+        remote_debug_path = f"/data/crdb/crdb_support/{cluster_name}-{date}"
+        analyze_command = f"""
+        mkdir -p {remote_debug_path}; 
+        unzip /data/crdb/crdb_support/{cluster_name}-{date}.zip -d {remote_debug_path};
+        crdb debug doctor examine zipdir {remote_debug_path}/debug;
+        """
+        stdin, stdout, stderr = self.execute_command(analyze_command)
+        output = stdout.readlines()
+        errors = stderr.readlines()
+        if errors:
+            raise Exception(f"Error analyzing debug zip: {errors}")
+
+        # Check if 'No problems found' is in the output
+        if not any("No problems found" in line for line in output):
+            raise Exception("Analysis of debug zip indicates problems.")
+
+        logger.info("Debug zip analysis completed successfully.")
+        return output
+
+    def cleanup_debug_zip(self, first_node: str, cluster_name: str, date: str):
+        logger.info("Cleaning up debug zip for cluster: {}".format(cluster_name))
+        cleanup_command = f"rm -rf /data/crdb/crdb_support/{cluster_name}-{date} /data/crdb/crdb_support/{cluster_name}-{date}.zip"
+        stdin, stdout, stderr = self.execute_command(cleanup_command)
+        errors = stderr.readlines()
+        if errors:
+            raise Exception(f"Error cleaning up debug zip: {errors}")
+        logger.info("Cleaned up debug zip successfully.")

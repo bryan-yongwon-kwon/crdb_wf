@@ -27,6 +27,20 @@ from storage_workflows.slack.slack_notification import SlackNotification
 app = typer.Typer()
 logger = Logger()
 
+
+@app.command()
+def run_debug_doctor(deployment_env, region, cluster_name):
+    """
+    Checks for table descriptor corruption in preparation for major version upgrade
+    """
+    setup_env(deployment_env, region, cluster_name)
+    nodes = Node.get_nodes()
+    if nodes:
+        nodes[0].check_table_descriptor_corruption(cluster_name)
+    else:
+        logger.error("No nodes found in the cluster.")
+
+
 @app.command()
 def pre_check(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
