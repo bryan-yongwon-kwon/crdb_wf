@@ -120,9 +120,11 @@ class SSH:
         if binary_url:
             download_command = f"""
             cd /root/.cockroach-certs; 
-            wget {binary_url}; 
+            wget -q {binary_url}; 
             tar xvf $(basename {binary_url});
-            ./$(basename {binary_url} .tgz)/cockroach debug zip /data/crdb/crdb_support/{cluster_name}-{date}.zip --host :26256 --exclude-files=* --files-from="{date_from}" --files-until="{date_until}" --cluster-name {formatted_cluster_name};
+            ./$(basename {binary_url} .tgz)/cockroach debug zip /data/crdb/crdb_support/{cluster_name}-{date}.zip 
+            --host :26256 --exclude-files=* --files-from="{date_from}" --files-until="{date_until}" 
+            --certs-dir=. --cluster-name {formatted_cluster_name};
             """
             stdin, stdout, stderr = self.execute_command(download_command)
             errors = stderr.readlines()
