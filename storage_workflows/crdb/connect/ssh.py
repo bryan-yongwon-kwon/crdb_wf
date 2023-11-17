@@ -119,7 +119,7 @@ class SSH:
 
         if binary_url:
             download_command = f"""
-            cd /root/.cockroach-certs; 
+            sudo cd /root/.cockroach-certs; 
             wget -q {binary_url}; 
             tar xvf $(basename {binary_url});
             ./$(basename {binary_url} .tgz)/cockroach debug zip /data/crdb/crdb_support/{cluster_name}-{date}.zip 
