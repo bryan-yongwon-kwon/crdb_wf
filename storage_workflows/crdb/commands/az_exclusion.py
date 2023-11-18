@@ -1,7 +1,7 @@
 import typer
-from psycopg2 import ProgrammingError
 from storage_workflows.crdb.commands.health_check import get_cluster_names as gen_names
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
+from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.logging.logger import Logger
 from storage_workflows.setup_env import setup_env
 

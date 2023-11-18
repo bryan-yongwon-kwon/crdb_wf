@@ -16,6 +16,7 @@ class CrdbConnection:
     @staticmethod
     def get_crdb_connection_secret(cred_type: CredType, cluster_name: str, client: str = "") -> SecretValue:
         # handle cluster_name with hyphens instead of underscores
+        logger.info(f"Getting secret for cluster_name: {cluster_name} with cred_type: {cred_type.value}.")
         cluster_names_to_modify = ['url_shortener', 'revenue_platform']
 
         if cluster_name in cluster_names_to_modify or cluster_name.startswith('revenue_workflow_'):
@@ -23,6 +24,7 @@ class CrdbConnection:
         else:
             cluster_name_with_suffix = cluster_name + "-crdb"
 
+        logger.info("cluster_name_with_suffix: {}".format(cluster_name_with_suffix))
         secret_filters = {
             'tag-key': ['crdb_cluster_name', 'cred-type', 'environment'],
             'tag-value': [cred_type.value, os.getenv('DEPLOYMENT_ENV'), cluster_name_with_suffix],
@@ -32,6 +34,8 @@ class CrdbConnection:
         if client:
             secret_filters['tag-key'].append('client')
             secret_filters['tag-value'].append(client)
+
+        logger.info(f"secret_filters: {secret_filters}")
 
         secret_list = Secret.find_all_secrets(transform_filters(secret_filters))
 
