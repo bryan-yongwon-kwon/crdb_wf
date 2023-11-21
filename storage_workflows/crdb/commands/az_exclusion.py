@@ -87,7 +87,7 @@ def update_schema_single_cluster(deployment_env, region, cluster_name):
 
 @app.command()
 def exclude_an_az_single_cluster(deployment_env, region, cluster_name, az):
-    if az != 'us-east-1a' and az != 'us-east-1b' and az != 'us-east-1c':
+    if az != 'us-west-2a' and az != 'us-west-2b' and az != 'us-west-2c':
         logger.error("Invalid AZ {}.".format(az))
         return
     UPDATE_AZ_EXCLUSION_CONFIG = "UPDATE auto_discovery.nodes_exclusion_config SET azs = Array['{}'] WHERE is_valid is true;".format(az)
