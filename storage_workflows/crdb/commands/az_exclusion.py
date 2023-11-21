@@ -87,9 +87,12 @@ def update_schema_single_cluster(deployment_env, region, cluster_name):
 
 @app.command()
 def exclude_an_az_single_cluster(deployment_env, region, cluster_name, az):
-    if az != 'us-west-2a' and az != 'us-west-2b' and az != 'us-west-2c':
+    if az == 'none' or az == 'None':
+        az = ''
+    if az and az != 'us-west-2a' and az != 'us-west-2b' and az != 'us-west-2c':
         raise Exception("Invalid AZ {}.".format(az))
-    UPDATE_AZ_EXCLUSION_CONFIG = "UPDATE auto_discovery.nodes_exclusion_config SET azs = Array['{}'] WHERE is_valid is true;".format(az)
+    azs = 'Array[]' if not az else "Array['{}']".format(az)
+    UPDATE_AZ_EXCLUSION_CONFIG = "UPDATE auto_discovery.nodes_exclusion_config SET azs = {} WHERE is_valid is true;".format(azs)
     setup_env(deployment_env, region, cluster_name)
     logger.info("Starting az exclusion for cluster {}.".format(cluster_name))
     connection = CrdbConnection.get_crdb_connection(cluster_name)
