@@ -84,3 +84,17 @@ def update_schema_single_cluster(deployment_env, region, cluster_name):
     logger.info("View auto_discovery.nodes_to_exclude updated.")
     connection.close()
     logger.info("Schema update done for cluster {}.".format(cluster_name))
+
+@app.command()
+def exclude_an_az_single_cluster(deployment_env, region, cluster_name, az):
+    if az != 'us-east-1a' and az != 'us-east-1b' and az != 'us-east-1c':
+        logger.error("Invalid AZ {}.".format(az))
+        return
+    UPDATE_AZ_EXCLUSION_CONFIG = "UPDATE auto_discovery.nodes_exclusion_config SET azs = Array['{}'] WHERE is_valid is true;".format(az)
+    setup_env(deployment_env, region, cluster_name)
+    logger.info("Starting az exclusion for cluster {}.".format(cluster_name))
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    connection.execute_sql(UPDATE_AZ_EXCLUSION_CONFIG, auto_commit=True)
+    connection.close()
+    logger.info("AZ {} excluded for cluster {}.".format(az, cluster_name))
