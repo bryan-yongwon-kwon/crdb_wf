@@ -1,5 +1,6 @@
 import os
 import subprocess
+import datetime
 from functools import cached_property, reduce
 from storage_workflows.crdb.api_gateway.crdb_api_gateway import CrdbApiGateway
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
@@ -55,6 +56,10 @@ class Node:
     @property
     def cluster_name(self):
         return os.getenv('CLUSTER_NAME')
+
+    @property
+    def deployment_env(self):
+        return os.getenv('DEPLOYMENT_ENV')
 
     @property
     def id(self):
@@ -140,7 +145,6 @@ class Node:
         self.ssh_client.close_connection()
         logger.info("Service restarted.")
 
-
     def schedule_cron_jobs(self, crontab_file_lines:list):
         def cron_job_already_exists(ssh_client: SSH, job: str) -> bool:
             command = 'sudo crontab -l'.format(job)
@@ -180,3 +184,18 @@ class Node:
             new_node_ssh_client.write_remote_file_with_root(file_lines=lines, file_path=file_path)
         new_node_ssh_client.close_connection()
         old_node_ssh_client.close_connection()
+
+    def check_table_descriptor_corruption(self):
+        """
+        Checks for table descriptor corruption in this node.
+        """
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+
+        self.ssh_client.connect_to_node()
+        try:
+            self.ssh_client.download_debug_zip(self.ip_address, self.cluster_name, date, self.deployment_env)
+            self.ssh_client.analyze_debug_zip(self.ip_address, self.cluster_name, date, self.deployment_env)
+            self.ssh_client.cleanup_debug_zip(self.ip_address, self.cluster_name, date, self.deployment_env)
+
+        finally:
+            self.ssh_client.close_connection()
