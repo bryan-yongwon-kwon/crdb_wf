@@ -1,7 +1,7 @@
 import typer
-from psycopg2 import ProgrammingError
 from storage_workflows.crdb.commands.health_check import get_cluster_names as gen_names
 from storage_workflows.crdb.connect.crdb_connection import CrdbConnection
+from storage_workflows.crdb.models.cluster import Cluster
 from storage_workflows.logging.logger import Logger
 from storage_workflows.setup_env import setup_env
 
@@ -57,4 +57,46 @@ def setup_schema_single_cluster(deployment_env, region, cluster_name):
     connection.close()
     logger.info("Schema setup done for cluster {}.".format(cluster_name))
 
-    
+
+@app.command()
+def update_schema_single_cluster(deployment_env, region, cluster_name):
+    SQL_TRUNCATE_CONFIG_TABLE = "TRUNCATE auto_discovery.nodes_exclusion_config;"
+    SQL_ADD_COLUMN = "ALTER TABLE auto_discovery.nodes_exclusion_config ADD COLUMN IF NOT EXISTS is_valid BOOL NOT NULL;"
+    SQL_UPDATE_PRIMARY_KEY = "ALTER TABLE auto_discovery.nodes_exclusion_config ALTER PRIMARY KEY USING COLUMNS (is_valid, rowid);"
+    SQL_INSERT_NODES_EXCLUSION_CONFIG = "INSERT INTO auto_discovery.nodes_exclusion_config (azs, nodes, is_valid) VALUES (Array[], Array[], true);"
+    SQL_UPDATE_AZS_EXCLUSION_VIEW = "CREATE OR REPLACE VIEW auto_discovery.azs_to_exclude AS SELECT unnest(azs) AS az FROM auto_discovery.nodes_exclusion_config WHERE is_valid is true;"
+    SQL_UPDATE_NODES_EXCLUSION_VIEW = "CREATE OR REPLACE VIEW auto_discovery.nodes_to_exclude AS SELECT unnest(nodes) AS node_id FROM auto_discovery.nodes_exclusion_config WHERE is_valid is true;"
+    setup_env(deployment_env, region, cluster_name)
+    logger.info("Starting schema update for cluster {}.".format(cluster_name))
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    connection.execute_sql(SQL_TRUNCATE_CONFIG_TABLE, auto_commit=True)
+    logger.info("Table auto_discovery.nodes_exclusion_config truncated.")
+    connection.execute_sql(SQL_ADD_COLUMN, auto_commit=True)
+    logger.info("Column is_valid added to table auto_discovery.nodes_exclusion_config.")
+    connection.execute_sql(SQL_UPDATE_PRIMARY_KEY, auto_commit=True)
+    logger.info("Primary key updated for table auto_discovery.nodes_exclusion_config.")
+    connection.execute_sql(SQL_INSERT_NODES_EXCLUSION_CONFIG, auto_commit=True)
+    logger.info("Default row inserted into table auto_discovery.nodes_exclusion_config.")
+    connection.execute_sql(SQL_UPDATE_AZS_EXCLUSION_VIEW, auto_commit=True)
+    logger.info("View auto_discovery.azs_to_exclude updated.")
+    connection.execute_sql(SQL_UPDATE_NODES_EXCLUSION_VIEW, auto_commit=True)
+    logger.info("View auto_discovery.nodes_to_exclude updated.")
+    connection.close()
+    logger.info("Schema update done for cluster {}.".format(cluster_name))
+
+@app.command()
+def exclude_an_az_single_cluster(deployment_env, region, cluster_name, az):
+    if az == 'none' or az == 'None':
+        az = ''
+    if az and az != 'us-west-2a' and az != 'us-west-2b' and az != 'us-west-2c':
+        raise Exception("Invalid AZ {}.".format(az))
+    azs = 'Array[]' if not az else "Array['{}']".format(az)
+    UPDATE_AZ_EXCLUSION_CONFIG = "UPDATE auto_discovery.nodes_exclusion_config SET azs = {} WHERE is_valid is true;".format(azs)
+    setup_env(deployment_env, region, cluster_name)
+    logger.info("Starting az exclusion for cluster {}.".format(cluster_name))
+    connection = CrdbConnection.get_crdb_connection(cluster_name)
+    connection.connect()
+    connection.execute_sql(UPDATE_AZ_EXCLUSION_CONFIG, auto_commit=True)
+    connection.close()
+    logger.info("AZ {} excluded for cluster {}.".format(az, cluster_name))

@@ -421,7 +421,7 @@ def decommission_nodes_if_healthy(cluster_name, old_nodes):
 
 def check_and_handle_changefeeds(cluster_name, workflow_id):
     check_changefeeds(cluster_name, workflow_id, "initial")
-    time.sleep(30)
+    time.sleep(120)
     check_changefeeds(cluster_name, workflow_id, "post-resume")
 
 

@@ -22,7 +22,6 @@ class CrdbConnection:
             cluster_name_with_suffix = cluster_name.strip().replace("_", "-") + "-crdb"
         else:
             cluster_name_with_suffix = cluster_name + "-crdb"
-
         secret_filters = {
             'tag-key': ['crdb_cluster_name', 'cred-type', 'environment'],
             'tag-value': [cred_type.value, os.getenv('DEPLOYMENT_ENV'), cluster_name_with_suffix],
