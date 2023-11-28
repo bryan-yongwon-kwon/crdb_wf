@@ -47,21 +47,22 @@ def get_changefeed_job_details_txn(session: Session, workflow_id:str, job_id:str
     return changefeed_job_detail
 
 
-def upsert_workflow_txn(session, cluster_name, region, deployment_env, operation_type, operator_name):
+def start_workflow_txn(session, cluster_name, region, deployment_env, operation_type, operator_name, job_id):
     new_workflow_entry = CRDBDbOpsWFEntry(
         cluster_name=cluster_name,
         region=region,
         deployment_env=deployment_env,
         operation_type=operation_type,
         operator_name=operator_name,
-        status=WorkflowStatus.NEW
+        status=WorkflowStatus.RUNNING,
+        job_id=job_id
     )
     session.add(new_workflow_entry)
     session.commit()
-    return new_workflow_entry.id  # Returning the ID of the newly created workflow entry
+    return new_workflow_entry.job_id  # Returning the ID of the newly created workflow entry
 
 
-def upsert_changefeed_job_detail_txn(session: Session, 
+def upsert_changefeed_job_detail_txn(session: Session,
                                      workflow_id:str, 
                                      job_id:str, 
                                      description:str, 

@@ -6,7 +6,7 @@ import statistics
 import sys
 import time
 import typer
-from storage_workflows.chronosphere.chronosphere_api_gateway import ChronosphereApiGateway
+from storage_workflows.metadata_db.crdb_workflows.crdb_dbops_workflows import CrdbDbOpsWorkflows
 from storage_workflows.crdb.api_gateway.elastic_load_balancer_gateway import ElasticLoadBalancerGateway
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
@@ -63,22 +63,12 @@ def pre_check(deployment_env, region, cluster_name):
         ChangefeedJob.persist_to_metadata_db(workflow_id, cluster_name)
 
 @app.command()
-def detach_instances_from_asg(deployment_env, region, cluster_name, timeout_minus):
+def start_ipu(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
     # handle unusual cluster names with dashes: e.g. url-shortener
     cluster_name = os.environ['CLUSTER_NAME']
-    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    logger.info(f"{cluster_name} Autoscaling group name is {asg.name}")
-    # get instance ids of old nodes
-    metadata_db_operations = MetadataDBOperations()
-    old_instance_ids = metadata_db_operations.get_old_instance_ids(cluster_name, deployment_env)
-    # STORAGE-7583: do nothing if scaling up
-    if old_instance_ids:
-        for index in range(0, len(old_instance_ids), 12):
-          AutoScalingGroupGateway.detach_instance_from_autoscaling_group(old_instance_ids[index:index+12], asg.name)
-        cluster = Cluster()
-        cluster.wait_for_connections_drain_on_old_nodes(int(timeout_minus))
-        logger.info(f"{cluster_name} detached instances from asg")
-        return
-    else:
-        logger.info(f"{cluster_name} no instances found. skipping detach instances from asg. ")
+    workflow_id = os.environ['WORKFLOW_ID']
+    operator_name = os.environ['OPERATOR_NAME']
+    db_ops = CrdbDbOpsWorkflows()
+    db_ops.start_workflow(cluster_name, region, deployment_env, "ipu", operator_name)
+

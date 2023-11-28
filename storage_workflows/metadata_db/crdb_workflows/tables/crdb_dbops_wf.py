@@ -10,7 +10,6 @@ Base = declarative_base()
 
 
 class WorkflowStatus(enum.Enum):
-    NEW = "new"
     RUNNING = "running"
     PAUSED = "paused"
     COMPLETED = "completed"
@@ -21,6 +20,7 @@ class CRDBDbOpsWFEntry(Base):
     __tablename__ = "crdb_dbops_wf_entry"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    job_id: Mapped[str] = mapped_column(String)  # New column to store APScheduler job_id
     cluster_name: Mapped[str] = mapped_column(String)
     region: Mapped[str] = mapped_column(String)
     deployment_env: Mapped[str] = mapped_column(String)
@@ -31,7 +31,7 @@ class CRDBDbOpsWFEntry(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), onupdate=func.now())
 
     def __repr__(self) -> str:
-        return f"CRDBDbOpsWFEntry(id={self.id!r}, cluster_name={self.cluster_name!r}, region={self.region!r}, \
+        return f"CRDBDbOpsWFEntry(id={self.id!r}, job_id={self.job_id!r}, cluster_name={self.cluster_name!r}, region={self.region!r}, \
                 deployment_env={self.deployment_env!r}, operation_type={self.operation_type!r}, \
                 operator_name={self.operator_name!r}, status={self.status!r}, \
                 created_at={self.created_at!r}, updated_at={self.updated_at!r})"
@@ -42,7 +42,7 @@ class CRDBDbOpsWFEvent(Base):
     __tablename__ = "crdb_dbops_wf_event"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workflow_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))  # This should be a foreign key to CRDBDbOpsWFEntry.id
+    workflow_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     cluster_name: Mapped[str] = mapped_column(String)
     region: Mapped[str] = mapped_column(String)
     deployment_env: Mapped[str] = mapped_column(String)
