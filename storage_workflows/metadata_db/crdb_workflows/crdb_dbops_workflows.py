@@ -1,7 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy_cockroachdb import run_transaction
-from storage_workflows.metadata_db.crdb_workflows.tables.crdb_dbops_wf import CRDBDbOpsWFEntry, CRDBDbOpsWFEvent, WorkflowStatus
 from storage_workflows.metadata_db.metadata_db_connection import MetadataDBConnection
 from storage_workflows.metadata_db.crdb_workflows.transactions import upsert_workflow_txn
 
