@@ -4,7 +4,7 @@ from sqlalchemy.dialects.postgresql import insert
 from storage_workflows.metadata_db.crdb_workflows.tables.clusters_info import ClustersInfo
 from storage_workflows.metadata_db.crdb_workflows.tables.changefeed_job_details import ChangefeedJobDetails
 from storage_workflows.logging.logger import Logger
-
+from storage_workflows.metadata_db.crdb_workflows.tables.crdb_dbops_wf import CRDBDbOpsWFEntry, WorkflowStatus
 
 logger = Logger()
 
@@ -27,6 +27,7 @@ def upsert_instancer_ids_txn(session: Session, cluster_name:str, deployment_env:
                                                               set_=dict(instance_ids=instance_ids))
     session.execute(upsert_statement)
 
+
 def get_changefeed_job_details_txn(session: Session, workflow_id:str, job_id:str):
     statement = select(ChangefeedJobDetails.workflow_id,
                        ChangefeedJobDetails.job_id,
@@ -44,6 +45,21 @@ def get_changefeed_job_details_txn(session: Session, workflow_id:str, job_id:str
         return None
     
     return changefeed_job_detail
+
+
+def start_workflow_txn(self, session, cluster_name, region, deployment_env, operation_type, operator_name):
+    new_workflow_entry = CRDBDbOpsWFEntry(
+        cluster_name=cluster_name,
+        region=region,
+        deployment_env=deployment_env,
+        operation_type=operation_type,
+        operator_name=operator_name,
+        status=WorkflowStatus.NEW
+    )
+    session.add(new_workflow_entry)
+    session.commit()
+    return new_workflow_entry.id  # Returning the ID of the newly created workflow entry
+
 
 def upsert_changefeed_job_detail_txn(session: Session, 
                                      workflow_id:str, 

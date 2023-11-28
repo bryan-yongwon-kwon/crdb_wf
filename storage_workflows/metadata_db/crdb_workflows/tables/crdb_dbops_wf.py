@@ -8,11 +8,13 @@ import datetime
 
 Base = declarative_base()
 
+
 class WorkflowStatus(enum.Enum):
     NEW = "new"
     RUNNING = "running"
     PAUSED = "paused"
     COMPLETED = "completed"
+
 
 class CRDBDbOpsWFEntry(Base):
     """The CRDBDbOpsWFEntry class corresponds to the "crdb_dbops_wf_entry" database table."""
@@ -33,6 +35,7 @@ class CRDBDbOpsWFEntry(Base):
                 deployment_env={self.deployment_env!r}, operation_type={self.operation_type!r}, \
                 operator_name={self.operator_name!r}, status={self.status!r}, \
                 created_at={self.created_at!r}, updated_at={self.updated_at!r})"
+
 
 class CRDBDbOpsWFEvent(Base):
     """The CRDBDbOpsWFEvent class corresponds to the "crdb_dbops_wf_event" database table."""
