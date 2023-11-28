@@ -47,7 +47,7 @@ def get_changefeed_job_details_txn(session: Session, workflow_id:str, job_id:str
     return changefeed_job_detail
 
 
-def start_workflow_txn(self, session, cluster_name, region, deployment_env, operation_type, operator_name):
+def upsert_workflow_txn(self, session, cluster_name, region, deployment_env, operation_type, operator_name):
     new_workflow_entry = CRDBDbOpsWFEntry(
         cluster_name=cluster_name,
         region=region,
