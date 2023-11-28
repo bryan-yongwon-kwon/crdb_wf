@@ -28,18 +28,14 @@ app = typer.Typer()
 logger = Logger()
 
 
-
 @app.command()
-def run_debug_doctor(deployment_env, region, cluster_name):
-    """
-    Checks for table descriptor corruption in preparation for major version upgrade
-    """
+def bootstrap(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    nodes = Node.get_nodes()
-    if nodes:
-        nodes[0].check_table_descriptor_corruption()
-    else:
-        logger.error("No nodes found in the cluster.")
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
+    workflow_id = os.environ['WORKFLOW_ID']
+    operator_name = os.environ['OPERATOR_NAME']
+
 
 
 @app.command()
@@ -62,6 +58,7 @@ def pre_check(deployment_env, region, cluster_name):
         logger.info(f"{cluster_name} Check passed")
         ChangefeedJob.persist_to_metadata_db(workflow_id, cluster_name)
 
+
 @app.command()
 def start_ipu(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
@@ -69,6 +66,38 @@ def start_ipu(deployment_env, region, cluster_name):
     cluster_name = os.environ['CLUSTER_NAME']
     workflow_id = os.environ['WORKFLOW_ID']
     operator_name = os.environ['OPERATOR_NAME']
-    db_ops = CrdbDbOpsWorkflows()
-    db_ops.start_workflow(cluster_name, region, deployment_env, "ipu", operator_name)
+
+
+@app.command()
+def start_repave_global_change_log(deployment_env, region, cluster_name):
+    if deployment_env == "staging":
+        logger.info(f"{cluster_name} GCL skipped for staging.")
+        return
+    GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
+                                      service_name=ServiceName.CRDB,
+                                      message="IPU started for cluster {} in operator service.".format(cluster_name))
+
+
+@app.command()
+def complete_repave_global_change_log(deployment_env, region, cluster_name):
+    if deployment_env == "staging":
+        logger.info(f"{cluster_name} GCL skipped for staging.")
+        return
+    GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
+                                      service_name=ServiceName.CRDB,
+                                      message="IPU completed for cluster {} in operator service.".format(cluster_name))
+
+
+@app.command()
+def persist_instance_ids(deployment_env, region, cluster_name):
+    setup_env(deployment_env, region, cluster_name)
+    # handle unusual cluster names with dashes: e.g. url-shortener
+    cluster_name = os.environ['CLUSTER_NAME']
+    metadata_db_operations = MetadataDBOperations()
+    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
+    instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
+    logger.info(f"{cluster_name} Instance IDs to be persist: {instance_ids}")
+    metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
+    logger.info(f"{cluster_name} Persist completed!")
+
 

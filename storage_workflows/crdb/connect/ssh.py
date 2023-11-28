@@ -1,6 +1,7 @@
 import os
 import stat
 import datetime
+import hashlib
 from io import StringIO
 from functools import cached_property
 from paramiko import SSHClient,RSAKey
@@ -166,3 +167,46 @@ class SSH:
         if errors:
             raise Exception(f"Error cleaning up debug zip: {errors}")
         logger.info("Cleaned up debug zip successfully.")
+
+    @staticmethod
+    def compute_checksum(self, file_path):
+        """Compute the SHA256 checksum of a file."""
+        sha256 = hashlib.sha256()
+        with open(file_path, 'rb') as f:
+            for block in iter(lambda: f.read(4096), b""):
+                sha256.update(block)
+        return sha256.hexdigest()
+
+    @staticmethod
+    def scp_to_node(self, local_path, remote_path):
+        """Securely copy a file and its checksum to the remote node and verify the checksum."""
+        try:
+            # Compute the checksum of the local file
+            local_checksum = self.compute_checksum(local_path)
+            checksum_file = local_path + '.checksum'
+            with open(checksum_file, 'w') as f:
+                f.write(local_checksum)
+
+            # Initialize SFTP client
+            sftp = self.client.open_sftp()
+
+            # Copy the file and its checksum
+            sftp.put(local_path, remote_path)
+            sftp.put(checksum_file, remote_path + '.checksum')
+
+            # Verify checksum on the remote node
+            verification_command = f"echo '{local_checksum} {remote_path}' | sha256sum -c"
+            stdin, stdout, stderr = self.execute_command(verification_command)
+            verification_output = stdout.read().decode().strip()
+            if "OK" not in verification_output:
+                raise Exception(f"Checksum verification failed for {remote_path}")
+
+            logger.info(f"File {local_path} and its checksum copied and verified on node {self.ip}")
+
+            # Close the SFTP client and remove local checksum file
+            sftp.close()
+            os.remove(checksum_file)
+
+        except Exception as e:
+            logger.error(f"Error while copying file to node {self.ip}: {e}")
+            raise
