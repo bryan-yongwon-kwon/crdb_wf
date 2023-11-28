@@ -211,12 +211,4 @@ class Node:
 
         logger.info(f"CockroachDB restarted on node {self.ip_address}")
 
-    def install_crdb_binary(self, binary_dir, cluster_name):
-        logger.info(f"Installing CockroachDB binary on node {self.ip_address}")
-        self.ssh_client.connect_to_node()
 
-        try:
-            self.ssh_client.scp_to_node(self, f"{binary_dir}/cockroach", "/tmp/crdb")
-
-        finally:
-            self.ssh_client.close_connection()

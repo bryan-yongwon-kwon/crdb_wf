@@ -169,44 +169,36 @@ class SSH:
         logger.info("Cleaned up debug zip successfully.")
 
     @staticmethod
-    def compute_checksum(self, file_path):
-        """Compute the SHA256 checksum of a file."""
-        sha256 = hashlib.sha256()
-        with open(file_path, 'rb') as f:
-            for block in iter(lambda: f.read(4096), b""):
-                sha256.update(block)
-        return sha256.hexdigest()
+    def download_and_setup_crdb(self, version, instance_type):
+        # Determine the correct binary URL
+        architecture = 'linux-amd64' if 'm6i.' in instance_type or 'm5.' in instance_type or 'r5.' in instance_type else 'linux-arm64'
+        binary_url = f"https://binaries.cockroachdb.com/cockroach-v{version}.{architecture}.tgz"
 
-    @staticmethod
-    def scp_to_node(self, local_path, remote_path):
-        """Securely copy a file and its checksum to the remote node and verify the checksum."""
-        try:
-            # Compute the checksum of the local file
-            local_checksum = self.compute_checksum(local_path)
-            checksum_file = local_path + '.checksum'
-            with open(checksum_file, 'w') as f:
-                f.write(local_checksum)
+        # Download the binary
+        download_command = f"wget -q {binary_url} -O /tmp/cockroachdb.tgz"
+        self.execute_command(download_command)
 
-            # Initialize SFTP client
-            sftp = self.client.open_sftp()
+        # Verify checksum (method implementation needed)
+        self.verify_checksum("/tmp/cockroachdb.tgz")
 
-            # Copy the file and its checksum
-            sftp.put(local_path, remote_path)
-            sftp.put(checksum_file, remote_path + '.checksum')
+        # Extract the binary
+        extract_command = "tar xvf /tmp/cockroachdb.tgz -C /tmp"
+        self.execute_command(extract_command)
 
-            # Verify checksum on the remote node
-            verification_command = f"echo '{local_checksum} {remote_path}' | sha256sum -c"
-            stdin, stdout, stderr = self.execute_command(verification_command)
-            verification_output = stdout.read().decode().strip()
-            if "OK" not in verification_output:
-                raise Exception(f"Checksum verification failed for {remote_path}")
+        # Rename 'cockroach' to 'crdb'
+        rename_command = "mv /tmp/cockroach-v{version}/cockroach /tmp/crdb"
+        self.execute_command(rename_command.format(version=version))
 
-            logger.info(f"File {local_path} and its checksum copied and verified on node {self.ip}")
+        # Install the files
+        install_commands = [
+            "sudo install /tmp/crdb /usr/local/bin/crdb",
+            "sudo install /tmp/libgeos_c.so /usr/local/lib/cockroach/libgeos_c.so",
+            "sudo install /tmp/libgeos.so /usr/local/lib/cockroach/libgeos.so"
+        ]
+        for command in install_commands:
+            self.execute_command(command)
 
-            # Close the SFTP client and remove local checksum file
-            sftp.close()
-            os.remove(checksum_file)
+        # Clean up temporary files
+        self.execute_command("rm -rf /tmp/cockroach-v{version} /tmp/cockroachdb.tgz".format(version=version))
 
-        except Exception as e:
-            logger.error(f"Error while copying file to node {self.ip}: {e}")
-            raise
+        logger.info("CockroachDB version {version} installed successfully.".format(version=version))
