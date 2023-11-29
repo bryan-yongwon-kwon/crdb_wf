@@ -189,7 +189,7 @@ class SSH:
         # Download the checksum file and modify it to include the filename
         download_checksum_command = f"wget -q {checksum_url} -O /tmp/cockroachdb.tgz.sha256sum"
         self.execute_command(download_checksum_command)
-        modify_checksum_command = f"echo ' /tmp/cockroachdb.tgz' >> /tmp/cockroachdb.tgz.sha256sum"
+        modify_checksum_command = f"sed -i 's/cockroach-v{version}.{architecture}.tgz/cockroachdb.tgz/' /tmp/cockroachdb.tgz.sha256sum"
         self.execute_command(modify_checksum_command)
 
         # Verify checksum
