@@ -52,6 +52,7 @@ class Node:
 
     def __init__(self, api_response):
         self.api_response = api_response
+        self.instance_id = self.get_instance_id()
 
     @property
     def cluster_name(self):
@@ -144,6 +145,20 @@ class Node:
             logger.error(error)
         self.ssh_client.close_connection()
         logger.info("Service restarted.")
+
+    def get_instance_id(self):
+        """Fetches the instance ID using ec2metadata command."""
+        try:
+            self.ssh_client.connect_to_node()
+            stdin, stdout, stderr = self.ssh_client.execute_command("ec2metadata --instance-id")
+            instance_id = stdout.read().decode().strip()
+            logger.info(f"instance_id from ec2metadata: {instance_id}")
+            return instance_id
+        except Exception as e:
+            logger.error(f"Error fetching instance ID : {e}")
+            return None
+        finally:
+            self.ssh_client.close_connection()
 
     def schedule_cron_jobs(self, crontab_file_lines:list):
         def cron_job_already_exists(ssh_client: SSH, job: str) -> bool:

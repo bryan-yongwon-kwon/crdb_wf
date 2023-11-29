@@ -35,7 +35,7 @@ def update_and_drain_nodes():
             node.ssh_client.close_connection()
 
             # Detach the node from its auto-scaling group
-            AutoScalingGroupGateway.detach_instance_from_autoscaling_group([node.ip_address], asg_name)
+            AutoScalingGroupGateway.detach_instance_from_autoscaling_group([node.instance_id], asg_name)
 
             # Drain the node
             node.drain()
