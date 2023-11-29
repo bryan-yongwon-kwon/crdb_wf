@@ -177,31 +177,16 @@ class SSH:
         instance_type_output = stdout.readlines()
         instance_type = instance_type_output[0].strip() if instance_type_output else ""
 
-        # Determine the correct binary URL and checksum URL
+        # Determine the correct binary URL
         architecture = 'linux-amd64' if 'm6i.' in instance_type or 'm5.' in instance_type or 'r5.' in instance_type else 'linux-arm64'
         binary_url = f"https://binaries.cockroachdb.com/cockroach-v{version}.{architecture}.tgz"
-        checksum_url = f"https://binaries.cockroachdb.com/cockroach-v{version}.{architecture}.tgz.sha256sum"
 
         # Download the binary
         download_binary_command = f"wget -q {binary_url} -O /tmp/cockroachdb.tgz"
         self.execute_command(download_binary_command)
 
-        # Download the checksum file and modify it to include the filename
-        download_checksum_command = f"wget -q {checksum_url} -O /tmp/cockroachdb.tgz.sha256sum"
-        self.execute_command(download_checksum_command)
-        check_tmp_dir = "ls -ltr /tmp"
-        self.execute_command(check_tmp_dir)
-        # Modify the checksum file to reference the actual filename used
-        modify_checksum_command = f"echo '01d8463bf937c0d6e82c037a48e3030adf014215da1de688525dca47cc4396ed  /tmp/cockroachdb.tgz' > /tmp/cockroachdb.tgz.sha256sum"
-        self.execute_command(modify_checksum_command)
-
         # Verify checksum
-        checksum_verification_command = "cd /tmp && sha256sum -c cockroachdb.tgz.sha256sum"
-        stdin, stdout, stderr = self.execute_command(checksum_verification_command)
-        verification_result = stdout.read().decode().strip() + stderr.read().decode().strip()
-        logger.info(f"Checksum verification result: {verification_result}")
-        if 'OK' not in verification_result:
-            raise Exception(f"Checksum verification failed for CockroachDB binary. Result: {verification_result}")
+        self.verify_checksum("/tmp/cockroachdb.tgz")
 
         # Extract the binary
         extract_command = "tar xvf /tmp/cockroachdb.tgz -C /tmp"
