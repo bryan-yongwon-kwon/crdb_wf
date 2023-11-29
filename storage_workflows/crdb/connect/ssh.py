@@ -218,14 +218,17 @@ class SSH:
 
         logger.info("CockroachDB version {version} installed successfully.".format(version=version))
 
-
-    def verify_checksum(self, remote_file_path, expected_checksum):
+    def verify_checksum(self, remote_file_path):
         """Verify the checksum of a file on the remote node."""
-        # Compute the checksum of the remote file
-        checksum_command = f"sha256sum {remote_file_path} | cut -d ' ' -f 1"
-        stdin, stdout, stderr = self.execute_command(checksum_command)
-        remote_checksum = stdout.read().decode().strip()
+        # Check and log the contents of the checksum file
+        cat_checksum_command = f"cat {remote_file_path}.sha256"
+        checksum_file_contents = self.execute_command(cat_checksum_command)
+        logger.info(f"Checksum file contents: {checksum_file_contents}")
 
-        if remote_checksum != expected_checksum:
-            raise Exception(f"Checksum verification failed for {remote_file_path}. Expected {expected_checksum}, got {remote_checksum}")
-        logger.info(f"Checksum verification successful for {remote_file_path}.")
+        # Compute and verify the checksum
+        checksum_verification_command = f"cd /tmp && sha256sum -c {remote_file_path}.sha256"
+        stdin, stdout, stderr = self.execute_command(checksum_verification_command)
+        verification_result = stdout.read().decode().strip() + stderr.read().decode().strip()
+        logger.info(f"Checksum verification result: {verification_result}")
+        if 'OK' not in verification_result:
+            raise Exception(f"Checksum verification failed for {remote_file_path}. Result: {verification_result}")
