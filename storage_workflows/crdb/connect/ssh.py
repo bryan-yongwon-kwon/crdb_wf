@@ -189,6 +189,8 @@ class SSH:
         # Download the checksum file and modify it to include the filename
         download_checksum_command = f"wget -q {checksum_url} -O /tmp/cockroachdb.tgz.sha256sum"
         self.execute_command(download_checksum_command)
+        check_tmp_dir = "ls -ltr /tmp"
+        self.execute_command(check_tmp_dir)
         # Modify the checksum file to reference the actual filename used
         modify_checksum_command = f"echo '01d8463bf937c0d6e82c037a48e3030adf014215da1de688525dca47cc4396ed  /tmp/cockroachdb.tgz' > /tmp/cockroachdb.tgz.sha256sum"
         self.execute_command(modify_checksum_command)
