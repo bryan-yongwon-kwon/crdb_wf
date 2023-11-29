@@ -3,13 +3,12 @@ from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoSc
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.models.node import Node
 from storage_workflows.logging.logger import Logger
-from storage_workflows.setup_env import setup_global_env
+from storage_workflows.setup_global_env import setup_global_env
 from storage_workflows.setup_env import setup_env
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 app = typer.Typer()
 logger = Logger()
-
 
 # Global variables declaration
 deployment_env = None
