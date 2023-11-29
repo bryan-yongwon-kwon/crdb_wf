@@ -223,13 +223,13 @@ class SSH:
     def verify_checksum(self, remote_file_path):
         """Verify the checksum of a file on the remote node."""
         # Check and log the contents of the checksum file
-        cat_checksum_command = f"cat {remote_file_path}.sha256"
+        cat_checksum_command = f"cat {remote_file_path}.sha256sum"
         stdin, stdout, stderr = self.execute_command(cat_checksum_command)
         checksum_file_contents = stdout.read().decode().strip() + stderr.read().decode().strip()
         logger.info(f"Checksum file contents: {checksum_file_contents}")
 
         # Compute and verify the checksum
-        checksum_verification_command = f"cd /tmp && sha256sum -c {remote_file_path}.sha256"
+        checksum_verification_command = f"cd /tmp && sha256sum -c {remote_file_path}.sha256sum"
         stdin, stdout, stderr = self.execute_command(checksum_verification_command)
         verification_result = stdout.read().decode().strip() + stderr.read().decode().strip()
         logger.info(f"Checksum verification result: {verification_result}")
