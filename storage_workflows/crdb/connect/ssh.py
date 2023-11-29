@@ -192,8 +192,9 @@ class SSH:
         checksum_verification_command = "cd /tmp && sha256sum -c cockroachdb.tgz.sha256"
         stdin, stdout, stderr = self.execute_command(checksum_verification_command)
         verification_result = stdout.read().decode().strip()
+        logger.info(f"Checksum verification result: {verification_result}")
         if 'OK' not in verification_result:
-            raise Exception(f"Checksum verification failed for CockroachDB binary.")
+            raise Exception(f"Checksum verification failed for CockroachDB binary. Result: {verification_result}")
 
         # Extract the binary
         extract_command = "tar xvf /tmp/cockroachdb.tgz -C /tmp"
