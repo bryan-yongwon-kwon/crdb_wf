@@ -1,4 +1,5 @@
 import typer
+import os
 from storage_workflows.crdb.api_gateway.auto_scaling_group_gateway import AutoScalingGroupGateway
 from storage_workflows.crdb.aws.auto_scaling_group import AutoScalingGroup
 from storage_workflows.crdb.models.node import Node
@@ -10,15 +11,14 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 app = typer.Typer()
 logger = Logger()
 
-# Global variables declaration
-deployment_env = None
-region = None
-cluster_name = None
+deployment_env = os.getenv('DEPLOYMENT_ENV')
+region = os.getenv('REGION')
+cluster_name = os.getenv('CLUSTER_NAME')
 
 
 @app.command()
 def update_and_drain_nodes():
-    setup_global_env()
+    setup_env(deployment_env, region, cluster_name)
     logger.info(f"Starting update and drain process for {cluster_name} cluster.")
 
     # Get the list of nodes from the cluster
