@@ -21,16 +21,21 @@ from storage_workflows.crdb.slack.content_templates import ContentTemplate
 from storage_workflows.global_change_log.global_change_log_gateway import GlobalChangeLogGateway
 from storage_workflows.global_change_log.service_name import ServiceName
 from storage_workflows.logging.logger import Logger
-from storage_workflows.setup_env import setup_env
+from storage_workflows.setup_env import setup_global_env
 from storage_workflows.slack.slack_notification import SlackNotification
+from apscheduler.schedulers.blocking import BlockingScheduler
 
 app = typer.Typer()
 logger = Logger()
+scheduler = BlockingScheduler()
 
+# Global variables declaration
+deployment_env = None
+region = None
+cluster_name = None
 
 @app.command()
-def update_and_drain_nodes(deployment_env, region, cluster_name):
-    setup_env(deployment_env, region, cluster_name)
+def update_and_drain_nodes():
     logger.info(f"Starting update and drain process for {cluster_name} cluster.")
 
     # Get the list of nodes from the cluster
@@ -60,4 +65,19 @@ def update_and_drain_nodes(deployment_env, region, cluster_name):
     logger.info("Update and drain process completed for all nodes in the cluster.")
 
 
+@app.command()
+def scheduled_update_and_drain():
+    if deployment_env and region and cluster_name:
+        update_and_drain_nodes(deployment_env, region, cluster_name)
+    else:
+        logger.error("Environment variables deployment_env, region, or cluster_name are not set.")
 
+
+if __name__ == "__main__":
+    setup_global_env()
+    scheduler.add_job(update_and_drain_nodes, 'interval', hours=24)
+
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        pass
