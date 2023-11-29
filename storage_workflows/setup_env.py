@@ -32,3 +32,8 @@ def setup_global_env():
     if not all([deployment_env, region, cluster_name]):
         logger.error("One or more required environment variables (DEPLOYMENT_ENV, REGION, CLUSTER_NAME) are not set.")
         sys.exit(1)
+
+    role = StsRole.assume_role()
+    os.environ['AWS_ACCESS_KEY_ID'] = role.access_key_id
+    os.environ['AWS_SECRET_ACCESS_KEY'] = role.secret_access_key
+    os.environ['AWS_SESSION_TOKEN'] = role.session_token
