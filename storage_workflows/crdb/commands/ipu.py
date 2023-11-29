@@ -59,6 +59,7 @@ def run_ipu_tasks():
 
 if __name__ == "__main__":
     try:
+        setup_global_env()
         run_ipu_tasks()
     except (KeyboardInterrupt, SystemExit):
         pass
