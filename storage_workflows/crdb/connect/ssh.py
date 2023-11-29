@@ -177,16 +177,23 @@ class SSH:
         instance_type_output = stdout.readlines()
         instance_type = instance_type_output[0].strip() if instance_type_output else ""
 
-        # Determine the correct binary URL
+        # Determine the correct binary URL and checksum URL
         architecture = 'linux-amd64' if 'm6i.' in instance_type or 'm5.' in instance_type or 'r5.' in instance_type else 'linux-arm64'
         binary_url = f"https://binaries.cockroachdb.com/cockroach-v{version}.{architecture}.tgz"
+        checksum_url = f"https://binaries.cockroachdb.com/cockroach-v{version}.{architecture}.tgz.sha256"
 
-        # Download the binary
-        download_command = f"wget -q {binary_url} -O /tmp/cockroachdb.tgz"
-        self.execute_command(download_command)
+        # Download the binary and its checksum
+        download_binary_command = f"wget -q {binary_url} -O /tmp/cockroachdb.tgz"
+        download_checksum_command = f"wget -q {checksum_url} -O /tmp/cockroachdb.tgz.sha256"
+        self.execute_command(download_binary_command)
+        self.execute_command(download_checksum_command)
 
-        # Verify checksum (method implementation needed)
-        self.verify_checksum("/tmp/cockroachdb.tgz")
+        # Verify checksum
+        checksum_verification_command = "cd /tmp && sha256sum -c cockroachdb.tgz.sha256"
+        stdin, stdout, stderr = self.execute_command(checksum_verification_command)
+        verification_result = stdout.read().decode().strip()
+        if 'OK' not in verification_result:
+            raise Exception(f"Checksum verification failed for CockroachDB binary.")
 
         # Extract the binary
         extract_command = "tar xvf /tmp/cockroachdb.tgz -C /tmp"
@@ -209,3 +216,15 @@ class SSH:
         self.execute_command("rm -rf /tmp/cockroach-v{version} /tmp/cockroachdb.tgz".format(version=version))
 
         logger.info("CockroachDB version {version} installed successfully.".format(version=version))
+
+
+    def verify_checksum(self, remote_file_path, expected_checksum):
+        """Verify the checksum of a file on the remote node."""
+        # Compute the checksum of the remote file
+        checksum_command = f"sha256sum {remote_file_path} | cut -d ' ' -f 1"
+        stdin, stdout, stderr = self.execute_command(checksum_command)
+        remote_checksum = stdout.read().decode().strip()
+
+        if remote_checksum != expected_checksum:
+            raise Exception(f"Checksum verification failed for {remote_file_path}. Expected {expected_checksum}, got {remote_checksum}")
+        logger.info(f"Checksum verification successful for {remote_file_path}.")
