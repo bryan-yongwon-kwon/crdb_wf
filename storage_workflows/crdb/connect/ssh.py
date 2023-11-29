@@ -222,7 +222,8 @@ class SSH:
         """Verify the checksum of a file on the remote node."""
         # Check and log the contents of the checksum file
         cat_checksum_command = f"cat {remote_file_path}.sha256"
-        checksum_file_contents = self.execute_command(cat_checksum_command)
+        stdin, stdout, stderr = self.execute_command(cat_checksum_command)
+        checksum_file_contents = stdout.read().decode().strip() + stderr.read().decode().strip()
         logger.info(f"Checksum file contents: {checksum_file_contents}")
 
         # Compute and verify the checksum
