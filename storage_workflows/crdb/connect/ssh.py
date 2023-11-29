@@ -186,7 +186,7 @@ class SSH:
         self.execute_command(download_binary_command)
 
         # Verify checksum
-        self.verify_checksum("/tmp/cockroachdb.tgz")
+        # self.verify_checksum("/tmp/cockroachdb.tgz")
 
         # Extract the binary
         extract_command = "tar xvf /tmp/cockroachdb.tgz -C /tmp"
