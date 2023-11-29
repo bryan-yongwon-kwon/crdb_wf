@@ -29,75 +29,35 @@ logger = Logger()
 
 
 @app.command()
-def bootstrap(deployment_env, region, cluster_name):
+def update_and_drain_nodes(deployment_env, region, cluster_name):
     setup_env(deployment_env, region, cluster_name)
-    # handle unusual cluster names with dashes: e.g. url-shortener
-    cluster_name = os.environ['CLUSTER_NAME']
-    workflow_id = os.environ['WORKFLOW_ID']
-    operator_name = os.environ['OPERATOR_NAME']
+    logger.info(f"Starting update and drain process for {cluster_name} cluster.")
 
+    # Get the list of nodes from the cluster
+    nodes = Node.get_nodes()
 
+    # Get the name of the auto-scaling group associated with the cluster
+    asg_name = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name).name
 
-@app.command()
-def pre_check(deployment_env, region, cluster_name):
-    setup_env(deployment_env, region, cluster_name)
-    # handle unusual cluster names with dashes: e.g. url-shortener
-    cluster_name = os.environ['CLUSTER_NAME']
-    workflow_id = os.getenv('WORKFLOW-ID')
-    cluster = Cluster()
-    logger.info(f"workflow_id: {workflow_id}")
-    if (cluster.backup_job_is_running()
-        or cluster.restore_job_is_running()
-        or cluster.schema_change_job_is_running()
-        or cluster.row_level_ttl_job_is_running()
-        or cluster.instances_not_in_service_exist()
-        or cluster.paused_changefeed_jobs_exist()
-        or cluster.unhealthy_ranges_exist()):
-        raise Exception("Pre run check failed")
-    else:
-        logger.info(f"{cluster_name} Check passed")
-        ChangefeedJob.persist_to_metadata_db(workflow_id, cluster_name)
+    for node in nodes:
+        try:
+            # Connect to the node and run the download_and_setup_cockroachdb method
+            node.ssh_client.connect_to_node()
+            node.ssh_client.download_and_setup_cockroachdb()
+            node.ssh_client.close_connection()
 
+            # Detach the node from its auto-scaling group
+            AutoScalingGroupGateway.detach_instance_from_autoscaling_group([node.ip_address], asg_name)
 
-@app.command()
-def start_ipu(deployment_env, region, cluster_name):
-    setup_env(deployment_env, region, cluster_name)
-    # handle unusual cluster names with dashes: e.g. url-shortener
-    cluster_name = os.environ['CLUSTER_NAME']
-    workflow_id = os.environ['WORKFLOW_ID']
-    operator_name = os.environ['OPERATOR_NAME']
+            # Drain the node
+            node.drain()
 
+            logger.info(f"Successfully updated and drained node with IP {node.ip_address}.")
 
-@app.command()
-def start_repave_global_change_log(deployment_env, region, cluster_name):
-    if deployment_env == "staging":
-        logger.info(f"{cluster_name} GCL skipped for staging.")
-        return
-    GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
-                                      service_name=ServiceName.CRDB,
-                                      message="IPU started for cluster {} in operator service.".format(cluster_name))
+        except Exception as e:
+            logger.error(f"Failed to update and drain node with IP {node.ip_address}: {str(e)}")
 
+    logger.info("Update and drain process completed for all nodes in the cluster.")
 
-@app.command()
-def complete_repave_global_change_log(deployment_env, region, cluster_name):
-    if deployment_env == "staging":
-        logger.info(f"{cluster_name} GCL skipped for staging.")
-        return
-    GlobalChangeLogGateway.post_event(deployment_env=deployment_env,
-                                      service_name=ServiceName.CRDB,
-                                      message="IPU completed for cluster {} in operator service.".format(cluster_name))
-
-
-@app.command()
-def persist_instance_ids(deployment_env, region, cluster_name):
-    setup_env(deployment_env, region, cluster_name)
-    # handle unusual cluster names with dashes: e.g. url-shortener
-    cluster_name = os.environ['CLUSTER_NAME']
-    metadata_db_operations = MetadataDBOperations()
-    asg = AutoScalingGroup.find_auto_scaling_group_by_cluster_name(cluster_name)
-    instance_ids = list(map(lambda instance: instance.instance_id, asg.instances))
-    logger.info(f"{cluster_name} Instance IDs to be persist: {instance_ids}")
-    metadata_db_operations.persist_old_instance_ids(cluster_name, deployment_env, instance_ids)
-    logger.info(f"{cluster_name} Persist completed!")
 
 
