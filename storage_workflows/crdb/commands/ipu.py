@@ -27,7 +27,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 app = typer.Typer()
 logger = Logger()
-scheduler = BlockingScheduler()
+
 
 # Global variables declaration
 deployment_env = None
@@ -66,18 +66,17 @@ def update_and_drain_nodes():
 
 
 @app.command()
-def scheduled_update_and_drain():
-    if deployment_env and region and cluster_name:
-        update_and_drain_nodes(deployment_env, region, cluster_name)
-    else:
-        logger.error("Environment variables deployment_env, region, or cluster_name are not set.")
+def run_ipu_tasks():
+    scheduler = BlockingScheduler()
+    # using 'date' without 'run_date' will trigger immediate scheduler execution
+    scheduler.add_job(lambda: update_and_drain_nodes(), 'date')
+    # Start the scheduler and run the job(s) immediately
+    scheduler.start()
 
 
 if __name__ == "__main__":
     setup_global_env()
-    scheduler.add_job(update_and_drain_nodes, 'interval', hours=24)
-
     try:
-        scheduler.start()
+        run_ipu_tasks()
     except (KeyboardInterrupt, SystemExit):
         pass
