@@ -186,9 +186,11 @@ class SSH:
         download_binary_command = f"wget -q {binary_url} -O /tmp/cockroachdb.tgz"
         self.execute_command(download_binary_command)
 
-        # Download the checksum file
+        # Download the checksum file and modify it to include the filename
         download_checksum_command = f"wget -q {checksum_url} -O /tmp/cockroachdb.tgz.sha256sum"
         self.execute_command(download_checksum_command)
+        modify_checksum_command = f"echo ' /tmp/cockroachdb.tgz' >> /tmp/cockroachdb.tgz.sha256sum"
+        self.execute_command(modify_checksum_command)
 
         # Verify checksum
         checksum_verification_command = "cd /tmp && sha256sum -c cockroachdb.tgz.sha256sum"
