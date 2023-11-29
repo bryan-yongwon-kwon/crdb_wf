@@ -180,18 +180,20 @@ class SSH:
         # Determine the correct binary URL and checksum URL
         architecture = 'linux-amd64' if 'm6i.' in instance_type or 'm5.' in instance_type or 'r5.' in instance_type else 'linux-arm64'
         binary_url = f"https://binaries.cockroachdb.com/cockroach-v{version}.{architecture}.tgz"
-        checksum_url = f"https://binaries.cockroachdb.com/cockroach-v{version}.{architecture}.tgz.sha256"
+        checksum_url = f"https://binaries.cockroachdb.com/cockroach-v{version}.{architecture}.tgz.sha256sum"
 
-        # Download the binary and its checksum
+        # Download the binary
         download_binary_command = f"wget -q {binary_url} -O /tmp/cockroachdb.tgz"
-        download_checksum_command = f"wget -q {checksum_url} -O /tmp/cockroachdb.tgz.sha256"
         self.execute_command(download_binary_command)
+
+        # Download the checksum file
+        download_checksum_command = f"wget -q {checksum_url} -O /tmp/cockroachdb.tgz.sha256sum"
         self.execute_command(download_checksum_command)
 
         # Verify checksum
-        checksum_verification_command = "cd /tmp && sha256sum -c cockroachdb.tgz.sha256"
+        checksum_verification_command = "cd /tmp && sha256sum -c cockroachdb.tgz.sha256sum"
         stdin, stdout, stderr = self.execute_command(checksum_verification_command)
-        verification_result = stdout.read().decode().strip()
+        verification_result = stdout.read().decode().strip() + stderr.read().decode().strip()
         logger.info(f"Checksum verification result: {verification_result}")
         if 'OK' not in verification_result:
             raise Exception(f"Checksum verification failed for CockroachDB binary. Result: {verification_result}")
