@@ -18,6 +18,7 @@ cluster_name = None
 
 @app.command()
 def update_and_drain_nodes():
+    setup_global_env()
     logger.info(f"Starting update and drain process for {cluster_name} cluster.")
 
     # Get the list of nodes from the cluster
@@ -58,7 +59,6 @@ def run_ipu_tasks():
 
 if __name__ == "__main__":
     try:
-        setup_global_env()
         run_ipu_tasks()
     except (KeyboardInterrupt, SystemExit):
         pass
