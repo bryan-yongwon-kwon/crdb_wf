@@ -48,7 +48,7 @@ def update_and_drain_nodes():
         try:
             # Connect to the node and run the download_and_setup_cockroachdb method
             node.ssh_client.connect_to_node()
-            node.ssh_client.download_and_setup_cockroachdb()
+            node.ssh_client.download_and_setup_crdb()
             node.ssh_client.close_connection()
 
             # Detach the node from its auto-scaling group
