@@ -19,6 +19,7 @@ cluster_name = None
 
 @app.command()
 def update_and_drain_nodes():
+    setup_global_env()
     setup_env(deployment_env, region, cluster_name)
     logger.info(f"Starting update and drain process for {cluster_name} cluster.")
 
@@ -59,7 +60,6 @@ def run_ipu_tasks():
 
 
 if __name__ == "__main__":
-    setup_global_env()
     try:
         run_ipu_tasks()
     except (KeyboardInterrupt, SystemExit):

@@ -6,12 +6,6 @@ from storage_workflows.logging.logger import Logger
 logger = Logger()
 
 
-# Global variables declaration
-deployment_env = None
-region = None
-cluster_name = None
-
-
 def setup_env(deployment_env, region, cluster_name=""):
     # handle cluster_name with hyphens instead of underscores
     cluster_names_to_modify = ['url_shortener', 'revenue_platform']
