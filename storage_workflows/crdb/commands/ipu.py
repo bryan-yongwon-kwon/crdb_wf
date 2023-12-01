@@ -30,10 +30,8 @@ def update_and_drain_nodes():
 
     for node in nodes:
         try:
-            # Connect to the node and run the download_and_setup_cockroachdb method
-            node.ssh_client.connect_to_node()
-            node.ssh_client.download_and_setup_crdb()
-            node.ssh_client.close_connection()
+            # Call the download_and_setup_crdb method (SSH connection handled within the method)
+            node.download_and_setup_crdb()
 
             # standby will reduce the node count by one
             # decrease min-capacity by one if min-capacity is equal to current capacity
