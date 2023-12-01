@@ -90,7 +90,6 @@ def run_ipu_tasks():
     scheduler.add_listener(job_executed_listener, EVENT_JOB_EXECUTED)
     scheduler.add_listener(job_error_listener, EVENT_JOB_ERROR)
 
-    # Schedule the 'update_and_drain_nodes' function to be executed immediately.
     # The 'date' trigger is used here to schedule a job for a specific point in time.
     # Since 'run_date' is not specified, it defaults to now (i.e., immediate execution).
     scheduler.add_job(lambda: update_and_drain_nodes(), 'date')

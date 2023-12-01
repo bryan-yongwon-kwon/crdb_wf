@@ -52,8 +52,10 @@ class Node:
 
     def __init__(self, api_response):
         self.api_response = api_response
-        self.instance_id = self.get_instance_id()
 
+    @cached_property
+    def instance_id(self):
+        return self.get_instance_id()
     @property
     def cluster_name(self):
         return os.getenv('CLUSTER_NAME')
