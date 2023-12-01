@@ -34,11 +34,18 @@ def update_and_drain_nodes():
             node.ssh_client.download_and_setup_crdb()
             node.ssh_client.close_connection()
 
-            # Detach the node from its auto-scaling group
-            AutoScalingGroupGateway.detach_instance_from_autoscaling_group([node.instance_id], asg_name)
+            # standby will reduce the node count by one
+            # decrease min-capacity by one if min-capacity is equal to current capacity
+            AutoScalingGroupGateway.decrease_min_capacity(asg_name)
 
-            # Drain the node
+            # enter standby mode
+            AutoScalingGroupGateway.enter_instances_into_standby(asg_name, [node.instance_id])
+
+            # Drain and restart
             node.drain()
+
+            # exit standby mode
+            AutoScalingGroupGateway.exit_instances_from_standby(asg_name, [node.instance_id])
 
             logger.info(f"Successfully updated and drained node with IP {node.ip_address}.")
 

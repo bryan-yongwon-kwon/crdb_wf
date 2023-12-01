@@ -196,3 +196,43 @@ class AutoScalingGroupGateway:
         else:
             logger.error("Both LaunchTemplateId and LaunchConfigurationName are missing.")
             return None
+
+    @staticmethod
+    def get_auto_scaling_group_capacity(auto_scaling_group_name):
+        auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
+        response = auto_scaling_group_aws_client.describe_auto_scaling_groups(
+            AutoScalingGroupNames=[auto_scaling_group_name]
+        )
+        asg_details = response['AutoScalingGroups'][0]
+        return asg_details['MinSize'], asg_details['MaxSize'], asg_details['DesiredCapacity']
+
+    @staticmethod
+    def set_auto_scaling_group_capacity(auto_scaling_group_name, min_size, max_size, desired_capacity):
+        auto_scaling_group_aws_client = AwsSessionFactory.auto_scaling()
+        auto_scaling_group_aws_client.update_auto_scaling_group(
+            AutoScalingGroupName=auto_scaling_group_name,
+            MinSize=min_size,
+            MaxSize=max_size,
+            DesiredCapacity=desired_capacity
+        )
+        logger.info(f'Updated {auto_scaling_group_name} ASG with MinSize: {min_size}, MaxSize: {max_size}, DesiredCapacity: {desired_capacity}.')
+
+    @staticmethod
+    def decrease_min_capacity(auto_scaling_group_name):
+        min_size, max_size, desired_capacity = AutoScalingGroupGateway.get_auto_scaling_group_capacity(
+            auto_scaling_group_name)
+
+        # Only decrease if min_capacity is same as desired_capacity and more than 2
+        if min_size == desired_capacity and min_size > 2:
+            AutoScalingGroupGateway.set_auto_scaling_group_capacity(auto_scaling_group_name, min_size - 1, max_size,
+                                                                    desired_capacity)
+            logger.info(f'Decreased minimum capacity of {auto_scaling_group_name} by 1.')
+        else:
+            logger.info(
+                f'Cannot decrease minimum capacity of {auto_scaling_group_name}. Current MinSize: {min_size}, DesiredCapacity: {desired_capacity}.')
+
+    @staticmethod
+    def increase_min_capacity(auto_scaling_group_name):
+        min_size, max_size, desired_capacity = AutoScalingGroupGateway.get_auto_scaling_group_capacity(auto_scaling_group_name)
+        AutoScalingGroupGateway.set_auto_scaling_group_capacity(auto_scaling_group_name, min_size + 1, max_size, desired_capacity)
+        logger.info(f'Increased minimum capacity of {auto_scaling_group_name} by 1.')
