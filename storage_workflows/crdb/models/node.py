@@ -253,15 +253,15 @@ class Node:
 
             # Download the binary
             download_binary_command = f"wget -q {binary_url} -O /tmp/cockroachdb.tgz"
-            self.ssh_client.execute_command(download_binary_command)
+            ssh_client.execute_command(download_binary_command)
 
             # Extract the binary
             extract_command = "tar xvf /tmp/cockroachdb.tgz -C /tmp"
-            self.ssh_client.execute_command(extract_command)
+            ssh_client.execute_command(extract_command)
 
             # Rename 'cockroach' to 'crdb'
             rename_command = f"mv /tmp/cockroach-v{version}/cockroach /tmp/crdb"
-            self.ssh_client.execute_command(rename_command.format(version=version))
+            ssh_client.execute_command(rename_command.format(version=version))
 
             # Install the files
             install_commands = [
