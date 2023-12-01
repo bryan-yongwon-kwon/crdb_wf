@@ -7,6 +7,7 @@ from storage_workflows.logging.logger import Logger
 from storage_workflows.setup_global_env import setup_global_env
 from storage_workflows.setup_env import setup_env
 from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 
 app = typer.Typer()
 logger = Logger()
@@ -64,9 +65,50 @@ def run_ipu_tasks():
     scheduler.start()
 
 
+@app.command()
+def run_ipu_tasks():
+    # Initialize a BlockingScheduler.
+    # BlockingScheduler is a type of scheduler provided by APScheduler.
+    # It runs in the foreground (blocking the main thread) and is useful for scripts that have no I/O loop.
+    scheduler = BlockingScheduler()
+
+    def job_executed_listener(event):
+        # This function is called when a job is executed successfully.
+        # It logs a message and then shuts down the scheduler.
+        logger.info("Job executed successfully.")
+        scheduler.shutdown(wait=False)
+
+    def job_error_listener(event):
+        # This function is called when a job encounters an error.
+        # It logs an error message with the exception that occurred and then shuts down the scheduler.
+        logger.error(f"Job encountered an error: {event.exception}")
+        scheduler.shutdown(wait=False)
+
+    # Attach event listeners to the scheduler.
+    # EVENT_JOB_EXECUTED is triggered when a job is successfully executed.
+    # EVENT_JOB_ERROR is triggered when a job execution fails with an error.
+    scheduler.add_listener(job_executed_listener, EVENT_JOB_EXECUTED)
+    scheduler.add_listener(job_error_listener, EVENT_JOB_ERROR)
+
+    # Schedule the 'update_and_drain_nodes' function to be executed immediately.
+    # The 'date' trigger is used here to schedule a job for a specific point in time.
+    # Since 'run_date' is not specified, it defaults to now (i.e., immediate execution).
+    scheduler.add_job(lambda: update_and_drain_nodes(), 'date')
+
+    # Start the scheduler.
+    # The scheduler will execute the scheduled job and then shut down (either on successful completion or error),
+    # based on the event listeners defined above.
+    scheduler.start()
+
+
 if __name__ == "__main__":
     try:
+        # Set up the global environment variables.
         setup_global_env()
+
+        # Run the scheduled tasks.
         run_ipu_tasks()
     except (KeyboardInterrupt, SystemExit):
-        pass
+        # Handle keyboard interrupt or system exit (like Ctrl+C).
+        # This block ensures graceful shutdown in case of such interruptions.
+        logger.info("Scheduler stopped.")
