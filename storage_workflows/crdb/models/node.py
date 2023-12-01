@@ -253,21 +253,23 @@ class Node:
 
             # Download the binary
             download_binary_command = f"wget -q {binary_url} -O /tmp/cockroachdb.tgz"
-            ssh_client.execute_command(download_binary_command)
+            self.ssh_client.execute_command(download_binary_command)
 
             # Extract the binary
             extract_command = "tar xvf /tmp/cockroachdb.tgz -C /tmp"
-            ssh_client.execute_command(extract_command)
+            self.ssh_client.execute_command(extract_command)
 
             # Rename 'cockroach' to 'crdb'
-            rename_command = "mv /tmp/cockroach-v{version}/cockroach /tmp/crdb"
-            ssh_client.execute_command(rename_command.format(version=version))
+            rename_command = f"mv /tmp/cockroach-v{version}/cockroach /tmp/crdb"
+            self.ssh_client.execute_command(rename_command.format(version=version))
 
             # Install the files
             install_commands = [
                 "sudo install /tmp/crdb /usr/local/bin/crdb",
                 "sudo install /tmp/libgeos_c.so /usr/local/lib/cockroach/libgeos_c.so",
-                "sudo install /tmp/libgeos.so /usr/local/lib/cockroach/libgeos.so"
+                "sudo install /tmp/libgeos.so /usr/local/lib/cockroach/libgeos.so",
+                f"sudo ls /tmp/cockroach-v{version}/",
+                f"sudo ls /tmp/"
             ]
             for command in install_commands:
                 ssh_client.execute_command(command)
