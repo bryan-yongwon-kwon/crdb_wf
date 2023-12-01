@@ -283,7 +283,7 @@ class Node:
                 execute_ssh_command(command)
 
             # Clean up temporary files
-            cleanup_command = f"rm -rf /tmp/cockroach-v{version} /tmp/cockroachdb.tgz"
+            cleanup_command = f"rm -rf /tmp/cockroach-v{version}.{architecture} /tmp/cockroachdb.tgz"
             execute_ssh_command(cleanup_command.format(version=version))
 
             logger.info(f"CockroachDB version {version} installed successfully.")
