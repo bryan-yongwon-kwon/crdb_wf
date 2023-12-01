@@ -229,7 +229,8 @@ class AutoScalingGroupGateway:
             logger.info(f'Decreased minimum capacity of {auto_scaling_group_name} by 1.')
         else:
             logger.info(
-                f'Cannot decrease minimum capacity of {auto_scaling_group_name}. Current MinSize: {min_size}, DesiredCapacity: {desired_capacity}.')
+                f'Decreasing minimum capacity for {auto_scaling_group_name} not needed. '
+                f'Current MinSize: {min_size}, DesiredCapacity: {desired_capacity}.')
 
     @staticmethod
     def increase_min_capacity(auto_scaling_group_name):

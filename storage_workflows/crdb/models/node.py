@@ -270,14 +270,14 @@ class Node:
             execute_ssh_command(extract_command)
 
             # Rename 'cockroach' to 'crdb'
-            rename_command = f"mv /tmp/cockroach-v{version}/cockroach /tmp/crdb"
+            rename_command = f"mv /tmp/cockroach-v{version}.{architecture}/cockroach /tmp/cockroach-v{version}.{architecture}/crdb"
             execute_ssh_command(rename_command.format(version=version))
 
             # Install the files
             install_commands = [
-                "sudo install /tmp/crdb /usr/local/bin/crdb",
-                "sudo install /tmp/libgeos_c.so /usr/local/lib/cockroach/libgeos_c.so",
-                "sudo install /tmp/libgeos.so /usr/local/lib/cockroach/libgeos.so"
+                f"sudo install /tmp/cockroach-v{version}.{architecture}/crdb /usr/local/bin/crdb",
+                f"sudo install /tmp/cockroach-v{version}.{architecture}/libgeos_c.so /usr/local/lib/cockroach/libgeos_c.so",
+                f"sudo install /tmp/cockroach-v{version}.{architecture}/libgeos.so /usr/local/lib/cockroach/libgeos.so"
             ]
             for command in install_commands:
                 execute_ssh_command(command)
