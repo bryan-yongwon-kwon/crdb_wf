@@ -276,8 +276,8 @@ class Node:
             # Install the files
             install_commands = [
                 f"sudo install /tmp/cockroach-v{version}.{architecture}/crdb /usr/local/bin/crdb",
-                f"sudo install /tmp/cockroach-v{version}.{architecture}/libgeos_c.so /usr/local/lib/cockroach/libgeos_c.so",
-                f"sudo install /tmp/cockroach-v{version}.{architecture}/libgeos.so /usr/local/lib/cockroach/libgeos.so"
+                f"sudo install /tmp/cockroach-v{version}.{architecture}/lib/libgeos_c.so /usr/local/lib/cockroach/libgeos_c.so",
+                f"sudo install /tmp/cockroach-v{version}.{architecture}/lib/libgeos.so /usr/local/lib/cockroach/libgeos.so"
             ]
             for command in install_commands:
                 execute_ssh_command(command)
