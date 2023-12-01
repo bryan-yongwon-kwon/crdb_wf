@@ -241,10 +241,20 @@ class Node:
         ssh_client.connect_to_node()  # Establish SSH connection
 
         try:
+            # Function to execute SSH command and log output
+            def execute_ssh_command(command):
+                stdin, stdout, stderr = ssh_client.execute_command(command)
+                output = stdout.readlines()
+                error = stderr.readlines()
+                if output:
+                    logger.info(f'Output for command "{command}": {output}')
+                if error:
+                    logger.error(f'Error for command "{command}": {error}')
+                return output, error
+
             # Determine instance type for selecting the correct binary
             instance_type_command = "ec2metadata | grep 'instance-type:' | awk '{print $2}'"
-            stdin, stdout, stderr = ssh_client.execute_command(instance_type_command)
-            instance_type_output = stdout.readlines()
+            instance_type_output, _ = execute_ssh_command(instance_type_command)
             instance_type = instance_type_output[0].strip() if instance_type_output else ""
 
             # Determine the correct binary URL
@@ -253,30 +263,29 @@ class Node:
 
             # Download the binary
             download_binary_command = f"wget -q {binary_url} -O /tmp/cockroachdb.tgz"
-            ssh_client.execute_command(download_binary_command)
+            execute_ssh_command(download_binary_command)
 
             # Extract the binary
             extract_command = "tar xvf /tmp/cockroachdb.tgz -C /tmp"
-            ssh_client.execute_command(extract_command)
+            execute_ssh_command(extract_command)
 
             # Rename 'cockroach' to 'crdb'
             rename_command = f"mv /tmp/cockroach-v{version}/cockroach /tmp/crdb"
-            ssh_client.execute_command(rename_command.format(version=version))
+            execute_ssh_command(rename_command.format(version=version))
 
             # Install the files
             install_commands = [
                 "sudo install /tmp/crdb /usr/local/bin/crdb",
                 "sudo install /tmp/libgeos_c.so /usr/local/lib/cockroach/libgeos_c.so",
-                "sudo install /tmp/libgeos.so /usr/local/lib/cockroach/libgeos.so",
-                f"sudo ls /tmp/cockroach-v{version}/",
-                f"sudo ls /tmp/"
+                "sudo install /tmp/libgeos.so /usr/local/lib/cockroach/libgeos.so"
             ]
             for command in install_commands:
-                ssh_client.execute_command(command)
+                execute_ssh_command(command)
 
             # Clean up temporary files
-            ssh_client.execute_command("rm -rf /tmp/cockroach-v{version} /tmp/cockroachdb.tgz".format(version=version))
+            cleanup_command = f"rm -rf /tmp/cockroach-v{version} /tmp/cockroachdb.tgz"
+            execute_ssh_command(cleanup_command.format(version=version))
 
-            logger.info("CockroachDB version {version} installed successfully.".format(version=version))
+            logger.info(f"CockroachDB version {version} installed successfully.")
         finally:
-            ssh_client.close_connection()  # Ensure the SSH connection is closed
+            ssh_client.close_connection()
