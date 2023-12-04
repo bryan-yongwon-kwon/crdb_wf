@@ -420,7 +420,6 @@ def decommission_nodes_if_healthy(cluster_name, old_nodes):
 
 
 def check_and_handle_changefeeds(cluster_name, workflow_id):
-    check_changefeeds(cluster_name, workflow_id, "initial")
     time.sleep(120)
     check_changefeeds(cluster_name, workflow_id, "post-resume")
 
@@ -428,9 +427,6 @@ def check_and_handle_changefeeds(cluster_name, workflow_id):
 def check_changefeeds(cluster_name, workflow_id, stage):
     paused_changefeeds, failed_changefeeds, unexpected_changefeeds = ChangefeedJob.compare_current_to_persisted_metadata(
         cluster_name, workflow_id)
-    if stage == "initial":
-        for changefeed in paused_changefeeds:
-            changefeed.resume()
     if failed_changefeeds:
         raise Exception("Found failed changefeeds after decommission.")
     if paused_changefeeds:

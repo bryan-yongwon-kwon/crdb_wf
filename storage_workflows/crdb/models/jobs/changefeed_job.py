@@ -105,9 +105,11 @@ class ChangefeedJob(BaseJob):
             if matching_persisted:
                 # Check for paused changefeeds based on running_status and status columns
                 if current.status == "paused" and matching_persisted.status == "running":
+                    logger.info(f"adding to paused job list. current job: {current}")
                     paused_changefeeds.append(current)
                 # Check for failed changefeeds
                 elif current.status == "failed":
+                    logger.info(f"adding to failed job list. current job: {current}")
                     failed_changefeeds.append(current)
                 elif current.status in ChangefeedJob.UNEXPECTED_STATUSES:
                     unexpected_changefeeds.append(current)

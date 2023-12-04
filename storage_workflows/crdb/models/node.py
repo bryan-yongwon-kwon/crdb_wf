@@ -8,6 +8,8 @@ from storage_workflows.crdb.connect.ssh import SSH
 from storage_workflows.logging.logger import Logger
 
 logger = Logger()
+
+
 class Node:
     CRONTAB_SCRIPTS_DIR = '/root/.cockroach-certs/'
 
@@ -15,7 +17,7 @@ class Node:
     def get_nodes():
         session = CrdbApiGateway.login()
         return list(map(lambda node: Node(node), CrdbApiGateway.list_nodes(session)['nodes']))
-    
+
     @staticmethod
     def stop_crdb(ip):
         ssh_client = SSH(ip)
@@ -53,6 +55,10 @@ class Node:
     def __init__(self, api_response):
         self.api_response = api_response
 
+    @cached_property
+    def instance_id(self):
+        return self.get_instance_id()
+
     @property
     def cluster_name(self):
         return os.getenv('CLUSTER_NAME')
@@ -64,11 +70,11 @@ class Node:
     @property
     def id(self):
         return self.api_response['node_id']
-    
+
     @property
     def major_version(self):
         return self.api_response['ServerVersion']['major']
-    
+
     @property
     def minor_version(self):
         return self.api_response['ServerVersion']['major']['minor']
@@ -76,49 +82,49 @@ class Node:
     @property
     def ip_address(self):
         return str(self.api_response['address']['address_field']).split(":")[0]
-    
+
     @property
     def started_at(self):
         return self.api_response['started_at']
-    
+
     @property
     def sql_conns(self):
         return int(self.api_response['metrics']['sql.conns'])
-      
+
     @property
     def replicas(self):
         stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
         replicas_list = map(lambda store: int(store['metrics']['replicas']), stores)
-        return reduce(lambda replica_count_1, replica_count_2: replica_count_1+replica_count_2, replicas_list)
-    
+        return reduce(lambda replica_count_1, replica_count_2: replica_count_1 + replica_count_2, replicas_list)
+
     @property
     def overreplicated_ranges(self):
         stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
         ranges_list = map(lambda store: int(store['metrics']['ranges.overreplicated']), stores)
-        return reduce(lambda range_count_1, range_count_2: range_count_1+range_count_2, ranges_list)
-    
+        return reduce(lambda range_count_1, range_count_2: range_count_1 + range_count_2, ranges_list)
+
     @property
     def unavailable_ranges(self):
         stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
         ranges_list = map(lambda store: int(store['metrics']['ranges.unavailable']), stores)
-        return reduce(lambda range_count_1, range_count_2: range_count_1+range_count_2, ranges_list)
-    
+        return reduce(lambda range_count_1, range_count_2: range_count_1 + range_count_2, ranges_list)
+
     @property
     def underreplicated_ranges(self):
         stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
         ranges_list = map(lambda store: int(store['metrics']['ranges.underreplicated']), stores)
-        return reduce(lambda range_count_1, range_count_2: range_count_1+range_count_2, ranges_list)
-    
+        return reduce(lambda range_count_1, range_count_2: range_count_1 + range_count_2, ranges_list)
+
     @property
     def applied_initial_snapshots(self):
         stores = CrdbApiGateway.get_node_details_from_endpoint(CrdbApiGateway.login(), self.id)['storeStatuses']
         snapshots_list = map(lambda store: int(store['metrics']['range.snapshots.applied-initial']), stores)
-        return reduce(lambda range_count_1, range_count_2: range_count_1+range_count_2, snapshots_list)
-    
+        return reduce(lambda range_count_1, range_count_2: range_count_1 + range_count_2, snapshots_list)
+
     @cached_property
     def ssh_client(self):
         return SSH(self.ip_address)
-    
+
     def reload(self):
         self.api_response = list(filter(lambda node: node.id == self.id, Node.get_nodes()))[0].api_response
 
@@ -126,11 +132,12 @@ class Node:
         certs_dir = os.getenv('CRDB_CERTS_DIR_PATH_PREFIX') + "/" + self.cluster_name + "/"
         CrdbConnection.get_crdb_connection(self.cluster_name)
         formatted_cluster_name = "{}-{}".format(self.cluster_name.replace('_', '-'), os.getenv('DEPLOYMENT_ENV'))
-        node_drain_command = "crdb{} node drain {} --host={}:26256 --certs-dir={} --cluster-name={}".format(self.major_version, 
-                                                                                                            self.id, 
-                                                                                                            self.ip_address, 
-                                                                                                            certs_dir, 
-                                                                                                            formatted_cluster_name)
+        node_drain_command = "crdb{} node drain {} --host={}:26256 --certs-dir={} --cluster-name={}".format(
+            self.major_version,
+            self.id,
+            self.ip_address,
+            certs_dir,
+            formatted_cluster_name)
         result = subprocess.run(node_drain_command, capture_output=True, shell=True)
         logger.error(result.stderr)
         result.check_returncode()
@@ -145,13 +152,27 @@ class Node:
         self.ssh_client.close_connection()
         logger.info("Service restarted.")
 
-    def schedule_cron_jobs(self, crontab_file_lines:list):
+    def get_instance_id(self):
+        """Fetches the instance ID using ec2metadata command."""
+        try:
+            self.ssh_client.connect_to_node()
+            stdin, stdout, stderr = self.ssh_client.execute_command("ec2metadata --instance-id")
+            instance_id = stdout.read().decode().strip()
+            logger.info(f"instance_id from ec2metadata: {instance_id}")
+            return instance_id
+        except Exception as e:
+            logger.error(f"Error fetching instance ID : {e}")
+            return None
+        finally:
+            self.ssh_client.close_connection()
+
+    def schedule_cron_jobs(self, crontab_file_lines: list):
         def cron_job_already_exists(ssh_client: SSH, job: str) -> bool:
             command = 'sudo crontab -l'.format(job)
             stdin, stdout, stderr = ssh_client.execute_command(command)
             jobs = set(map(lambda job: str(job).rstrip(), stdout.readlines()))
             return job in jobs
-        
+
         new_node_ssh_client = self.ssh_client
         new_node_ssh_client.connect_to_node()
         new_node_ssh_client.execute_command('sudo mkdir /var/log/crdb/export_logs && \
@@ -175,10 +196,11 @@ class Node:
         new_node_ssh_client = self.ssh_client
         new_node_ssh_client.connect_to_node()
         old_node_ssh_client.connect_to_node()
-        old_node_script_names = filter(lambda file_name: '.sh' in file_name, 
-                                    old_node_ssh_client.list_remote_dir_with_root(Node.CRONTAB_SCRIPTS_DIR))
+        old_node_script_names = filter(lambda file_name: '.sh' in file_name,
+                                       old_node_ssh_client.list_remote_dir_with_root(Node.CRONTAB_SCRIPTS_DIR))
         for script_name in old_node_script_names:
-            logger.info("Moving script {} from {} to {}".format(script_name, old_node_ssh_client.ip, new_node_ssh_client.ip))
+            logger.info(
+                "Moving script {} from {} to {}".format(script_name, old_node_ssh_client.ip, new_node_ssh_client.ip))
             file_path = Node.CRONTAB_SCRIPTS_DIR + script_name
             lines = old_node_ssh_client.read_remote_file_with_root(file_path)
             new_node_ssh_client.write_remote_file_with_root(file_lines=lines, file_path=file_path)
@@ -199,3 +221,71 @@ class Node:
 
         finally:
             self.ssh_client.close_connection()
+
+    def restart_crdb(self):
+        logger.info(f"Restarting CockroachDB on node {self.ip_address}...")
+
+        # First, stop the CockroachDB service
+        Node.stop_crdb(self.ip_address)
+
+        # Then, start the CockroachDB service
+        Node.start_crdb(self.ip_address)
+
+        logger.info(f"CockroachDB restarted on node {self.ip_address}")
+
+    def download_and_setup_crdb(self):
+        version = os.environ['CRDB_VERSION']
+        ip = self.ip_address  # Retrieve the IP address of the current node
+
+        ssh_client = SSH(ip)
+        ssh_client.connect_to_node()  # Establish SSH connection
+
+        try:
+            # Function to execute SSH command and log output
+            def execute_ssh_command(command):
+                stdin, stdout, stderr = ssh_client.execute_command(command)
+                output = stdout.readlines()
+                error = stderr.readlines()
+                if output:
+                    logger.info(f'Output for command "{command}": {output}')
+                if error:
+                    logger.error(f'Error for command "{command}": {error}')
+                return output, error
+
+            # Determine instance type for selecting the correct binary
+            instance_type_command = "ec2metadata | grep 'instance-type:' | awk '{print $2}'"
+            instance_type_output, _ = execute_ssh_command(instance_type_command)
+            instance_type = instance_type_output[0].strip() if instance_type_output else ""
+
+            # Determine the correct binary URL
+            architecture = 'linux-amd64' if 'm6i.' in instance_type or 'm5.' in instance_type or 'r5.' in instance_type else 'linux-arm64'
+            binary_url = f"https://binaries.cockroachdb.com/cockroach-v{version}.{architecture}.tgz"
+
+            # Download the binary
+            download_binary_command = f"wget -q {binary_url} -O /tmp/cockroachdb.tgz"
+            execute_ssh_command(download_binary_command)
+
+            # Extract the binary
+            extract_command = "tar xvf /tmp/cockroachdb.tgz -C /tmp"
+            execute_ssh_command(extract_command)
+
+            # Rename 'cockroach' to 'crdb'
+            rename_command = f"mv /tmp/cockroach-v{version}.{architecture}/cockroach /tmp/cockroach-v{version}.{architecture}/crdb"
+            execute_ssh_command(rename_command.format(version=version))
+
+            # Install the files
+            install_commands = [
+                f"sudo install /tmp/cockroach-v{version}.{architecture}/crdb /usr/local/bin/crdb",
+                f"sudo install /tmp/cockroach-v{version}.{architecture}/lib/libgeos_c.so /usr/local/lib/cockroach/libgeos_c.so",
+                f"sudo install /tmp/cockroach-v{version}.{architecture}/lib/libgeos.so /usr/local/lib/cockroach/libgeos.so"
+            ]
+            for command in install_commands:
+                execute_ssh_command(command)
+
+            # Clean up temporary files
+            cleanup_command = f"rm -rf /tmp/cockroach-v{version}.{architecture} /tmp/cockroachdb.tgz"
+            execute_ssh_command(cleanup_command.format(version=version))
+
+            logger.info(f"CockroachDB version {version} installed successfully.")
+        finally:
+            ssh_client.close_connection()
